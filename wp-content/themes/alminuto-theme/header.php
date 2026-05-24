@@ -84,24 +84,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<aside class="am-top-banner-sidebar">
 				<?php
 				$columna_html = '';
-				if ( function_exists( 'shortcode_exists' ) && shortcode_exists( 'alminuto_columna_dcha' ) ) {
-					$columna_html = do_shortcode( '[alminuto_columna_dcha]' );
+				if ( function_exists( 'shortcode_exists' ) && shortcode_exists( 'alminuto_sidebar_right' ) ) {
+					$columna_html = do_shortcode( '[alminuto_sidebar_right]' );
 				}
 				if ( trim( wp_strip_all_tags( $columna_html ) ) !== '' ) {
 					echo wp_kses_post( $columna_html );
 				} elseif ( is_active_sidebar( 'top-right' ) ) {
 					dynamic_sidebar( 'top-right' );
-				} else {
-					?>
-					<div class="am-card">
-						<div class="am-card-body">
-							<h3 style="margin:0 0 10px;font-size:16px;font-weight:900;">Noticias con rigor</h3>
-							<div class="am-content" style="font-size:14px;">
-								Activa este bloque desde WP Admin → Columna derecha, o añade widgets en “Top derecha (home)”.
-							</div>
-						</div>
-					</div>
-					<?php
 				}
 				?>
 			</aside>
