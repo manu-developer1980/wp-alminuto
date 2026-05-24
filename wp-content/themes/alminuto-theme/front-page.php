@@ -24,6 +24,37 @@ get_header();
 		}
 		?>
 		<?php
+		?>
+
+		<section class="am-top-banners" id="bannersSuperiores">
+			<div class="am-top-banners-grid">
+				<div class="am-top-banner am-top-banner--left">
+					<?php if ( function_exists( 'do_shortcode' ) ) : ?>
+						<?php echo do_shortcode( '[banners_alminuto slot="top_left" slider="1" limit="10" autoplay="9500"]' ); ?>
+					<?php endif; ?>
+				</div>
+				<div class="am-top-banner am-top-banner--mid">
+					<?php if ( function_exists( 'do_shortcode' ) ) : ?>
+						<?php echo do_shortcode( '[banners_alminuto slot="top_mid" slider="1" limit="10" autoplay="9500"]' ); ?>
+					<?php endif; ?>
+				</div>
+				<aside class="am-top-banner-sidebar">
+					<?php
+					$columna_html = '';
+					if ( function_exists( 'shortcode_exists' ) && shortcode_exists( 'alminuto_sidebar_right' ) ) {
+						$columna_html = do_shortcode( '[alminuto_sidebar_right]' );
+					}
+					if ( trim( wp_strip_all_tags( $columna_html ) ) !== '' ) {
+						echo wp_kses_post( $columna_html );
+					} elseif ( is_active_sidebar( 'top-right' ) ) {
+						dynamic_sidebar( 'top-right' );
+					}
+					?>
+				</aside>
+			</div>
+		</section>
+
+		<?php
 		$left_query = new WP_Query(
 			[
 				'post_type'           => 'post',

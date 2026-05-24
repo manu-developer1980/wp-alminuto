@@ -141,7 +141,10 @@ img { max-width: 100%; height: auto; display: block; }
 
 .am-top-banners {
   background: #eee;
-  padding: 12px 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--am-border);
+  margin-bottom: 14px;
 }
 .am-top-banners-grid {
   display: grid;

@@ -420,7 +420,8 @@ function alminuto_sidebar_right_render_admin_page() {
 					<th scope="row">Imagen</th>
 					<td>
 						<input type="hidden" name="news_rigor_image_id" id="news_rigor_image_id" value="<?php echo esc_attr( (string) (int) $opts['news_rigor_image_id'] ); ?>">
-						<button type="button" class="button" id="news_rigor_pick">Elegir imagen</button>
+						<button type="button" class="button" id="news_rigor_pick"><?php echo (int) $opts['news_rigor_image_id'] > 0 ? 'Cambiar imagen' : 'Elegir imagen'; ?></button>
+						<button type="button" class="button" id="news_rigor_clear" <?php echo (int) $opts['news_rigor_image_id'] > 0 ? '' : 'disabled'; ?>>Quitar</button>
 						<div id="news_rigor_preview" style="margin-top:10px;max-width:320px;">
 							<?php
 							if ( (int) $opts['news_rigor_image_id'] > 0 ) {
@@ -466,7 +467,8 @@ function alminuto_sidebar_right_render_admin_page() {
 					<th scope="row">Imagen principal</th>
 					<td>
 						<input type="hidden" name="publi_main_image_id" id="publi_main_image_id" value="<?php echo esc_attr( (string) (int) $opts['publi_main_image_id'] ); ?>">
-						<button type="button" class="button" id="publi_main_pick">Elegir imagen</button>
+						<button type="button" class="button" id="publi_main_pick"><?php echo (int) $opts['publi_main_image_id'] > 0 ? 'Cambiar imagen' : 'Elegir imagen'; ?></button>
+						<button type="button" class="button" id="publi_main_clear" <?php echo (int) $opts['publi_main_image_id'] > 0 ? '' : 'disabled'; ?>>Quitar</button>
 						<div id="publi_main_preview" style="margin-top:10px;max-width:320px;">
 							<?php
 							if ( (int) $opts['publi_main_image_id'] > 0 ) {
@@ -519,6 +521,19 @@ function alminuto_sidebar_right_render_admin_page() {
 	</div>
 	<script>
 	(function($){
+		function previewUrl(att){
+			if (att && att.sizes) {
+				if (att.sizes.medium) return att.sizes.medium.url;
+				if (att.sizes.large) return att.sizes.large.url;
+				if (att.sizes.thumbnail) return att.sizes.thumbnail.url;
+			}
+			return att && att.url ? att.url : '';
+		}
+		function thumbUrl(att){
+			if (att && att.sizes && att.sizes.thumbnail) return att.sizes.thumbnail.url;
+			return previewUrl(att);
+		}
+
 		function pickImage(onSelect){
 			var frame = wp.media({title:'Selecciona una imagen', multiple:false, library:{type:'image'}});
 			frame.on('select', function(){
@@ -531,25 +546,56 @@ function alminuto_sidebar_right_render_admin_page() {
 		$('#news_rigor_pick').on('click', function(){
 			pickImage(function(att){
 				$('#news_rigor_image_id').val(att.id);
-				$('#news_rigor_preview').html('<img src="'+att.sizes.medium.url+'" style="max-width:100%;height:auto;">');
+				$('#news_rigor_preview').html('<img src="'+previewUrl(att)+'" style="max-width:100%;height:auto;">');
+				$('#news_rigor_clear').prop('disabled', false);
+				$('#news_rigor_pick').text('Cambiar imagen');
 			});
+		});
+		$('#news_rigor_clear').on('click', function(){
+			$('#news_rigor_image_id').val('');
+			$('#news_rigor_preview').empty();
+			$('#news_rigor_clear').prop('disabled', true);
+			$('#news_rigor_pick').text('Elegir imagen');
 		});
 
 		$('#publi_main_pick').on('click', function(){
 			pickImage(function(att){
 				$('#publi_main_image_id').val(att.id);
-				$('#publi_main_preview').html('<img src="'+att.sizes.medium.url+'" style="max-width:100%;height:auto;">');
+				$('#publi_main_preview').html('<img src="'+previewUrl(att)+'" style="max-width:100%;height:auto;">');
+				$('#publi_main_clear').prop('disabled', false);
+				$('#publi_main_pick').text('Cambiar imagen');
 			});
 		});
+		$('#publi_main_clear').on('click', function(){
+			$('#publi_main_image_id').val('');
+			$('#publi_main_preview').empty();
+			$('#publi_main_clear').prop('disabled', true);
+			$('#publi_main_pick').text('Elegir imagen');
+		});
+
+		function renumberGallery(){
+			$('#publi_gallery_list .publi-item').each(function(i){
+				var $li = $(this);
+				$li.attr('data-index', i);
+				$li.find('input,select,textarea').each(function(){
+					var $el = $(this);
+					var name = $el.attr('name');
+					if (!name) return;
+					name = name.replace(/publi_gallery\\[[0-9]+\\]/g, 'publi_gallery['+i+']');
+					$el.attr('name', name);
+				});
+			});
+		}
 
 		function initGalleryItem($li){
 			$li.find('.publi-remove').on('click', function(){
 				$li.remove();
+				renumberGallery();
 			});
 			$li.find('.publi-pick').on('click', function(){
 				pickImage(function(att){
 					$li.find('input[type=hidden][name*=\"[id]\"]').val(att.id);
-					$li.find('.publi-preview').html('<img src=\"'+(att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url)+'\" style=\"max-width:100%;height:auto;\">');
+					$li.find('.publi-preview').html('<img src=\"'+thumbUrl(att)+'\" style=\"max-width:100%;height:auto;\">');
 				});
 			});
 		}
@@ -558,7 +604,10 @@ function alminuto_sidebar_right_render_admin_page() {
 
 		$('#publi_gallery_list').sortable({
 			items: '> li',
-			axis: 'y'
+			axis: 'y',
+			stop: function(){
+				renumberGallery();
+			}
 		});
 
 		$('#publi_gallery_add').on('click', function(){
@@ -585,7 +634,8 @@ function alminuto_sidebar_right_render_admin_page() {
 			initGalleryItem($li);
 			pickImage(function(att){
 				$li.find('input[type=hidden][name*=\"[id]\"]').val(att.id);
-				$li.find('.publi-preview').html('<img src=\"'+(att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url)+'\" style=\"max-width:100%;height:auto;\">');
+				$li.find('.publi-preview').html('<img src=\"'+thumbUrl(att)+'\" style=\"max-width:100%;height:auto;\">');
+				renumberGallery();
 			});
 		});
 	})(jQuery);
