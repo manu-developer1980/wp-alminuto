@@ -47,6 +47,18 @@ function alminuto_theme_register_sidebars() {
 }
 add_action( 'widgets_init', 'alminuto_theme_register_sidebars' );
 
+function alminuto_theme_force_front_page_template( $template ) {
+	if ( is_front_page() ) {
+		$front = locate_template( 'front-page.php' );
+		if ( $front ) {
+			return $front;
+		}
+	}
+
+	return $template;
+}
+add_filter( 'template_include', 'alminuto_theme_force_front_page_template', 20 );
+
 function alminuto_theme_share_links( $url, $title ) {
 	$encoded_url   = rawurlencode( $url );
 	$encoded_title = rawurlencode( $title );

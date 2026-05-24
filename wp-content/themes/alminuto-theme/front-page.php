@@ -5,6 +5,24 @@ get_header();
 ?>
 <div class="am-layout">
 	<section>
+		<?php
+		$front_id = (int) get_option( 'page_on_front' );
+		if ( $front_id ) {
+			$front_post = get_post( $front_id );
+			if ( $front_post && $front_post->post_status === 'publish' ) {
+				$content = apply_filters( 'the_content', $front_post->post_content );
+				if ( trim( wp_strip_all_tags( $content ) ) !== '' ) {
+					?>
+					<article class="am-card" style="margin-bottom:14px;">
+						<div class="am-card-body am-content">
+							<?php echo wp_kses_post( $content ); ?>
+						</div>
+					</article>
+					<?php
+				}
+			}
+		}
+		?>
 		<div class="am-post-grid">
 			<?php
 			$paged = max( 1, (int) get_query_var( 'paged' ) );
@@ -74,4 +92,3 @@ get_header();
 <?php
 
 get_footer();
-
