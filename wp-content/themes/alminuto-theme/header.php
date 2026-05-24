@@ -38,6 +38,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<small><?php bloginfo( 'description' ); ?></small>
 				</div>
 			</div>
+			<?php if ( function_exists( 'do_shortcode' ) ) : ?>
+				<?php echo do_shortcode( '[banners_alminuto]' ); ?>
+			<?php endif; ?>
 			<?php if ( is_active_sidebar( 'header-banners' ) ) : ?>
 				<?php dynamic_sidebar( 'header-banners' ); ?>
 			<?php endif; ?>
@@ -64,4 +67,3 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 <main class="am-main">
 	<div class="am-container">
-
