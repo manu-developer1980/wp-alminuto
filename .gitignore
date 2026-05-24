@@ -1,0 +1,63 @@
+# WordPress core
+/wp-admin/
+/wp-includes/
+/index.php
+/license.txt
+/readme.html
+/xmlrpc.php
+/wp-*.php
+
+# Environment-specific config
+/wp-config.php
+/.htaccess
+/.user.ini
+
+# LocalWP/local tooling
+/local-xdebuginfo.php
+
+# wp-content (track only custom code)
+/wp-content/*
+!/wp-content/plugins/
+!/wp-content/themes/
+!/wp-content/mu-plugins/
+
+# Uploads, cache and backups
+/wp-content/uploads/
+/wp-content/cache/
+/wp-content/upgrade/
+/wp-content/backup*/
+/wp-content/backups*/
+/wp-content/updraft/
+
+# Third-party plugins
+/wp-content/plugins/*
+!/wp-content/plugins/banners-al-minuto/
+!/wp-content/plugins/banners-alminuto/
+
+# Themes
+/wp-content/themes/*
+!/wp-content/themes/alminuto-theme/
+
+# MU plugins
+/wp-content/mu-plugins/*
+!/wp-content/mu-plugins/alminuto-core/
+
+# Secrets and DB exports
+.env
+.env.*
+*.sql
+*.zip
+*.tar
+*.tar.gz
+*.log
+
+# Dependencies
+node_modules/
+vendor/
+
+# OS/editor
+.trae/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
