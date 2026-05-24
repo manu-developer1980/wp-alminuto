@@ -61,3 +61,6 @@ vendor/
 Thumbs.db
 .idea/
 .vscode/
+
+# Generated assets
+/wp-content/themes/alminuto-theme/*.min.css

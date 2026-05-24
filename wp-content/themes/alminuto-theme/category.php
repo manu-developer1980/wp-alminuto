@@ -1,0 +1,68 @@
+<?php
+
+get_header();
+
+?>
+<div class="am-layout">
+	<section>
+		<div class="am-card" style="margin-bottom:14px;">
+			<div class="am-card-body">
+				<h1 style="margin:0;font-size:22px;font-weight:900;"><?php single_cat_title(); ?></h1>
+				<?php if ( category_description() ) : ?>
+					<div style="margin-top:8px;color:var(--am-muted);"><?php echo wp_kses_post( category_description() ); ?></div>
+				<?php endif; ?>
+			</div>
+		</div>
+
+		<div class="am-post-grid">
+			<?php if ( have_posts() ) : ?>
+				<?php while ( have_posts() ) : ?>
+					<?php the_post(); ?>
+					<article class="am-post">
+						<a class="am-post-thumb" href="<?php the_permalink(); ?>">
+							<?php if ( has_post_thumbnail() ) : ?>
+								<?php the_post_thumbnail( 'medium_large' ); ?>
+							<?php endif; ?>
+						</a>
+						<div class="am-post-body">
+							<div class="am-post-meta"><?php echo esc_html( get_the_date() ); ?></div>
+							<h2 class="am-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
+							<p class="am-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 22 ) ); ?></p>
+							<a class="am-btn" href="<?php the_permalink(); ?>">Leer más</a>
+						</div>
+					</article>
+				<?php endwhile; ?>
+			<?php else : ?>
+				<div class="am-card"><div class="am-card-body">No hay entradas en esta categoría.</div></div>
+			<?php endif; ?>
+		</div>
+
+		<?php
+		$pagination = paginate_links(
+			[
+				'type'      => 'array',
+				'prev_text' => '«',
+				'next_text' => '»',
+			]
+		);
+		if ( is_array( $pagination ) ) :
+			?>
+			<nav class="am-pagination" aria-label="Paginación">
+				<?php foreach ( $pagination as $link ) : ?>
+					<?php echo wp_kses_post( $link ); ?>
+				<?php endforeach; ?>
+			</nav>
+		<?php endif; ?>
+	</section>
+
+	<aside>
+		<?php if ( is_active_sidebar( 'sidebar-right' ) ) : ?>
+			<?php dynamic_sidebar( 'sidebar-right' ); ?>
+		<?php endif; ?>
+	</aside>
+</div>
+
+<?php
+
+get_footer();
+
