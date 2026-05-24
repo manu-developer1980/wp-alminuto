@@ -64,3 +64,6 @@ Thumbs.db
 
 # Generated assets
 /wp-content/themes/alminuto-theme/*.min.css
+
+# Local analysis artifacts
+/wp-content/plugins/banners-alminuto/*.html
