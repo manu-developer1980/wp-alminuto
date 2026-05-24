@@ -11,21 +11,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Verificar dependencias
-function verificar_dependencias() {
-    if ( ! function_exists( 'is_plugin_active' ) ) {
-        include_once ABSPATH . 'wp-admin/includes/plugin.php';
-    }
-    if (!is_plugin_active('post-types-order/post-types-order.php')) {
-        add_action('admin_notices', 'mostrar_aviso_dependencia');
-    }
-}
-add_action('admin_init', 'verificar_dependencias');
-
-function mostrar_aviso_dependencia() {
-    echo '<div class="error"><p>El plugin "Banners al Minuto" requiere que el plugin "Post Types Order" esté activo.</p></div>';
-}
-
 // Registrar el Custom Post Type
 function crear_cpt_banners() {
     $labels = array(
@@ -57,7 +42,7 @@ function crear_cpt_banners() {
         'has_archive'        => true,
         'hierarchical'       => false,
         'menu_position'      => null,
-        'supports'           => array('title', 'editor', 'thumbnail'),
+        'supports'           => array('title', 'thumbnail', 'page-attributes'),
         'show_in_graphql'    => true, // Habilita en WPGraphQL
         'graphql_single_name' => 'Banner', // Nombre para un solo ítem
         'graphql_plural_name' => 'Banners' // Nombre para la colección
@@ -66,6 +51,40 @@ function crear_cpt_banners() {
     register_post_type('banner', $args);
 }
 add_action('init', 'crear_cpt_banners');
+
+function banners_alminuto_admin_default_ordering( $query ) {
+	if ( ! is_admin() || ! $query->is_main_query() ) {
+		return;
+	}
+	if ( $query->get( 'post_type' ) !== 'banner' ) {
+		return;
+	}
+	if ( $query->get( 'orderby' ) ) {
+		return;
+	}
+	$query->set( 'orderby', [ 'menu_order' => 'ASC', 'date' => 'DESC' ] );
+}
+add_action( 'pre_get_posts', 'banners_alminuto_admin_default_ordering' );
+
+function banners_alminuto_admin_columns( $columns ) {
+	$columns['menu_order'] = 'Orden';
+	return $columns;
+}
+add_filter( 'manage_banner_posts_columns', 'banners_alminuto_admin_columns' );
+
+function banners_alminuto_admin_column_value( $column, $post_id ) {
+	if ( $column === 'menu_order' ) {
+		$post = get_post( $post_id );
+		echo esc_html( (string) ( $post ? (int) $post->menu_order : 0 ) );
+	}
+}
+add_action( 'manage_banner_posts_custom_column', 'banners_alminuto_admin_column_value', 10, 2 );
+
+function banners_alminuto_admin_sortable_columns( $columns ) {
+	$columns['menu_order'] = 'menu_order';
+	return $columns;
+}
+add_filter( 'manage_edit-banner_sortable_columns', 'banners_alminuto_admin_sortable_columns' );
 
 function banners_alminuto_register_metaboxes() {
 	add_meta_box(

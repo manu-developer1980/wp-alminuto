@@ -27,7 +27,9 @@ function alminuto_theme_setup() {
 add_action( 'after_setup_theme', 'alminuto_theme_setup' );
 
 function alminuto_theme_enqueue_assets() {
-	wp_enqueue_style( 'alminuto-theme', get_stylesheet_uri(), [], '0.1.0' );
+	$css_path = get_stylesheet_directory() . '/style.css';
+	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
+	wp_enqueue_style( 'alminuto-theme', get_stylesheet_uri(), [], $version );
 }
 add_action( 'wp_enqueue_scripts', 'alminuto_theme_enqueue_assets' );
 

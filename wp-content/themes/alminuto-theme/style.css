@@ -179,7 +179,7 @@ img { max-width: 100%; height: auto; display: block; }
 }
 @media (min-width: 980px) {
   .am-home-columns {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 2fr 1fr;
   }
 }
 .am-home-col {

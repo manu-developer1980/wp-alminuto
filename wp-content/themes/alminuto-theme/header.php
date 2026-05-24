@@ -91,6 +91,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 					echo wp_kses_post( $columna_html );
 				} elseif ( is_active_sidebar( 'top-right' ) ) {
 					dynamic_sidebar( 'top-right' );
+				} else {
+					?>
+					<div class="am-card">
+						<div class="am-card-body">
+							<h3 style="margin:0 0 10px;font-size:16px;font-weight:900;">Noticias con rigor</h3>
+							<div class="am-content" style="font-size:14px;">
+								Activa este bloque desde WP Admin → Columna derecha, o añade widgets en “Top derecha (home)”.
+							</div>
+						</div>
+					</div>
+					<?php
 				}
 				?>
 			</aside>
