@@ -312,8 +312,6 @@ function alminuto_sidebar_right_default_options() {
 		'block2_title'         => 'ALGECIRAS ES SEMANA SANTA',
 		'youtube_url'          => '',
 		'facebook_video_url'   => '',
-		'publi_main_image_id'  => 0,
-		'publi_main_url'       => '',
 		'publi_gallery'        => [],
 	];
 }
@@ -385,6 +383,10 @@ function alminuto_sidebar_right_render_admin_page() {
 		wp_die( 'No tienes permisos.' );
 	}
 
+	wp_enqueue_media();
+	wp_enqueue_script( 'jquery' );
+	wp_enqueue_script( 'jquery-ui-sortable' );
+
 	$saved = false;
 	if ( isset( $_POST['alminuto_sidebar_right_nonce'] ) && wp_verify_nonce( (string) $_POST['alminuto_sidebar_right_nonce'], 'alminuto_sidebar_right_save' ) ) {
 		$opts = alminuto_sidebar_right_default_options();
@@ -396,8 +398,6 @@ function alminuto_sidebar_right_render_admin_page() {
 		$opts['youtube_url']        = isset( $_POST['youtube_url'] ) ? esc_url_raw( (string) $_POST['youtube_url'] ) : '';
 		$opts['facebook_video_url'] = isset( $_POST['facebook_video_url'] ) ? esc_url_raw( (string) $_POST['facebook_video_url'] ) : '';
 
-		$opts['publi_main_image_id'] = isset( $_POST['publi_main_image_id'] ) ? (int) $_POST['publi_main_image_id'] : 0;
-		$opts['publi_main_url']      = isset( $_POST['publi_main_url'] ) ? esc_url_raw( (string) $_POST['publi_main_url'] ) : '';
 		$opts['publi_gallery']       = alminuto_sidebar_right_sanitize_gallery( $_POST['publi_gallery'] ?? [] );
 
 		update_option( 'alminuto_sidebar_right', $opts, false );
@@ -462,31 +462,8 @@ function alminuto_sidebar_right_render_admin_page() {
 			</table>
 
 			<h2 class="title">Publicidad</h2>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">Imagen principal</th>
-					<td>
-						<input type="hidden" name="publi_main_image_id" id="publi_main_image_id" value="<?php echo esc_attr( (string) (int) $opts['publi_main_image_id'] ); ?>">
-						<button type="button" class="button" id="publi_main_pick"><?php echo (int) $opts['publi_main_image_id'] > 0 ? 'Cambiar imagen' : 'Elegir imagen'; ?></button>
-						<button type="button" class="button" id="publi_main_clear" <?php echo (int) $opts['publi_main_image_id'] > 0 ? '' : 'disabled'; ?>>Quitar</button>
-						<div id="publi_main_preview" style="margin-top:10px;max-width:320px;">
-							<?php
-							if ( (int) $opts['publi_main_image_id'] > 0 ) {
-								echo wp_kses_post( wp_get_attachment_image( (int) $opts['publi_main_image_id'], 'medium' ) );
-							}
-							?>
-						</div>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">Enlace imagen principal</th>
-					<td>
-						<input type="url" class="regular-text" name="publi_main_url" value="<?php echo esc_attr( (string) $opts['publi_main_url'] ); ?>" placeholder="https://...">
-					</td>
-				</tr>
-			</table>
-
 			<h2 class="title">Galería (drag &amp; drop)</h2>
+			<p>La primera imagen será la principal (tipo cartel). El resto quedarán debajo.</p>
 			<p><button type="button" class="button" id="publi_gallery_add">Añadir imagen</button></p>
 			<ul id="publi_gallery_list" style="margin:0;max-width:360px;">
 				<?php foreach ( (array) $opts['publi_gallery'] as $index => $row ) : ?>
@@ -495,9 +472,9 @@ function alminuto_sidebar_right_render_admin_page() {
 					$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
 					$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
 					?>
-					<li class="publi-item" style="margin:0 0 10px;padding:10px;border:1px solid #ddd;background:#fff;display:grid;gap:8px;cursor:move;" data-index="<?php echo esc_attr( (string) $index ); ?>">
+					<li class="publi-item" style="margin:0 0 10px;padding:10px;border:1px solid #ddd;background:#fff;display:grid;gap:8px;" data-index="<?php echo esc_attr( (string) $index ); ?>">
 						<div style="display:flex;gap:10px;align-items:center;">
-							<span style="font-weight:700;">↕</span>
+							<span class="publi-handle" style="font-weight:700;cursor:move;">↕</span>
 							<div class="publi-preview" style="width:120px;">
 								<?php echo $id > 0 ? wp_kses_post( wp_get_attachment_image( $id, 'thumbnail' ) ) : ''; ?>
 							</div>
@@ -520,7 +497,11 @@ function alminuto_sidebar_right_render_admin_page() {
 		</form>
 	</div>
 	<script>
-	(function($){
+	jQuery(function($){
+		function canUseMedia(){
+			return window.wp && wp.media;
+		}
+
 		function previewUrl(att){
 			if (att && att.sizes) {
 				if (att.sizes.medium) return att.sizes.medium.url;
@@ -535,10 +516,31 @@ function alminuto_sidebar_right_render_admin_page() {
 		}
 
 		function pickImage(onSelect){
+			if (!canUseMedia()) {
+				alert('No se ha cargado el selector de medios. Recarga la página.');
+				return;
+			}
 			var frame = wp.media({title:'Selecciona una imagen', multiple:false, library:{type:'image'}});
 			frame.on('select', function(){
 				var att = frame.state().get('selection').first().toJSON();
 				onSelect(att);
+			});
+			frame.open();
+		}
+
+		function pickImages(onSelect){
+			if (!canUseMedia()) {
+				alert('No se ha cargado el selector de medios. Recarga la página.');
+				return;
+			}
+			var frame = wp.media({title:'Selecciona imágenes', multiple:true, library:{type:'image'}});
+			frame.on('select', function(){
+				var selection = frame.state().get('selection');
+				var atts = [];
+				selection.each(function(model){
+					atts.push(model.toJSON());
+				});
+				onSelect(atts);
 			});
 			frame.open();
 		}
@@ -556,21 +558,6 @@ function alminuto_sidebar_right_render_admin_page() {
 			$('#news_rigor_preview').empty();
 			$('#news_rigor_clear').prop('disabled', true);
 			$('#news_rigor_pick').text('Elegir imagen');
-		});
-
-		$('#publi_main_pick').on('click', function(){
-			pickImage(function(att){
-				$('#publi_main_image_id').val(att.id);
-				$('#publi_main_preview').html('<img src="'+previewUrl(att)+'" style="max-width:100%;height:auto;">');
-				$('#publi_main_clear').prop('disabled', false);
-				$('#publi_main_pick').text('Cambiar imagen');
-			});
-		});
-		$('#publi_main_clear').on('click', function(){
-			$('#publi_main_image_id').val('');
-			$('#publi_main_preview').empty();
-			$('#publi_main_clear').prop('disabled', true);
-			$('#publi_main_pick').text('Elegir imagen');
 		});
 
 		function renumberGallery(){
@@ -605,40 +592,45 @@ function alminuto_sidebar_right_render_admin_page() {
 		$('#publi_gallery_list').sortable({
 			items: '> li',
 			axis: 'y',
+			handle: '.publi-handle',
+			cancel: 'input,textarea,button,select,label,a',
 			stop: function(){
 				renumberGallery();
 			}
 		});
 
-		$('#publi_gallery_add').on('click', function(){
-			var nextIndex = 0;
-			$('#publi_gallery_list .publi-item').each(function(){
-				var idx = parseInt($(this).attr('data-index') || '0', 10);
-				if (idx >= nextIndex) nextIndex = idx + 1;
-			});
+		$(document).on('click', '#publi_gallery_add', function(e){
+			e.preventDefault();
+			pickImages(function(atts){
+				if (!atts || !atts.length) return;
+				var nextIndex = 0;
+				$('#publi_gallery_list .publi-item').each(function(){
+					var idx = parseInt($(this).attr('data-index') || '0', 10);
+					if (idx >= nextIndex) nextIndex = idx + 1;
+				});
 
-			var $li = $('<li class=\"publi-item\" style=\"margin:0 0 10px;padding:10px;border:1px solid #ddd;background:#fff;display:grid;gap:8px;cursor:move;\" data-index=\"'+nextIndex+'\">\
-				<div style=\"display:flex;gap:10px;align-items:center;\">\
-					<span style=\"font-weight:700;\">↕</span>\
-					<div class=\"publi-preview\" style=\"width:120px;\"></div>\
-					<button type=\"button\" class=\"button publi-pick\">Elegir</button>\
-					<button type=\"button\" class=\"button-link-delete publi-remove\">Quitar</button>\
-				</div>\
-				<input type=\"hidden\" name=\"publi_gallery['+nextIndex+'][id]\" value=\"\">\
-				<label>Enlace\
-					<input type=\"url\" class=\"regular-text\" name=\"publi_gallery['+nextIndex+'][url]\" value=\"\" placeholder=\"https://...\">\
-				</label>\
-				<label><input type=\"checkbox\" name=\"publi_gallery['+nextIndex+'][new_tab]\" value=\"1\"> Abrir en nueva pestaña</label>\
-			</li>');
-			$('#publi_gallery_list').append($li);
-			initGalleryItem($li);
-			pickImage(function(att){
-				$li.find('input[type=hidden][name*=\"[id]\"]').val(att.id);
-				$li.find('.publi-preview').html('<img src=\"'+thumbUrl(att)+'\" style=\"max-width:100%;height:auto;\">');
+				atts.forEach(function(att){
+					var idx = nextIndex++;
+					var $li = $('<li class=\"publi-item\" style=\"margin:0 0 10px;padding:10px;border:1px solid #ddd;background:#fff;display:grid;gap:8px;\" data-index=\"'+idx+'\">\
+						<div style=\"display:flex;gap:10px;align-items:center;\">\
+							<span class=\"publi-handle\" style=\"font-weight:700;cursor:move;\">↕</span>\
+							<div class=\"publi-preview\" style=\"width:120px;\"><img src=\"'+thumbUrl(att)+'\" style=\"max-width:100%;height:auto;\"></div>\
+							<button type=\"button\" class=\"button publi-pick\">Cambiar</button>\
+							<button type=\"button\" class=\"button-link-delete publi-remove\">Quitar</button>\
+						</div>\
+						<input type=\"hidden\" name=\"publi_gallery['+idx+'][id]\" value=\"'+att.id+'\">\
+						<label>Enlace\
+							<input type=\"url\" class=\"regular-text\" name=\"publi_gallery['+idx+'][url]\" value=\"\" placeholder=\"https://...\">\
+						</label>\
+						<label><input type=\"checkbox\" name=\"publi_gallery['+idx+'][new_tab]\" value=\"1\"> Abrir en nueva pestaña</label>\
+					</li>');
+					$('#publi_gallery_list').append($li);
+					initGalleryItem($li);
+				});
 				renumberGallery();
 			});
 		});
-	})(jQuery);
+	});
 	</script>
 	<?php
 }
@@ -688,18 +680,8 @@ function alminuto_sidebar_right_shortcode() {
 	}
 
 	$out .= '<div class="am-section-title">Publicidad</div>';
-	if ( (int) $opts['publi_main_image_id'] > 0 ) {
-		$img = wp_get_attachment_image( (int) $opts['publi_main_image_id'], $img_size, false, [ 'loading' => 'lazy' ] );
-		if ( $img ) {
-			if ( $opts['publi_main_url'] ) {
-				$out .= '<a href="' . esc_url( (string) $opts['publi_main_url'] ) . '" target="_self" rel="nofollow noopener noreferrer">' . $img . '</a>';
-			} else {
-				$out .= $img;
-			}
-		}
-	}
-
-	foreach ( (array) $opts['publi_gallery'] as $row ) {
+	$gallery = (array) $opts['publi_gallery'];
+	foreach ( $gallery as $idx => $row ) {
 		$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
 		$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
 		$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
@@ -710,11 +692,12 @@ function alminuto_sidebar_right_shortcode() {
 		if ( ! $img ) {
 			continue;
 		}
+		$wrap_class = $idx === 0 ? 'am-right-publi-main' : 'am-right-publi-item';
 		if ( $url ) {
 			$target = $new_tab ? ' target="_blank" rel="nofollow noopener noreferrer"' : ' target="_self" rel="nofollow noopener noreferrer"';
-			$out   .= '<a href="' . esc_url( $url ) . '"' . $target . '>' . $img . '</a>';
+			$out   .= '<a class="' . esc_attr( $wrap_class ) . '" href="' . esc_url( $url ) . '"' . $target . '>' . $img . '</a>';
 		} else {
-			$out .= $img;
+			$out .= '<div class="' . esc_attr( $wrap_class ) . '">' . $img . '</div>';
 		}
 	}
 
