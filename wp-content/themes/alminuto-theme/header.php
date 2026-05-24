@@ -38,9 +38,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<small><?php bloginfo( 'description' ); ?></small>
 				</div>
 			</div>
-			<?php if ( function_exists( 'do_shortcode' ) ) : ?>
-				<?php echo do_shortcode( '[banners_alminuto]' ); ?>
-			<?php endif; ?>
 			<?php if ( is_active_sidebar( 'header-banners' ) ) : ?>
 				<?php dynamic_sidebar( 'header-banners' ); ?>
 			<?php endif; ?>
@@ -64,6 +61,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 	</div>
 </nav>
+
+<section class="am-top-banners" id="bannersSuperiores">
+	<div class="am-container">
+		<div class="am-top-banners-grid">
+			<div class="am-top-banner am-top-banner--left">
+				<?php if ( function_exists( 'do_shortcode' ) ) : ?>
+					<?php echo do_shortcode( '[banners_alminuto slot="1"]' ); ?>
+				<?php endif; ?>
+			</div>
+			<div class="am-top-banner am-top-banner--mid">
+				<?php if ( function_exists( 'do_shortcode' ) ) : ?>
+					<?php echo do_shortcode( '[banners_alminuto slot="2"]' ); ?>
+				<?php endif; ?>
+			</div>
+			<aside class="am-top-banner-sidebar">
+				<?php if ( is_active_sidebar( 'top-right' ) ) : ?>
+					<?php dynamic_sidebar( 'top-right' ); ?>
+				<?php endif; ?>
+			</aside>
+		</div>
+	</div>
+</section>
 
 <main class="am-main">
 	<div class="am-container">

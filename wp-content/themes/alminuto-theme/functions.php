@@ -44,6 +44,17 @@ function alminuto_theme_register_sidebars() {
 			'after_title'   => '</h3>',
 		]
 	);
+
+	register_sidebar(
+		[
+			'name'          => __( 'Top derecha (home)', 'alminuto-theme' ),
+			'id'            => 'top-right',
+			'before_widget' => '<div class="am-card"><div class="am-card-body">',
+			'after_widget'  => '</div></div>',
+			'before_title'  => '<h3 style="margin:0 0 10px;font-size:16px;font-weight:900;">',
+			'after_title'   => '</h3>',
+		]
+	);
 }
 add_action( 'widgets_init', 'alminuto_theme_register_sidebars' );
 
