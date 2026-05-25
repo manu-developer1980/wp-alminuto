@@ -55,11 +55,7 @@ get_header();
 		$shown_ids = array_values( array_unique( $shown_ids ) );
 		?>
 
-		<section class="am-top-banners" id="bannersSuperiores">
-			<?php if ( function_exists( 'do_shortcode' ) ) : ?>
-				<?php echo do_shortcode( '[banners_alminuto slot="top_left" slider="1" limit="10" autoplay="9500"]' ); ?>
-			<?php endif; ?>
-		</section>
+		<?php get_template_part( 'template-parts/common/top-banner' ); ?>
 
 		<?php if ( $left_query->have_posts() || $right_query->have_posts() ) : ?>
 			<div class="am-home-columns" id="contenedor">
@@ -81,7 +77,7 @@ get_header();
 									<?php echo wp_kses_post( $img ); ?>
 								</a>
 								<div class="am-home-post-body">
-									<div class="am-home-post-meta"><?php echo esc_html( get_the_date( 'd/m/Y' ) ); ?></div>
+									<?php echo alminuto_theme_post_meta_html(); ?>
 									<h2 class="am-home-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
 									<p class="am-home-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 18 ) ); ?></p>
 									<a class="am-btn" href="<?php the_permalink(); ?>">Leer Más</a>
@@ -109,7 +105,7 @@ get_header();
 									<?php echo wp_kses_post( $img ); ?>
 								</a>
 								<div class="am-home-post-body">
-									<div class="am-home-post-meta"><?php echo esc_html( get_the_date( 'd/m/Y' ) ); ?></div>
+									<?php echo alminuto_theme_post_meta_html(); ?>
 									<h2 class="am-home-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
 									<p class="am-home-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 14 ) ); ?></p>
 									<a class="am-btn" href="<?php the_permalink(); ?>">Leer Más</a>
@@ -125,17 +121,7 @@ get_header();
 	</section>
 
 	<aside>
-		<?php
-		$columna_html = '';
-		if ( function_exists( 'shortcode_exists' ) && shortcode_exists( 'alminuto_sidebar_right' ) ) {
-			$columna_html = do_shortcode( '[alminuto_sidebar_right]' );
-		}
-		if ( trim( wp_strip_all_tags( $columna_html ) ) !== '' ) {
-			echo wp_kses_post( $columna_html );
-		} elseif ( is_active_sidebar( 'sidebar-right' ) ) {
-			dynamic_sidebar( 'sidebar-right' );
-		}
-		?>
+		<?php get_template_part( 'template-parts/common/right-column' ); ?>
 	</aside>
 </div>
 

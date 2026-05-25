@@ -5,9 +5,10 @@ get_header();
 ?>
 <div class="am-layout">
 	<section>
+		<?php get_template_part( 'template-parts/common/top-banner' ); ?>
 		<div class="am-card" style="margin-bottom:14px;">
 			<div class="am-card-body">
-				<h1 style="margin:0;font-size:22px;font-weight:900;">
+				<h1 class="am-archive-title">
 					<?php echo esc_html( 'Búsqueda: ' . get_search_query() ); ?>
 				</h1>
 			</div>
@@ -24,7 +25,7 @@ get_header();
 							<?php endif; ?>
 						</a>
 						<div class="am-post-body">
-							<div class="am-post-meta"><?php echo esc_html( get_the_date() ); ?></div>
+							<?php echo alminuto_theme_post_meta_html(); ?>
 							<h2 class="am-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
 							<p class="am-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 22 ) ); ?></p>
 							<a class="am-btn" href="<?php the_permalink(); ?>">Leer más</a>
@@ -55,13 +56,10 @@ get_header();
 	</section>
 
 	<aside>
-		<?php if ( is_active_sidebar( 'sidebar-right' ) ) : ?>
-			<?php dynamic_sidebar( 'sidebar-right' ); ?>
-		<?php endif; ?>
+		<?php get_template_part( 'template-parts/common/right-column' ); ?>
 	</aside>
 </div>
 
 <?php
 
 get_footer();
-

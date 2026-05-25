@@ -5,6 +5,7 @@ get_header();
 ?>
 <div class="am-layout">
 	<section>
+		<?php get_template_part( 'template-parts/common/top-banner' ); ?>
 		<?php if ( have_posts() ) : ?>
 			<?php while ( have_posts() ) : ?>
 				<?php the_post(); ?>
@@ -12,13 +13,7 @@ get_header();
 				<article class="am-card">
 					<div class="am-card-body">
 						<h1 class="am-single-title"><?php the_title(); ?></h1>
-						<div class="am-single-meta">
-							<?php echo esc_html( get_the_date() ); ?>
-							<?php $cats = get_the_category(); ?>
-							<?php if ( ! empty( $cats ) ) : ?>
-								· <a href="<?php echo esc_url( get_category_link( $cats[0]->term_id ) ); ?>"><?php echo esc_html( $cats[0]->name ); ?></a>
-							<?php endif; ?>
-						</div>
+						<?php echo alminuto_theme_post_meta_html(); ?>
 					</div>
 
 					<?php if ( has_post_thumbnail() ) : ?>
@@ -35,9 +30,18 @@ get_header();
 					$share = alminuto_theme_share_links( get_permalink(), get_the_title() );
 					?>
 					<div class="am-share">
-						<a href="<?php echo esc_url( $share['facebook'] ); ?>" target="_blank" rel="noopener noreferrer">Facebook</a>
-						<a href="<?php echo esc_url( $share['twitter'] ); ?>" target="_blank" rel="noopener noreferrer">X</a>
-						<a href="<?php echo esc_url( $share['whatsapp'] ); ?>" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+						<a class="am-share-btn am-share-btn--facebook" href="<?php echo esc_url( $share['facebook'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook">
+							<i aria-hidden="true" class="fab fa-facebook"></i>
+						</a>
+						<a class="am-share-btn am-share-btn--twitter" href="<?php echo esc_url( $share['twitter'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on Twitter">
+							<i aria-hidden="true" class="fab fa-twitter"></i>
+						</a>
+						<a class="am-share-btn am-share-btn--whatsapp" href="<?php echo esc_url( $share['whatsapp'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on WhatsApp">
+							<i aria-hidden="true" class="fab fa-whatsapp"></i>
+						</a>
+						<a class="am-share-btn am-share-btn--telegram" href="<?php echo esc_url( $share['telegram'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on Telegram">
+							<i aria-hidden="true" class="fab fa-telegram"></i>
+						</a>
 					</div>
 				</article>
 			<?php endwhile; ?>
@@ -45,9 +49,7 @@ get_header();
 	</section>
 
 	<aside>
-		<?php if ( is_active_sidebar( 'sidebar-right' ) ) : ?>
-			<?php dynamic_sidebar( 'sidebar-right' ); ?>
-		<?php endif; ?>
+		<?php get_template_part( 'template-parts/common/right-column' ); ?>
 	</aside>
 </div>
 
