@@ -16,11 +16,12 @@ get_header();
 						<?php echo alminuto_theme_post_meta_html(); ?>
 					</div>
 
-					<?php if ( has_post_thumbnail() ) : ?>
-						<div class="am-post-thumb" style="aspect-ratio:auto;">
-							<?php the_post_thumbnail( 'large' ); ?>
-						</div>
-					<?php endif; ?>
+					<?php
+					$media = alminuto_theme_primary_media_html( get_the_ID() );
+					if ( $media ) {
+						echo $media;
+					}
+					?>
 
 					<div class="am-card-body am-content">
 						<?php the_content(); ?>

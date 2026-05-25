@@ -390,6 +390,8 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 .am-right-publi-item img { width: 100%; height: auto; border: 1px solid var(--am-border); background: #fff; }
 .am-right-embed { width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
 .am-right-embed iframe { width: 100%; height: 100%; border: 0; }
+.am-post-embed { width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
+.am-post-embed iframe { width: 100%; height: 100%; border: 0; }
 
 .am-post-grid {
   display: grid;

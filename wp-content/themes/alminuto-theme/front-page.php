@@ -67,7 +67,7 @@ get_header();
 							<?php $left_query->the_post(); ?>
 							<?php
 							$img_id = get_post_thumbnail_id();
-							$size   = 'Columna Izquierda';
+							$size   = 'col_izquierda';
 							$img    = $img_id ? wp_get_attachment_image( $img_id, $size ) : '';
 							if ( ! $img && $img_id ) {
 								$img = wp_get_attachment_image( $img_id, 'medium_large' );
@@ -95,7 +95,7 @@ get_header();
 							<?php $right_query->the_post(); ?>
 							<?php
 							$img_id = get_post_thumbnail_id();
-							$size   = 'Columna Derecha';
+							$size   = 'col_derecha';
 							$img    = $img_id ? wp_get_attachment_image( $img_id, $size ) : '';
 							if ( ! $img && $img_id ) {
 								$img = wp_get_attachment_image( $img_id, 'thumbnail' );

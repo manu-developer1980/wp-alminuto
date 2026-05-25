@@ -26,6 +26,29 @@ function alminuto_theme_setup() {
 }
 add_action( 'after_setup_theme', 'alminuto_theme_setup' );
 
+function alminuto_theme_image_sizes() {
+	return [
+		'banner_superior'   => [ 'width' => 855, 'height' => 174, 'crop' => [ 'center', 'center' ] ],
+		'banner_superior_m' => [ 'width' => 480, 'height' => 98, 'crop' => [ 'center', 'center' ] ],
+		'banner_lateral'    => [ 'width' => 285, 'height' => 0, 'crop' => false ],
+		'col_izquierda'     => [ 'width' => 560, 'height' => 315, 'crop' => [ 'center', 'center' ] ],
+		'col_izquierda_m'   => [ 'width' => 480, 'height' => 270, 'crop' => [ 'center', 'center' ] ],
+		'col_derecha'       => [ 'width' => 280, 'height' => 160, 'crop' => [ 'center', 'center' ] ],
+		'content_4_3'       => [ 'width' => 855, 'height' => 640, 'crop' => [ 'center', 'center' ] ],
+		'content_4_3_m'     => [ 'width' => 480, 'height' => 360, 'crop' => [ 'center', 'center' ] ],
+	];
+}
+
+function alminuto_theme_register_image_sizes() {
+	foreach ( alminuto_theme_image_sizes() as $name => $cfg ) {
+		$w    = isset( $cfg['width'] ) ? (int) $cfg['width'] : 0;
+		$h    = isset( $cfg['height'] ) ? (int) $cfg['height'] : 0;
+		$crop = $cfg['crop'] ?? false;
+		add_image_size( $name, $w, $h, $crop );
+	}
+}
+add_action( 'after_setup_theme', 'alminuto_theme_register_image_sizes', 20 );
+
 function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
 	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
@@ -143,6 +166,178 @@ function alminuto_theme_post_meta_html( $post_id = 0 ) {
 		]
 	);
 }
+
+function alminuto_theme_video_allowed_html() {
+	$allowed            = wp_kses_allowed_html( 'post' );
+	$allowed['iframe']  = [
+		'src'             => true,
+		'width'           => true,
+		'height'          => true,
+		'frameborder'     => true,
+		'allowfullscreen' => true,
+		'allow'           => true,
+		'referrerpolicy'  => true,
+		'loading'         => true,
+		'title'           => true,
+	];
+	$allowed['div']     = [ 'class' => true ];
+	return $allowed;
+}
+
+function alminuto_theme_add_video_metabox() {
+	add_meta_box(
+		'alminuto-theme-videos',
+		'Videos Personalizados (Campos)',
+		'alminuto_theme_render_video_metabox',
+		'post',
+		'normal',
+		'default'
+	);
+}
+add_action( 'add_meta_boxes', 'alminuto_theme_add_video_metabox' );
+
+function alminuto_theme_render_video_metabox( $post ) {
+	wp_nonce_field( 'alminuto_theme_save_videos', 'alminuto_theme_videos_nonce' );
+	$youtube  = (string) get_post_meta( $post->ID, '_video_youtube', true );
+	$facebook = (string) get_post_meta( $post->ID, '_video_facebook', true );
+	?>
+	<p>
+		<label for="alminuto-video-youtube"><strong>Contenido para [video_youtube]:</strong></label><br>
+		<textarea name="alminuto_video_youtube" id="alminuto-video-youtube" rows="2" style="width:100%;" placeholder="URL, iframe o código embebido de YouTube"><?php echo esc_textarea( $youtube ); ?></textarea>
+	</p>
+	<p>
+		<label for="alminuto-video-facebook"><strong>Contenido para [video_facebook]:</strong></label><br>
+		<textarea name="alminuto_video_facebook" id="alminuto-video-facebook" rows="2" style="width:100%;" placeholder="URL, iframe o código embebido de Facebook"><?php echo esc_textarea( $facebook ); ?></textarea>
+	</p>
+	<?php
+}
+
+function alminuto_theme_save_video_metabox( $post_id ) {
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+	if ( ! isset( $_POST['alminuto_theme_videos_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( (string) $_POST['alminuto_theme_videos_nonce'] ), 'alminuto_theme_save_videos' ) ) {
+		return;
+	}
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+
+	$allowed = alminuto_theme_video_allowed_html();
+
+	$youtube_raw = isset( $_POST['alminuto_video_youtube'] ) ? trim( (string) wp_unslash( $_POST['alminuto_video_youtube'] ) ) : '';
+	if ( $youtube_raw === '' ) {
+		delete_post_meta( $post_id, '_video_youtube' );
+	} else {
+		$youtube_value = strpos( $youtube_raw, '<' ) !== false ? wp_kses( $youtube_raw, $allowed ) : sanitize_text_field( $youtube_raw );
+		update_post_meta( $post_id, '_video_youtube', $youtube_value );
+	}
+
+	$facebook_raw = isset( $_POST['alminuto_video_facebook'] ) ? trim( (string) wp_unslash( $_POST['alminuto_video_facebook'] ) ) : '';
+	if ( $facebook_raw === '' ) {
+		delete_post_meta( $post_id, '_video_facebook' );
+	} else {
+		$facebook_value = strpos( $facebook_raw, '<' ) !== false ? wp_kses( $facebook_raw, $allowed ) : sanitize_text_field( $facebook_raw );
+		update_post_meta( $post_id, '_video_facebook', $facebook_value );
+	}
+}
+add_action( 'save_post', 'alminuto_theme_save_video_metabox' );
+
+function alminuto_theme_extract_youtube_id( $value ) {
+	$value = trim( (string) $value );
+	if ( $value === '' ) {
+		return '';
+	}
+	if ( preg_match( '/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^\&\?\/]+)/', $value, $m ) ) {
+		return (string) $m[1];
+	}
+	if ( preg_match( '/youtube\.com\/embed\/([^\&\?\/]+)/', $value, $m ) ) {
+		return (string) $m[1];
+	}
+	return '';
+}
+
+function alminuto_theme_youtube_embed_html( $value ) {
+	$value = trim( (string) $value );
+	if ( $value === '' ) {
+		return '';
+	}
+
+	$allowed = alminuto_theme_video_allowed_html();
+
+	if ( stripos( $value, '<iframe' ) !== false ) {
+		return '<div class="am-post-embed">' . wp_kses( $value, $allowed ) . '</div>';
+	}
+
+	$id = alminuto_theme_extract_youtube_id( $value );
+	if ( $id === '' ) {
+		$oembed = wp_oembed_get( $value );
+		return $oembed ? '<div class="am-post-embed">' . wp_kses( $oembed, $allowed ) . '</div>' : '';
+	}
+
+	$src = 'https://www.youtube.com/embed/' . rawurlencode( $id );
+	$iframe = '<iframe src="' . esc_url( $src ) . '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" title="YouTube"></iframe>';
+	return '<div class="am-post-embed">' . $iframe . '</div>';
+}
+
+function alminuto_theme_facebook_embed_html( $value ) {
+	$value = trim( (string) $value );
+	if ( $value === '' ) {
+		return '';
+	}
+
+	$allowed = alminuto_theme_video_allowed_html();
+
+	if ( stripos( $value, '<iframe' ) !== false ) {
+		return '<div class="am-post-embed">' . wp_kses( $value, $allowed ) . '</div>';
+	}
+
+	$url = $value;
+	if ( preg_match( '/^[0-9]+$/', $value ) ) {
+		$url = 'https://www.facebook.com/video.php?v=' . $value;
+	}
+
+	$src = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $url ) . '&show_text=0&autoplay=0';
+	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" title="Facebook"></iframe>';
+	return '<div class="am-post-embed">' . $iframe . '</div>';
+}
+
+function alminuto_theme_primary_media_html( $post_id = 0 ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( $post_id <= 0 ) {
+		return '';
+	}
+
+	if ( has_post_thumbnail( $post_id ) ) {
+		$img = get_the_post_thumbnail( $post_id, 'large' );
+		return $img ? '<div class="am-post-thumb" style="aspect-ratio:auto;">' . $img . '</div>' : '';
+	}
+
+	$youtube  = (string) get_post_meta( $post_id, '_video_youtube', true );
+	$facebook = (string) get_post_meta( $post_id, '_video_facebook', true );
+
+	$out = alminuto_theme_youtube_embed_html( $youtube );
+	if ( $out !== '' ) {
+		return $out;
+	}
+	return alminuto_theme_facebook_embed_html( $facebook );
+}
+
+function alminuto_theme_shortcode_video_youtube() {
+	if ( ! is_singular( 'post' ) ) {
+		return '';
+	}
+	return alminuto_theme_youtube_embed_html( get_post_meta( get_the_ID(), '_video_youtube', true ) );
+}
+add_shortcode( 'video_youtube', 'alminuto_theme_shortcode_video_youtube' );
+
+function alminuto_theme_shortcode_video_facebook() {
+	if ( ! is_singular( 'post' ) ) {
+		return '';
+	}
+	return alminuto_theme_facebook_embed_html( get_post_meta( get_the_ID(), '_video_facebook', true ) );
+}
+add_shortcode( 'video_facebook', 'alminuto_theme_shortcode_video_facebook' );
 
 function alminuto_theme_disable_comments_support() {
 	$post_types = get_post_types( [ 'public' => true ], 'names' );
@@ -461,7 +656,7 @@ function alminuto_theme_right_sanitize_gallery( $raw ) {
 function alminuto_theme_right_column_html() {
 	$opts = alminuto_theme_right_get();
 
-	$size_candidates = [ 'banner-lateral', 'medium', 'thumbnail' ];
+	$size_candidates = [ 'banner_lateral', 'medium', 'thumbnail' ];
 	$sizes           = function_exists( 'get_intermediate_image_sizes' ) ? (array) get_intermediate_image_sizes() : [];
 	$img_size        = 'medium';
 	foreach ( $size_candidates as $candidate ) {
@@ -692,7 +887,7 @@ function alminuto_theme_render_admin_page() {
 	}
 
 	$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) $_GET['tab'] ) : 'home';
-	if ( ! in_array( $tab, [ 'home', 'banners', 'right' ], true ) ) {
+	if ( ! in_array( $tab, [ 'home', 'banners', 'right', 'images' ], true ) ) {
 		$tab = 'home';
 	}
 
@@ -724,6 +919,7 @@ function alminuto_theme_render_admin_page() {
 		'home'    => 'Inicio',
 		'banners' => 'Banners',
 		'right'   => 'Columna Derecha',
+		'images'  => 'Imágenes',
 	];
 
 	echo '<div class="wrap">';
@@ -749,6 +945,22 @@ function alminuto_theme_render_admin_page() {
 		alminuto_theme_render_banners_admin();
 	} elseif ( $tab === 'right' ) {
 		alminuto_theme_render_right_admin();
+	} elseif ( $tab === 'images' ) {
+		$sizes = alminuto_theme_image_sizes();
+		echo '<div class="am-admin-wrap">';
+		echo '<section class="am-admin-card">';
+		echo '<h2>Tamaños de imagen (theme)</h2>';
+		echo '<table class="widefat striped" style="margin-top:10px;">';
+		echo '<thead><tr><th>Nombre</th><th>Ancho</th><th>Alto</th><th>Crop</th></tr></thead><tbody>';
+		foreach ( $sizes as $name => $cfg ) {
+			$w    = (int) ( $cfg['width'] ?? 0 );
+			$h    = (int) ( $cfg['height'] ?? 0 );
+			$crop = $cfg['crop'] === false ? 'No' : 'Centro';
+			echo '<tr><td><code>' . esc_html( $name ) . '</code></td><td>' . esc_html( (string) $w ) . '</td><td>' . esc_html( (string) $h ) . '</td><td>' . esc_html( $crop ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '</section>';
+		echo '</div>';
 	}
 
 	echo '</div>';
