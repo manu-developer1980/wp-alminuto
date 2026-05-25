@@ -29,11 +29,6 @@
 /wp-content/backups*/
 /wp-content/updraft/
 
-# Third-party plugins
-/wp-content/plugins/*
-!/wp-content/plugins/banners-al-minuto/
-!/wp-content/plugins/banners-alminuto/
-
 # Themes
 /wp-content/themes/*
 !/wp-content/themes/alminuto-theme/

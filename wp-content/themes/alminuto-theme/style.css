@@ -319,6 +319,9 @@ main.am-main > div.am-container > div.am-layout > section > article.am-card > di
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
+main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > div.am-section-title:nth-child(1) { text-align: center; }
+main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > div.am-section-title:nth-child(3) { text-align: center; }
+main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > div.am-section-title:nth-child(5) { text-align: center; }
 
 .am-post-info {
   display: flex;

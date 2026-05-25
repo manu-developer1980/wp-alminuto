@@ -5,6 +5,7 @@ get_header();
 ?>
 <div class="am-layout">
 	<section>
+		<?php $settings = function_exists( 'alminuto_theme_get_settings' ) ? alminuto_theme_get_settings() : [ 'home_left_posts' => 20, 'home_right_posts' => 20 ]; ?>
 		<?php
 		$front_id = (int) get_option( 'page_on_front' );
 		if ( $front_id ) {
@@ -31,7 +32,7 @@ get_header();
 			[
 				'post_type'           => 'post',
 				'post_status'         => 'publish',
-				'posts_per_page'      => 20,
+				'posts_per_page'      => max( 1, min( 50, (int) ( $settings['home_left_posts'] ?? 20 ) ) ),
 				'tag'                 => 'izquierda',
 				'ignore_sticky_posts' => true,
 				'no_found_rows'       => true,
@@ -41,7 +42,7 @@ get_header();
 			[
 				'post_type'           => 'post',
 				'post_status'         => 'publish',
-				'posts_per_page'      => 20,
+				'posts_per_page'      => max( 1, min( 50, (int) ( $settings['home_right_posts'] ?? 20 ) ) ),
 				'tag'                 => 'derecha',
 				'ignore_sticky_posts' => true,
 				'no_found_rows'       => true,

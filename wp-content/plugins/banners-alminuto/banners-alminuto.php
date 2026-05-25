@@ -192,6 +192,108 @@ function banners_alminuto_render_banner_html( $banner_post_id, $image_size = 'fu
 	return $img;
 }
 
+function banners_alminuto_slot_defaults() {
+	return [
+		'top_left' => [],
+	];
+}
+
+function banners_alminuto_get_slots() {
+	$defaults = banners_alminuto_slot_defaults();
+	$raw      = get_option( 'banners_alminuto_slots', [] );
+	if ( ! is_array( $raw ) ) {
+		$raw = [];
+	}
+	$slots = array_merge( $defaults, $raw );
+	if ( ! is_array( $slots['top_left'] ?? null ) ) {
+		$slots['top_left'] = [];
+	}
+	return $slots;
+}
+
+function banners_alminuto_is_valid_date_ymd( $value ) {
+	if ( ! is_string( $value ) ) {
+		return false;
+	}
+	return (bool) preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value );
+}
+
+function banners_alminuto_sanitize_slot_items( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return [];
+	}
+	$out = [];
+	foreach ( $raw as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
+		$url     = isset( $row['url'] ) ? esc_url_raw( (string) $row['url'] ) : '';
+		$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
+		$start   = isset( $row['start'] ) ? sanitize_text_field( (string) $row['start'] ) : '';
+		$end     = isset( $row['end'] ) ? sanitize_text_field( (string) $row['end'] ) : '';
+		if ( $id <= 0 ) {
+			continue;
+		}
+		if ( $start !== '' && ! banners_alminuto_is_valid_date_ymd( $start ) ) {
+			$start = '';
+		}
+		if ( $end !== '' && ! banners_alminuto_is_valid_date_ymd( $end ) ) {
+			$end = '';
+		}
+		if ( $start !== '' && $end !== '' && strcmp( $start, $end ) > 0 ) {
+			$end = '';
+		}
+		$out[] = [
+			'id'      => $id,
+			'url'     => $url,
+			'new_tab' => $new_tab,
+			'start'   => $start,
+			'end'     => $end,
+		];
+	}
+	return $out;
+}
+
+function banners_alminuto_item_is_active( $item, $now_ts ) {
+	$start = is_array( $item ) && isset( $item['start'] ) ? (string) $item['start'] : '';
+	$end   = is_array( $item ) && isset( $item['end'] ) ? (string) $item['end'] : '';
+	if ( $start !== '' && banners_alminuto_is_valid_date_ymd( $start ) ) {
+		$start_ts = strtotime( $start . ' 00:00:00' );
+		if ( $start_ts && $now_ts < $start_ts ) {
+			return false;
+		}
+	}
+	if ( $end !== '' && banners_alminuto_is_valid_date_ymd( $end ) ) {
+		$end_ts = strtotime( $end . ' 23:59:59' );
+		if ( $end_ts && $now_ts > $end_ts ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function banners_alminuto_render_banner_item_html( $item, $image_size = 'full' ) {
+	if ( ! is_array( $item ) ) {
+		return '';
+	}
+	$id = isset( $item['id'] ) ? (int) $item['id'] : 0;
+	if ( $id <= 0 ) {
+		return '';
+	}
+	$img = wp_get_attachment_image( $id, $image_size, false, [ 'loading' => 'eager' ] );
+	if ( ! $img ) {
+		return '';
+	}
+	$url     = isset( $item['url'] ) ? (string) $item['url'] : '';
+	$new_tab = ! empty( $item['new_tab'] ) ? 1 : 0;
+	if ( $url ) {
+		$target = $new_tab ? ' target="_blank" rel="noopener noreferrer"' : '';
+		return '<a href="' . esc_url( $url ) . '"' . $target . '>' . $img . '</a>';
+	}
+	return $img;
+}
+
 function banners_alminuto_enqueue_assets() {
 	static $enqueued = false;
 	if ( $enqueued ) {
@@ -241,6 +343,43 @@ function banners_alminuto_shortcode( $atts ) {
 	$class = trim( (string) $atts['class'] );
 	$slider   = (int) $atts['slider'] === 1 || $atts['slider'] === 'true' || $atts['slider'] === 'yes';
 	$autoplay = max( 0, (int) $atts['autoplay'] );
+
+	if ( $slot_key === 'top_left' ) {
+		$slots = banners_alminuto_get_slots();
+		$list  = (array) ( $slots['top_left'] ?? [] );
+		$now   = (int) current_time( 'timestamp' );
+
+		$items = [];
+		foreach ( $list as $row ) {
+			if ( ! banners_alminuto_item_is_active( $row, $now ) ) {
+				continue;
+			}
+			$html = banners_alminuto_render_banner_item_html( $row, $size );
+			if ( ! $html ) {
+				continue;
+			}
+			if ( $slider ) {
+				$items[] = '<div class="bam-slide">' . $html . '</div>';
+			} else {
+				$items[] = '<div class="bam-item">' . $html . '</div>';
+			}
+			if ( count( $items ) >= $limit ) {
+				break;
+			}
+		}
+
+		if ( ! empty( $items ) ) {
+			$classes = 'bam-wrap';
+			if ( $class !== '' ) {
+				$classes .= ' ' . sanitize_html_class( $class );
+			}
+			banners_alminuto_enqueue_assets();
+			if ( $slider ) {
+				return '<div class="bam-slider" data-autoplay="' . esc_attr( (string) $autoplay ) . '">' . implode( '', $items ) . '</div>';
+			}
+			return '<div class="' . esc_attr( $classes ) . '">' . implode( '', $items ) . '</div>';
+		}
+	}
 
 	$query_args = [
 		'post_type'      => 'banner',
@@ -346,13 +485,208 @@ function alminuto_sidebar_right_admin_menu() {
 add_action( 'admin_menu', 'alminuto_sidebar_right_admin_menu' );
 
 function alminuto_sidebar_right_admin_enqueue( $hook_suffix ) {
-	if ( $hook_suffix !== 'banner_page_alminuto-sidebar-right' && $hook_suffix !== 'banner_page_banners-alminuto-order' ) {
+	if ( $hook_suffix !== 'banner_page_alminuto-sidebar-right' && $hook_suffix !== 'banner_page_banners-alminuto-order' && $hook_suffix !== 'appearance_page_alminuto-theme-panel' && $hook_suffix !== 'toplevel_page_alminuto-theme-panel' ) {
 		return;
 	}
 	wp_enqueue_media();
 	wp_enqueue_script( 'jquery-ui-sortable' );
+
+	wp_register_style( 'bam-admin', false );
+	wp_enqueue_style( 'bam-admin' );
+	wp_add_inline_style(
+		'bam-admin',
+		'.banner_page_alminuto-sidebar-right .bam-admin-wrap,.appearance_page_alminuto-theme-panel .bam-admin-wrap,.toplevel_page_alminuto-theme-panel .bam-admin-wrap{max-width:1100px}.banner_page_alminuto-sidebar-right .bam-admin-grid,.appearance_page_alminuto-theme-panel .bam-admin-grid,.toplevel_page_alminuto-theme-panel .bam-admin-grid{display:grid;gap:12px}.banner_page_alminuto-sidebar-right .bam-admin-card,.appearance_page_alminuto-theme-panel .bam-admin-card,.toplevel_page_alminuto-theme-panel .bam-admin-card{background:#fff;border:1px solid #dcdcde;padding:12px}.banner_page_alminuto-sidebar-right .bam-admin-card h2,.appearance_page_alminuto-theme-panel .bam-admin-card h2,.toplevel_page_alminuto-theme-panel .bam-admin-card h2{margin:0 0 10px;font-size:15px}.banner_page_alminuto-sidebar-right .bam-admin-card p.bam-help,.appearance_page_alminuto-theme-panel .bam-admin-card p.bam-help,.toplevel_page_alminuto-theme-panel .bam-admin-card p.bam-help{margin:0 0 10px;color:#50575e}.banner_page_alminuto-sidebar-right .bam-news-grid,.appearance_page_alminuto-theme-panel .bam-news-grid,.toplevel_page_alminuto-theme-panel .bam-news-grid{display:grid;gap:10px}.banner_page_alminuto-sidebar-right .bam-news-preview,.appearance_page_alminuto-theme-panel .bam-news-preview,.toplevel_page_alminuto-theme-panel .bam-news-preview{background:#f6f7f7;border:1px dashed #c3c4c7;padding:8px;min-height:96px;display:flex;align-items:center;justify-content:center}.banner_page_alminuto-sidebar-right .bam-news-preview img,.appearance_page_alminuto-theme-panel .bam-news-preview img,.toplevel_page_alminuto-theme-panel .bam-news-preview img{max-width:100%;height:auto;display:block}.banner_page_alminuto-sidebar-right .bam-field,.appearance_page_alminuto-theme-panel .bam-field,.toplevel_page_alminuto-theme-panel .bam-field{display:grid;gap:6px;margin-top:10px}.banner_page_alminuto-sidebar-right .bam-field label,.appearance_page_alminuto-theme-panel .bam-field label,.toplevel_page_alminuto-theme-panel .bam-field label{font-weight:600}.banner_page_alminuto-sidebar-right .bam-actions,.appearance_page_alminuto-theme-panel .bam-actions,.toplevel_page_alminuto-theme-panel .bam-actions{display:flex;gap:8px;flex-wrap:wrap}.banner_page_alminuto-sidebar-right #publi_gallery_list,.appearance_page_alminuto-theme-panel #publi_gallery_list,.toplevel_page_alminuto-theme-panel #publi_gallery_list{margin:0;display:grid;gap:8px}.banner_page_alminuto-sidebar-right .bam-gallery-item,.appearance_page_alminuto-theme-panel .bam-gallery-item,.toplevel_page_alminuto-theme-panel .bam-gallery-item{border:1px solid #dcdcde;background:#fff;padding:10px;display:grid;gap:8px}.banner_page_alminuto-sidebar-right .bam-gallery-row,.appearance_page_alminuto-theme-panel .bam-gallery-row,.toplevel_page_alminuto-theme-panel .bam-gallery-row{display:flex;gap:10px;align-items:center}.banner_page_alminuto-sidebar-right .bam-gallery-handle,.appearance_page_alminuto-theme-panel .bam-gallery-handle,.toplevel_page_alminuto-theme-panel .bam-gallery-handle{cursor:move;color:#50575e}.banner_page_alminuto-sidebar-right .bam-thumb,.appearance_page_alminuto-theme-panel .bam-thumb,.toplevel_page_alminuto-theme-panel .bam-thumb{width:100px;flex:0 0 auto}.banner_page_alminuto-sidebar-right .bam-thumb img,.appearance_page_alminuto-theme-panel .bam-thumb img,.toplevel_page_alminuto-theme-panel .bam-thumb img{width:100%;height:auto;display:block}.banner_page_alminuto-sidebar-right .bam-gallery-meta,.appearance_page_alminuto-theme-panel .bam-gallery-meta,.toplevel_page_alminuto-theme-panel .bam-gallery-meta{display:grid;gap:8px}.banner_page_alminuto-sidebar-right .bam-gallery-meta input[type=url],.appearance_page_alminuto-theme-panel .bam-gallery-meta input[type=url],.toplevel_page_alminuto-theme-panel .bam-gallery-meta input[type=url]{width:100%}.banner_page_alminuto-sidebar-right .bam-gallery-remove,.appearance_page_alminuto-theme-panel .bam-gallery-remove,.toplevel_page_alminuto-theme-panel .bam-gallery-remove{margin-left:auto}.banner_page_alminuto-sidebar-right .bam-submit,.appearance_page_alminuto-theme-panel .bam-submit,.toplevel_page_alminuto-theme-panel .bam-submit{margin-top:12px}.banner_page_alminuto-sidebar-right .bam-admin-title,.appearance_page_alminuto-theme-panel .bam-admin-title,.toplevel_page_alminuto-theme-panel .bam-admin-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}.banner_page_alminuto-sidebar-right .bam-admin-title h1,.appearance_page_alminuto-theme-panel .bam-admin-title h1,.toplevel_page_alminuto-theme-panel .bam-admin-title h1{margin:0;font-size:20px}.banner_page_alminuto-sidebar-right .bam-admin-title .bam-submit-top,.appearance_page_alminuto-theme-panel .bam-admin-title .bam-submit-top,.toplevel_page_alminuto-theme-panel .bam-admin-title .bam-submit-top{margin:0}.banner_page_alminuto-sidebar-right .bam-admin-title .bam-submit-top input,.appearance_page_alminuto-theme-panel .bam-admin-title .bam-submit-top input,.toplevel_page_alminuto-theme-panel .bam-admin-title .bam-submit-top input{margin:0}.appearance_page_alminuto-theme-panel .bam-admin-wrap,.toplevel_page_alminuto-theme-panel .bam-admin-wrap{padding:0}@media (min-width: 960px){.banner_page_alminuto-sidebar-right .bam-admin-grid,.appearance_page_alminuto-theme-panel .bam-admin-grid,.toplevel_page_alminuto-theme-panel .bam-admin-grid{grid-template-columns:1fr 1fr}.banner_page_alminuto-sidebar-right .bam-admin-card--full,.appearance_page_alminuto-theme-panel .bam-admin-card--full,.toplevel_page_alminuto-theme-panel .bam-admin-card--full{grid-column:1 / -1}.banner_page_alminuto-sidebar-right .bam-news-grid,.appearance_page_alminuto-theme-panel .bam-news-grid,.toplevel_page_alminuto-theme-panel .bam-news-grid{grid-template-columns:280px 1fr;align-items:start}}'
+	);
 }
 add_action( 'admin_enqueue_scripts', 'alminuto_sidebar_right_admin_enqueue' );
+
+function banners_alminuto_render_banner_manager_page() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'No tienes permisos.' );
+	}
+
+	$saved = false;
+	if ( isset( $_POST['bam_banners_nonce'] ) && wp_verify_nonce( (string) $_POST['bam_banners_nonce'], 'bam_banners_save' ) ) {
+		$slots            = banners_alminuto_get_slots();
+		$slots['top_left'] = banners_alminuto_sanitize_slot_items( $_POST['bam_top_left'] ?? [] );
+		update_option( 'banners_alminuto_slots', $slots, false );
+		$saved = true;
+	}
+
+	$slots = banners_alminuto_get_slots();
+	$list  = (array) ( $slots['top_left'] ?? [] );
+	?>
+	<div class="bam-admin-wrap">
+		<?php if ( $saved ) : ?>
+			<div class="notice notice-success is-dismissible"><p>Guardado.</p></div>
+		<?php endif; ?>
+		<form method="post">
+			<?php wp_nonce_field( 'bam_banners_save', 'bam_banners_nonce' ); ?>
+			<section class="bam-admin-card">
+				<h2>Top banner (slider)</h2>
+				<p class="bam-help">Arrastra para reordenar. Usa fechas para programar (opcional).</p>
+				<div class="bam-actions">
+					<button type="button" class="button button-primary" id="bam_top_left_add">Añadir imágenes</button>
+				</div>
+				<ul id="bam_top_left_list" style="margin:10px 0 0;display:grid;gap:8px;">
+					<?php foreach ( $list as $index => $row ) : ?>
+						<?php
+						$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
+						$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
+						$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
+						$start   = isset( $row['start'] ) ? (string) $row['start'] : '';
+						$end     = isset( $row['end'] ) ? (string) $row['end'] : '';
+						?>
+						<li class="bam-gallery-item" data-index="<?php echo esc_attr( (string) $index ); ?>">
+							<div class="bam-gallery-row">
+								<span class="dashicons dashicons-move bam-gallery-handle" aria-hidden="true"></span>
+								<div class="bam-thumb bam-top-left-preview">
+									<?php echo $id > 0 ? wp_kses_post( wp_get_attachment_image( $id, 'thumbnail' ) ) : ''; ?>
+								</div>
+								<div class="bam-actions">
+									<button type="button" class="button bam-top-left-pick">Cambiar</button>
+								</div>
+								<button type="button" class="button-link-delete bam-top-left-remove bam-gallery-remove">Quitar</button>
+							</div>
+							<div class="bam-gallery-meta">
+								<input type="hidden" name="bam_top_left[<?php echo esc_attr( (string) $index ); ?>][id]" value="<?php echo esc_attr( (string) $id ); ?>">
+								<div class="bam-field">
+									<label>Enlace</label>
+									<input type="url" class="regular-text" name="bam_top_left[<?php echo esc_attr( (string) $index ); ?>][url]" value="<?php echo esc_attr( $url ); ?>" placeholder="https://...">
+								</div>
+								<label>
+									<input type="checkbox" name="bam_top_left[<?php echo esc_attr( (string) $index ); ?>][new_tab]" value="1" <?php checked( $new_tab, 1 ); ?>>
+									Abrir en nueva pestaña
+								</label>
+								<div class="bam-actions" style="gap:12px;">
+									<div class="bam-field" style="margin-top:0;min-width:160px;">
+										<label>Inicio</label>
+										<input type="date" name="bam_top_left[<?php echo esc_attr( (string) $index ); ?>][start]" value="<?php echo esc_attr( $start ); ?>">
+									</div>
+									<div class="bam-field" style="margin-top:0;min-width:160px;">
+										<label>Fin</label>
+										<input type="date" name="bam_top_left[<?php echo esc_attr( (string) $index ); ?>][end]" value="<?php echo esc_attr( $end ); ?>">
+									</div>
+								</div>
+							</div>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+				<div class="bam-submit"><?php submit_button( 'Guardar', 'primary', 'submit', false ); ?></div>
+			</section>
+		</form>
+	</div>
+	<script>
+	jQuery(function($){
+		function canUseMedia(){
+			return window.wp && wp.media;
+		}
+		function thumbUrl(att){
+			if (att && att.sizes && att.sizes.thumbnail) return att.sizes.thumbnail.url;
+			return att && att.url ? att.url : '';
+		}
+		function pickImage(onSelect){
+			if (!canUseMedia()) { alert('No se ha cargado el selector de medios. Recarga la página.'); return; }
+			var frame = wp.media({title:'Selecciona una imagen', multiple:false, library:{type:'image'}});
+			frame.on('select', function(){
+				var att = frame.state().get('selection').first().toJSON();
+				onSelect(att);
+			});
+			frame.open();
+		}
+		function pickImages(onSelect){
+			if (!canUseMedia()) { alert('No se ha cargado el selector de medios. Recarga la página.'); return; }
+			var frame = wp.media({title:'Selecciona imágenes', multiple:true, library:{type:'image'}});
+			frame.on('select', function(){
+				var selection = frame.state().get('selection');
+				var atts = [];
+				selection.each(function(model){ atts.push(model.toJSON()); });
+				onSelect(atts);
+			});
+			frame.open();
+		}
+		function renumber(){
+			$('#bam_top_left_list > li').each(function(i){
+				var $li = $(this);
+				$li.attr('data-index', i);
+				$li.find('input,select,textarea').each(function(){
+					var $el = $(this);
+					var name = $el.attr('name');
+					if (!name) return;
+					name = name.replace(/bam_top_left\\[[0-9]+\\]/g, 'bam_top_left['+i+']');
+					$el.attr('name', name);
+				});
+			});
+		}
+		function initItem($li){
+			$li.find('.bam-top-left-remove').on('click', function(){
+				$li.remove();
+				renumber();
+			});
+			$li.find('.bam-top-left-pick').on('click', function(){
+				pickImage(function(att){
+					$li.find('input[type=hidden][name*=\"[id]\"]').val(att.id);
+					$li.find('.bam-top-left-preview').html('<img src=\"'+thumbUrl(att)+'\" alt=\"\">');
+				});
+			});
+		}
+		$('#bam_top_left_list > li').each(function(){ initItem($(this)); });
+		$('#bam_top_left_list').sortable({
+			items: '> li',
+			axis: 'y',
+			handle: '.bam-gallery-handle',
+			cancel: 'input,textarea,button,select,label,a',
+			stop: function(){ renumber(); }
+		});
+		$(document).on('click', '#bam_top_left_add', function(e){
+			e.preventDefault();
+			pickImages(function(atts){
+				if (!atts || !atts.length) return;
+				var nextIndex = 0;
+				$('#bam_top_left_list > li').each(function(){
+					var idx = parseInt($(this).attr('data-index') || '0', 10);
+					if (idx >= nextIndex) nextIndex = idx + 1;
+				});
+				atts.forEach(function(att){
+					var idx = nextIndex++;
+					var $li = $('<li class=\"bam-gallery-item\" data-index=\"'+idx+'\">\
+						<div class=\"bam-gallery-row\">\
+							<span class=\"dashicons dashicons-move bam-gallery-handle\" aria-hidden=\"true\"></span>\
+							<div class=\"bam-thumb bam-top-left-preview\"><img src=\"'+thumbUrl(att)+'\" alt=\"\"></div>\
+							<div class=\"bam-actions\">\
+								<button type=\"button\" class=\"button bam-top-left-pick\">Cambiar</button>\
+							</div>\
+							<button type=\"button\" class=\"button-link-delete bam-top-left-remove bam-gallery-remove\">Quitar</button>\
+						</div>\
+						<div class=\"bam-gallery-meta\">\
+							<input type=\"hidden\" name=\"bam_top_left['+idx+'][id]\" value=\"'+att.id+'\">\
+							<div class=\"bam-field\">\
+								<label>Enlace</label>\
+								<input type=\"url\" class=\"regular-text\" name=\"bam_top_left['+idx+'][url]\" value=\"\" placeholder=\"https://...\">\
+							</div>\
+							<label><input type=\"checkbox\" name=\"bam_top_left['+idx+'][new_tab]\" value=\"1\"> Abrir en nueva pestaña</label>\
+							<div class=\"bam-actions\" style=\"gap:12px;\">\
+								<div class=\"bam-field\" style=\"margin-top:0;min-width:160px;\">\
+									<label>Inicio</label>\
+									<input type=\"date\" name=\"bam_top_left['+idx+'][start]\" value=\"\">\
+								</div>\
+								<div class=\"bam-field\" style=\"margin-top:0;min-width:160px;\">\
+									<label>Fin</label>\
+									<input type=\"date\" name=\"bam_top_left['+idx+'][end]\" value=\"\">\
+								</div>\
+							</div>\
+						</div>\
+					</li>');
+					$('#bam_top_left_list').append($li);
+					initItem($li);
+				});
+				renumber();
+			});
+		});
+	});
+	</script>
+	<?php
+}
 
 function alminuto_sidebar_right_sanitize_gallery( $raw ) {
 	if ( ! is_array( $raw ) ) {
@@ -406,94 +740,102 @@ function alminuto_sidebar_right_render_admin_page() {
 
 	$opts = alminuto_sidebar_right_get_options();
 	?>
-	<div class="wrap">
-		<h1>Columna derecha (home)</h1>
+	<div class="wrap bam-admin-wrap">
 		<?php if ( $saved ) : ?>
 			<div class="notice notice-success is-dismissible"><p>Guardado.</p></div>
 		<?php endif; ?>
 		<form method="post">
 			<?php wp_nonce_field( 'alminuto_sidebar_right_save', 'alminuto_sidebar_right_nonce' ); ?>
+			<div class="bam-admin-title">
+				<h1>Columna derecha (home)</h1>
+				<div class="bam-submit-top"><?php submit_button( 'Guardar', 'primary', 'submit', false ); ?></div>
+			</div>
 
-			<h2 class="title">Noticias con rigor</h2>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">Imagen</th>
-					<td>
-						<input type="hidden" name="news_rigor_image_id" id="news_rigor_image_id" value="<?php echo esc_attr( (string) (int) $opts['news_rigor_image_id'] ); ?>">
-						<button type="button" class="button" id="news_rigor_pick"><?php echo (int) $opts['news_rigor_image_id'] > 0 ? 'Cambiar imagen' : 'Elegir imagen'; ?></button>
-						<button type="button" class="button" id="news_rigor_clear" <?php echo (int) $opts['news_rigor_image_id'] > 0 ? '' : 'disabled'; ?>>Quitar</button>
-						<div id="news_rigor_preview" style="margin-top:10px;max-width:320px;">
+			<div class="bam-admin-grid">
+				<section class="bam-admin-card">
+					<h2>Noticias con rigor</h2>
+					<p class="bam-help">Selecciona una imagen y opcionalmente un enlace.</p>
+					<div class="bam-news-grid">
+						<div class="bam-news-preview" id="news_rigor_preview">
 							<?php
 							if ( (int) $opts['news_rigor_image_id'] > 0 ) {
 								echo wp_kses_post( wp_get_attachment_image( (int) $opts['news_rigor_image_id'], 'medium' ) );
 							}
 							?>
 						</div>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">Enlace</th>
-					<td>
-						<input type="url" class="regular-text" name="news_rigor_url" value="<?php echo esc_attr( (string) $opts['news_rigor_url'] ); ?>" placeholder="https://...">
-					</td>
-				</tr>
-			</table>
-
-			<h2 class="title">Bloque 2</h2>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">Título</th>
-					<td>
-						<input type="text" class="regular-text" name="block2_title" value="<?php echo esc_attr( (string) $opts['block2_title'] ); ?>">
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">YouTube URL</th>
-					<td>
-						<input type="url" class="regular-text" name="youtube_url" value="<?php echo esc_attr( (string) $opts['youtube_url'] ); ?>" placeholder="https://www.youtube.com/watch?v=...">
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">Facebook video URL</th>
-					<td>
-						<input type="url" class="regular-text" name="facebook_video_url" value="<?php echo esc_attr( (string) $opts['facebook_video_url'] ); ?>" placeholder="https://www.facebook.com/...">
-					</td>
-				</tr>
-			</table>
-
-			<h2 class="title">Publicidad</h2>
-			<h2 class="title">Galería (drag &amp; drop)</h2>
-			<p>La primera imagen será la principal (tipo cartel). El resto quedarán debajo.</p>
-			<p><button type="button" class="button" id="publi_gallery_add">Añadir imagen</button></p>
-			<ul id="publi_gallery_list" style="margin:0;max-width:360px;">
-				<?php foreach ( (array) $opts['publi_gallery'] as $index => $row ) : ?>
-					<?php
-					$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
-					$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
-					$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
-					?>
-					<li class="publi-item" style="margin:0 0 10px;padding:10px;border:1px solid #ddd;background:#fff;display:grid;gap:8px;" data-index="<?php echo esc_attr( (string) $index ); ?>">
-						<div style="display:flex;gap:10px;align-items:center;">
-							<span class="publi-handle" style="font-weight:700;cursor:move;">↕</span>
-							<div class="publi-preview" style="width:120px;">
-								<?php echo $id > 0 ? wp_kses_post( wp_get_attachment_image( $id, 'thumbnail' ) ) : ''; ?>
+						<div>
+							<input type="hidden" name="news_rigor_image_id" id="news_rigor_image_id" value="<?php echo esc_attr( (string) (int) $opts['news_rigor_image_id'] ); ?>">
+							<div class="bam-actions">
+								<button type="button" class="button button-primary" id="news_rigor_pick"><?php echo (int) $opts['news_rigor_image_id'] > 0 ? 'Cambiar imagen' : 'Elegir imagen'; ?></button>
+								<button type="button" class="button" id="news_rigor_clear" <?php echo (int) $opts['news_rigor_image_id'] > 0 ? '' : 'disabled'; ?>>Quitar</button>
 							</div>
-							<button type="button" class="button publi-pick">Cambiar</button>
-							<button type="button" class="button-link-delete publi-remove">Quitar</button>
+							<div class="bam-field">
+								<label for="news_rigor_url">Enlace</label>
+								<input type="url" id="news_rigor_url" class="regular-text" name="news_rigor_url" value="<?php echo esc_attr( (string) $opts['news_rigor_url'] ); ?>" placeholder="https://...">
+							</div>
 						</div>
-						<input type="hidden" name="publi_gallery[<?php echo esc_attr( (string) $index ); ?>][id]" value="<?php echo esc_attr( (string) $id ); ?>">
-						<label>Enlace
-							<input type="url" class="regular-text" name="publi_gallery[<?php echo esc_attr( (string) $index ); ?>][url]" value="<?php echo esc_attr( $url ); ?>" placeholder="https://...">
-						</label>
-						<label>
-							<input type="checkbox" name="publi_gallery[<?php echo esc_attr( (string) $index ); ?>][new_tab]" value="1" <?php checked( $new_tab, 1 ); ?>>
-							Abrir en nueva pestaña
-						</label>
-					</li>
-				<?php endforeach; ?>
-			</ul>
+					</div>
+				</section>
 
-			<?php submit_button( 'Guardar' ); ?>
+				<section class="bam-admin-card">
+					<h2>Bloque 2</h2>
+					<p class="bam-help">Título + vídeo de YouTube o Facebook (o ambos).</p>
+					<div class="bam-field">
+						<label for="block2_title">Título</label>
+						<input type="text" id="block2_title" class="regular-text" name="block2_title" value="<?php echo esc_attr( (string) $opts['block2_title'] ); ?>">
+					</div>
+					<div class="bam-field">
+						<label for="youtube_url">YouTube URL</label>
+						<input type="url" id="youtube_url" class="regular-text" name="youtube_url" value="<?php echo esc_attr( (string) $opts['youtube_url'] ); ?>" placeholder="https://www.youtube.com/watch?v=...">
+					</div>
+					<div class="bam-field">
+						<label for="facebook_video_url">Facebook video URL</label>
+						<input type="url" id="facebook_video_url" class="regular-text" name="facebook_video_url" value="<?php echo esc_attr( (string) $opts['facebook_video_url'] ); ?>" placeholder="https://www.facebook.com/...">
+					</div>
+				</section>
+
+				<section class="bam-admin-card bam-admin-card--full">
+					<h2>Publicidad</h2>
+					<p class="bam-help">La primera imagen será la principal. Arrastra para reordenar.</p>
+					<div class="bam-actions">
+						<button type="button" class="button button-primary" id="publi_gallery_add">Añadir imagen</button>
+					</div>
+					<ul id="publi_gallery_list">
+						<?php foreach ( (array) $opts['publi_gallery'] as $index => $row ) : ?>
+							<?php
+							$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
+							$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
+							$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
+							?>
+							<li class="publi-item bam-gallery-item" data-index="<?php echo esc_attr( (string) $index ); ?>">
+								<div class="bam-gallery-row">
+									<span class="dashicons dashicons-move bam-gallery-handle publi-handle" aria-hidden="true"></span>
+									<div class="publi-preview bam-thumb">
+										<?php echo $id > 0 ? wp_kses_post( wp_get_attachment_image( $id, 'thumbnail' ) ) : ''; ?>
+									</div>
+									<div class="bam-actions">
+										<button type="button" class="button publi-pick">Cambiar</button>
+									</div>
+									<button type="button" class="button-link-delete publi-remove bam-gallery-remove">Quitar</button>
+								</div>
+								<div class="bam-gallery-meta">
+									<input type="hidden" name="publi_gallery[<?php echo esc_attr( (string) $index ); ?>][id]" value="<?php echo esc_attr( (string) $id ); ?>">
+									<div class="bam-field">
+										<label>Enlace</label>
+										<input type="url" class="regular-text" name="publi_gallery[<?php echo esc_attr( (string) $index ); ?>][url]" value="<?php echo esc_attr( $url ); ?>" placeholder="https://...">
+									</div>
+									<label>
+										<input type="checkbox" name="publi_gallery[<?php echo esc_attr( (string) $index ); ?>][new_tab]" value="1" <?php checked( $new_tab, 1 ); ?>>
+										Abrir en nueva pestaña
+									</label>
+								</div>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				</section>
+			</div>
+
+			<div class="bam-submit"><?php submit_button( 'Guardar' ); ?></div>
 		</form>
 	</div>
 	<script>
@@ -548,7 +890,7 @@ function alminuto_sidebar_right_render_admin_page() {
 		$('#news_rigor_pick').on('click', function(){
 			pickImage(function(att){
 				$('#news_rigor_image_id').val(att.id);
-				$('#news_rigor_preview').html('<img src="'+previewUrl(att)+'" style="max-width:100%;height:auto;">');
+				$('#news_rigor_preview').html('<img src="'+previewUrl(att)+'" alt="">');
 				$('#news_rigor_clear').prop('disabled', false);
 				$('#news_rigor_pick').text('Cambiar imagen');
 			});
@@ -582,7 +924,7 @@ function alminuto_sidebar_right_render_admin_page() {
 			$li.find('.publi-pick').on('click', function(){
 				pickImage(function(att){
 					$li.find('input[type=hidden][name*=\"[id]\"]').val(att.id);
-					$li.find('.publi-preview').html('<img src=\"'+thumbUrl(att)+'\" style=\"max-width:100%;height:auto;\">');
+					$li.find('.publi-preview').html('<img src=\"'+thumbUrl(att)+'\" alt=\"\">');
 				});
 			});
 		}
@@ -611,18 +953,23 @@ function alminuto_sidebar_right_render_admin_page() {
 
 				atts.forEach(function(att){
 					var idx = nextIndex++;
-					var $li = $('<li class=\"publi-item\" style=\"margin:0 0 10px;padding:10px;border:1px solid #ddd;background:#fff;display:grid;gap:8px;\" data-index=\"'+idx+'\">\
-						<div style=\"display:flex;gap:10px;align-items:center;\">\
-							<span class=\"publi-handle\" style=\"font-weight:700;cursor:move;\">↕</span>\
-							<div class=\"publi-preview\" style=\"width:120px;\"><img src=\"'+thumbUrl(att)+'\" style=\"max-width:100%;height:auto;\"></div>\
-							<button type=\"button\" class=\"button publi-pick\">Cambiar</button>\
-							<button type=\"button\" class=\"button-link-delete publi-remove\">Quitar</button>\
+					var $li = $('<li class=\"publi-item bam-gallery-item\" data-index=\"'+idx+'\">\
+						<div class=\"bam-gallery-row\">\
+							<span class=\"dashicons dashicons-move bam-gallery-handle publi-handle\" aria-hidden=\"true\"></span>\
+							<div class=\"publi-preview bam-thumb\"><img src=\"'+thumbUrl(att)+'\" alt=\"\"></div>\
+							<div class=\"bam-actions\">\
+								<button type=\"button\" class=\"button publi-pick\">Cambiar</button>\
+							</div>\
+							<button type=\"button\" class=\"button-link-delete publi-remove bam-gallery-remove\">Quitar</button>\
 						</div>\
-						<input type=\"hidden\" name=\"publi_gallery['+idx+'][id]\" value=\"'+att.id+'\">\
-						<label>Enlace\
-							<input type=\"url\" class=\"regular-text\" name=\"publi_gallery['+idx+'][url]\" value=\"\" placeholder=\"https://...\">\
-						</label>\
-						<label><input type=\"checkbox\" name=\"publi_gallery['+idx+'][new_tab]\" value=\"1\"> Abrir en nueva pestaña</label>\
+						<div class=\"bam-gallery-meta\">\
+							<input type=\"hidden\" name=\"publi_gallery['+idx+'][id]\" value=\"'+att.id+'\">\
+							<div class=\"bam-field\">\
+								<label>Enlace</label>\
+								<input type=\"url\" class=\"regular-text\" name=\"publi_gallery['+idx+'][url]\" value=\"\" placeholder=\"https://...\">\
+							</div>\
+							<label><input type=\"checkbox\" name=\"publi_gallery['+idx+'][new_tab]\" value=\"1\"> Abrir en nueva pestaña</label>\
+						</div>\
 					</li>');
 					$('#publi_gallery_list').append($li);
 					initGalleryItem($li);

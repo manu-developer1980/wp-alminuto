@@ -1,0 +1,20 @@
+[16-May-2021 17:16:39 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function add_filter() in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php:64
+Stack trace:
+#0 /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php(29): UpdraftPlusAddons2->__construct('updraftplus', 'https://updraft...')
+#1 {main}
+  thrown in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php on line 64
+[10-Jul-2021 11:52:54 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function add_filter() in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php:64
+Stack trace:
+#0 /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php(29): UpdraftPlusAddons2->__construct('updraftplus', 'https://updraft...')
+#1 {main}
+  thrown in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php on line 64
+[01-Aug-2021 11:44:52 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function add_filter() in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php:64
+Stack trace:
+#0 /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php(29): UpdraftPlusAddons2->__construct('updraftplus', 'https://updraft...')
+#1 {main}
+  thrown in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php on line 64
+[10-Oct-2021 17:14:40 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function add_filter() in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php:64
+Stack trace:
+#0 /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php(29): UpdraftPlusAddons2->__construct('updraftplus', 'https://updraft...')
+#1 {main}
+  thrown in /home/customer/www/algecirasalminuto.es/public_html/wp-content/plugins/updraftplus/udaddons/updraftplus-addons.php on line 64
