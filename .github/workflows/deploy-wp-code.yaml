@@ -23,6 +23,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug repository structure
+        run: |
+          pwd
+          ls -la
+          ls -la wp-content || true
+          ls -la wp-content/themes || true
+          ls -la wp-content/themes/alminuto-theme || true
+          ls -la wp-content/plugins || true
+
       - name: Deploy theme to Algeciras
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -31,7 +40,7 @@ jobs:
           password: ${{ secrets.ALG_FTP_PASSWORD }}
           port: 21
           protocol: ftp
-          local-dir: ./alminuto-theme/
+          local-dir: ./wp-content/themes/alminuto-theme/
           server-dir: ${{ secrets.ALG_FTP_SERVER_DIR_THEME }}
           exclude: |
             **/.git*
@@ -49,7 +58,7 @@ jobs:
           password: ${{ secrets.ALG_FTP_PASSWORD }}
           port: 21
           protocol: ftp
-          local-dir: ./plugins/
+          local-dir: ./wp-content/plugins/
           server-dir: ${{ secrets.ALG_FTP_SERVER_DIR_PLUGINS }}
           exclude: |
             **/.git*
@@ -58,14 +67,15 @@ jobs:
             **/.DS_Store
             **/Thumbs.db
             **/*.map
-            **/vendor/bin/**
-            **/tests/**
-            **/test/**
             **/*.sql
+            **/*.sql.gz
             **/*.zip
             **/*.tar
             **/*.tar.gz
+            **/*.tgz
             **/*.bak
+            **/*.backup
+            **/*.log
 
   deploy-deportes:
     name: Deploy to Deportes
@@ -76,6 +86,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug repository structure
+        run: |
+          pwd
+          ls -la
+          ls -la wp-content || true
+          ls -la wp-content/themes || true
+          ls -la wp-content/themes/alminuto-theme || true
+          ls -la wp-content/plugins || true
+
       - name: Deploy theme to Deportes
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -84,7 +103,7 @@ jobs:
           password: ${{ secrets.DEP_FTP_PASSWORD }}
           port: 21
           protocol: ftp
-          local-dir: ./alminuto-theme/
+          local-dir: ./wp-content/themes/alminuto-theme/
           server-dir: ${{ secrets.DEP_FTP_SERVER_DIR_THEME }}
           exclude: |
             **/.git*
@@ -102,7 +121,7 @@ jobs:
           password: ${{ secrets.DEP_FTP_PASSWORD }}
           port: 21
           protocol: ftp
-          local-dir: ./plugins/
+          local-dir: ./wp-content/plugins/
           server-dir: ${{ secrets.DEP_FTP_SERVER_DIR_PLUGINS }}
           exclude: |
             **/.git*
@@ -111,11 +130,12 @@ jobs:
             **/.DS_Store
             **/Thumbs.db
             **/*.map
-            **/vendor/bin/**
-            **/tests/**
-            **/test/**
             **/*.sql
+            **/*.sql.gz
             **/*.zip
             **/*.tar
             **/*.tar.gz
+            **/*.tgz
             **/*.bak
+            **/*.backup
+            **/*.log
