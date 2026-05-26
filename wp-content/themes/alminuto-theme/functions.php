@@ -49,6 +49,35 @@ function alminuto_theme_register_image_sizes() {
 }
 add_action( 'after_setup_theme', 'alminuto_theme_register_image_sizes', 20 );
 
+function alminuto_theme_allowed_intermediate_image_sizes() {
+	return array_values( array_unique( array_keys( alminuto_theme_image_sizes() ) ) );
+}
+
+function alminuto_theme_limit_intermediate_image_sizes( $sizes ) {
+	if ( ! is_array( $sizes ) ) {
+		return $sizes;
+	}
+
+	return alminuto_theme_allowed_intermediate_image_sizes();
+}
+add_filter( 'intermediate_image_sizes', 'alminuto_theme_limit_intermediate_image_sizes', 99 );
+
+function alminuto_theme_limit_intermediate_image_sizes_advanced( $sizes ) {
+	if ( ! is_array( $sizes ) ) {
+		return $sizes;
+	}
+
+	$allowed = array_flip( alminuto_theme_allowed_intermediate_image_sizes() );
+	foreach ( array_keys( $sizes ) as $size_name ) {
+		if ( ! isset( $allowed[ $size_name ] ) ) {
+			unset( $sizes[ $size_name ] );
+		}
+	}
+
+	return $sizes;
+}
+add_filter( 'intermediate_image_sizes_advanced', 'alminuto_theme_limit_intermediate_image_sizes_advanced', 99 );
+
 function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
 	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
