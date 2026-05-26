@@ -1,0 +1,121 @@
+name: Deploy WordPress Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Destino del deploy"
+        required: true
+        default: "algeciras"
+        type: choice
+        options:
+          - algeciras
+          - deportes
+          - both
+
+jobs:
+  deploy-algeciras:
+    name: Deploy to Algeciras
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.target == 'algeciras' || github.event.inputs.target == 'both' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy theme to Algeciras
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.ALG_FTP_SERVER }}
+          username: ${{ secrets.ALG_FTP_USERNAME }}
+          password: ${{ secrets.ALG_FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: ./alminuto-theme/
+          server-dir: ${{ secrets.ALG_FTP_SERVER_DIR_THEME }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+            **/Thumbs.db
+            **/*.map
+
+      - name: Deploy plugins to Algeciras
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.ALG_FTP_SERVER }}
+          username: ${{ secrets.ALG_FTP_USERNAME }}
+          password: ${{ secrets.ALG_FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: ./plugins/
+          server-dir: ${{ secrets.ALG_FTP_SERVER_DIR_PLUGINS }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+            **/Thumbs.db
+            **/*.map
+            **/vendor/bin/**
+            **/tests/**
+            **/test/**
+            **/*.sql
+            **/*.zip
+            **/*.tar
+            **/*.tar.gz
+            **/*.bak
+
+  deploy-deportes:
+    name: Deploy to Deportes
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.target == 'deportes' || github.event.inputs.target == 'both' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy theme to Deportes
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.DEP_FTP_SERVER }}
+          username: ${{ secrets.DEP_FTP_USERNAME }}
+          password: ${{ secrets.DEP_FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: ./alminuto-theme/
+          server-dir: ${{ secrets.DEP_FTP_SERVER_DIR_THEME }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+            **/Thumbs.db
+            **/*.map
+
+      - name: Deploy plugins to Deportes
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.DEP_FTP_SERVER }}
+          username: ${{ secrets.DEP_FTP_USERNAME }}
+          password: ${{ secrets.DEP_FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: ./plugins/
+          server-dir: ${{ secrets.DEP_FTP_SERVER_DIR_PLUGINS }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+            **/Thumbs.db
+            **/*.map
+            **/vendor/bin/**
+            **/tests/**
+            **/test/**
+            **/*.sql
+            **/*.zip
+            **/*.tar
+            **/*.tar.gz
+            **/*.bak

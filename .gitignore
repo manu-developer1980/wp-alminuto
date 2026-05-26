@@ -1,64 +1,91 @@
-# WordPress core
-/wp-admin/
-/wp-includes/
-/index.php
-/license.txt
-/readme.html
-/xmlrpc.php
-/wp-*.php
+# Ignore everything at repository root
+/*
 
-# Environment-specific config
-/wp-config.php
-/.htaccess
-/.user.ini
+# Allow GitHub workflow/config
+!.gitignore
+!.github/
+!.github/**
 
-# LocalWP/local tooling
-/local-xdebuginfo.php
+# Allow wp-content folder itself, but ignore its contents by default
+!wp-content/
+wp-content/*
 
-# wp-content (track only custom code)
-/wp-content/*
-!/wp-content/plugins/
-!/wp-content/themes/
-!/wp-content/mu-plugins/
+# Allow only selected theme
+!wp-content/themes/
+wp-content/themes/*
+!wp-content/themes/alminuto-theme/
+!wp-content/themes/alminuto-theme/**
 
-# Uploads, cache and backups
-/wp-content/uploads/
-/wp-content/cache/
-/wp-content/upgrade/
-/wp-content/backup*/
-/wp-content/backups*/
-/wp-content/updraft/
+# Allow plugins folder, but ignore runtime/generated/plugin backup junk inside if needed
+!wp-content/plugins/
+!wp-content/plugins/**
 
-# Themes
-/wp-content/themes/*
-!/wp-content/themes/alminuto-theme/
+# If you DON'T want every plugin, use this instead of the two plugin lines above:
+# !wp-content/plugins/
+# wp-content/plugins/*
+# !wp-content/plugins/nombre-plugin-1/
+# !wp-content/plugins/nombre-plugin-1/**
+# !wp-content/plugins/nombre-plugin-2/
+# !wp-content/plugins/nombre-plugin-2/**
 
-# MU plugins
-/wp-content/mu-plugins/*
-!/wp-content/mu-plugins/alminuto-core/
+# Never track WordPress generated/runtime folders
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+wp-content/updraft/
+wp-content/aiowps_backups/
+wp-content/upgrade-temp-backup/
+wp-content/backups/
+wp-content/backup*/
+wp-content/wflogs/
+wp-content/languages/
+wp-content/mu-plugins/
 
-# Secrets and DB exports
+# Never track generated/config files inside wp-content
+wp-content/index.php
+wp-content/debug.log
+wp-content/sgo-config.php
+wp-content/sgs_encrypt_key.php
+
+# Never track old/default themes or theme zips
+wp-content/themes/twentytwenty*/
+wp-content/themes/*.zip
+wp-content/themes/index.php
+
+# WordPress config/secrets
+wp-config.php
+wp-config-*.php
 .env
 .env.*
+
+# Backups, dumps and archives anywhere
 *.sql
+*.sql.gz
 *.zip
 *.tar
 *.tar.gz
+*.tgz
+*.bak
+*.backup
+
+# Logs
 *.log
 
-# Dependencies
-node_modules/
-vendor/
-
-# OS/editor
-.trae/
+# OS/editor files
 .DS_Store
 Thumbs.db
+Desktop.ini
 .idea/
 .vscode/
 
-# Generated assets
-/wp-content/themes/alminuto-theme/*.min.css
+# Dependency/cache folders
+node_modules/
+.npm/
+.pnpm-store/
+.cache/
+.parcel-cache/
+.vite/
+.turbo/
 
-# Local analysis artifacts
-/wp-content/plugins/banners-alminuto/*.html
+# FTP deploy state
+.ftp-deploy-sync-state.json
