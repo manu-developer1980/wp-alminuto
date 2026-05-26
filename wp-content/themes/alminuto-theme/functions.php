@@ -25,7 +25,55 @@ function alminuto_theme_setup() {
 	);
 }
 add_action( 'after_setup_theme', 'alminuto_theme_setup' );
+add_filter( 'wp_handle_upload', 'alminuto_resize_uploaded_original_image' );
 
+function alminuto_resize_uploaded_original_image( array $upload ): array {
+	if ( empty( $upload['file'] ) || empty( $upload['type'] ) ) {
+		return $upload;
+	}
+
+	$allowed_mimes = [
+		'image/jpeg',
+		'image/png',
+		'image/webp',
+	];
+
+	if ( ! in_array( $upload['type'], $allowed_mimes, true ) ) {
+		return $upload;
+	}
+
+	$file_path = $upload['file'];
+	$max_width = 1200;
+
+	$image_info = @getimagesize( $file_path );
+
+	if ( ! $image_info ) {
+		return $upload;
+	}
+
+	$width  = (int) $image_info[0];
+	$height = (int) $image_info[1];
+
+	if ( $width <= $max_width ) {
+		return $upload;
+	}
+
+	$editor = wp_get_image_editor( $file_path );
+
+	if ( is_wp_error( $editor ) ) {
+		return $upload;
+	}
+
+	$editor->resize( $max_width, 0, false );
+
+	$saved = $editor->save( $file_path );
+
+	if ( is_wp_error( $saved ) ) {
+		return $upload;
+	}
+
+	return $upload;
+}
 function alminuto_theme_image_sizes() {
 	return [
 		'banner_superior'   => [ 'width' => 855, 'height' => 174, 'crop' => [ 'center', 'center' ] ],

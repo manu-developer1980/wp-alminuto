@@ -59,6 +59,7 @@ jobs:
             **/.env.*
 
       - name: Deploy plugins to Algeciras
+        if: ${{ false }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.ALG_FTP_SERVER }}
@@ -130,6 +131,7 @@ jobs:
             **/.env.*
 
       - name: Deploy plugins to Deportes
+        if: ${{ false }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.DEP_FTP_SERVER }}
