@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.ALG_FTP_USERNAME }}
           password: ${{ secrets.ALG_FTP_PASSWORD }}
           port: 21
-          protocol: ftp
+          protocol: ftps
           local-dir: ./wp-content/themes/alminuto-theme/
           server-dir: ${{ secrets.FTP_SERVER_DIR_THEME }}
           exclude: |
@@ -61,7 +61,7 @@ jobs:
           username: ${{ secrets.ALG_FTP_USERNAME }}
           password: ${{ secrets.ALG_FTP_PASSWORD }}
           port: 21
-          protocol: ftp
+          protocol: ftps
           local-dir: ./wp-content/plugins/
           server-dir: ${{ secrets.FTP_SERVER_DIR_PLUGINS }}
           exclude: |
@@ -97,7 +97,7 @@ jobs:
           username: ${{ secrets.DEP_FTP_USERNAME }}
           password: ${{ secrets.DEP_FTP_PASSWORD }}
           port: 21
-          protocol: ftp
+          protocol: ftps
           local-dir: ./wp-content/themes/alminuto-theme/
           server-dir: ${{ secrets.FTP_SERVER_DIR_THEME }}
           exclude: |
@@ -124,7 +124,7 @@ jobs:
           username: ${{ secrets.DEP_FTP_USERNAME }}
           password: ${{ secrets.DEP_FTP_PASSWORD }}
           port: 21
-          protocol: ftp
+          protocol: ftps
           local-dir: ./wp-content/plugins/
           server-dir: ${{ secrets.FTP_SERVER_DIR_PLUGINS }}
           exclude: |
