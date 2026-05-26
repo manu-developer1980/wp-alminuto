@@ -338,7 +338,7 @@ function alminuto_theme_primary_media_html( $post_id = 0 ) {
 	}
 
 	if ( has_post_thumbnail( $post_id ) ) {
-		$img = get_the_post_thumbnail( $post_id, 'large' );
+		$img = get_the_post_thumbnail( $post_id, 'content_4_3' );
 		return $img ? '<div class="am-post-thumb" style="aspect-ratio:auto;">' . $img . '</div>' : '';
 	}
 

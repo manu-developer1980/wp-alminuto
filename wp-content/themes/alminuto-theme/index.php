@@ -13,7 +13,7 @@ get_header();
 					<article class="am-post">
 						<a class="am-post-thumb" href="<?php the_permalink(); ?>">
 							<?php if ( has_post_thumbnail() ) : ?>
-								<?php the_post_thumbnail( 'medium_large' ); ?>
+								<?php the_post_thumbnail( 'content_4_3' ); ?>
 							<?php endif; ?>
 						</a>
 						<div class="am-post-body">

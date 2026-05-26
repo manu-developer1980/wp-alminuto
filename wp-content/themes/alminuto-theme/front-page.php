@@ -70,7 +70,7 @@ get_header();
 							$size   = 'col_izquierda';
 							$img    = $img_id ? wp_get_attachment_image( $img_id, $size ) : '';
 							if ( ! $img && $img_id ) {
-								$img = wp_get_attachment_image( $img_id, 'medium_large' );
+								$img = wp_get_attachment_image( $img_id, 'full' );
 							}
 							?>
 							<article class="am-home-post <?php echo $i === 0 ? 'am-home-post--featured' : ''; ?>">
@@ -98,7 +98,7 @@ get_header();
 							$size   = 'col_derecha';
 							$img    = $img_id ? wp_get_attachment_image( $img_id, $size ) : '';
 							if ( ! $img && $img_id ) {
-								$img = wp_get_attachment_image( $img_id, 'thumbnail' );
+								$img = wp_get_attachment_image( $img_id, 'full' );
 							}
 							?>
 							<article class="am-home-post am-home-post--compact">
