@@ -37,10 +37,12 @@ jobs:
           protocol: ftps
           local-dir: ./wp-content/themes/alminuto-theme/
           server-dir: ${{ secrets.FTP_SERVER_DIR_THEME }}
+          state-name: .ftp-deploy-sync-state-theme-algeciras.json
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/vendor/bin/**
             **/.DS_Store
             **/Thumbs.db
             **/*.map
@@ -53,6 +55,8 @@ jobs:
             **/*.bak
             **/*.backup
             **/*.log
+            **/.env
+            **/.env.*
 
       - name: Deploy plugins to Algeciras
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -64,10 +68,12 @@ jobs:
           protocol: ftps
           local-dir: ./wp-content/plugins/
           server-dir: ${{ secrets.FTP_SERVER_DIR_PLUGINS }}
+          state-name: .ftp-deploy-sync-state-plugins-algeciras.json
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/vendor/bin/**
             **/.DS_Store
             **/Thumbs.db
             **/*.map
@@ -80,6 +86,8 @@ jobs:
             **/*.bak
             **/*.backup
             **/*.log
+            **/.env
+            **/.env.*
 
   deploy-deportes:
     name: Deploy to Deportes
@@ -100,10 +108,12 @@ jobs:
           protocol: ftps
           local-dir: ./wp-content/themes/alminuto-theme/
           server-dir: ${{ secrets.FTP_SERVER_DIR_THEME }}
+          state-name: .ftp-deploy-sync-state-theme-deportes.json
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/vendor/bin/**
             **/.DS_Store
             **/Thumbs.db
             **/*.map
@@ -116,6 +126,8 @@ jobs:
             **/*.bak
             **/*.backup
             **/*.log
+            **/.env
+            **/.env.*
 
       - name: Deploy plugins to Deportes
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -127,10 +139,12 @@ jobs:
           protocol: ftps
           local-dir: ./wp-content/plugins/
           server-dir: ${{ secrets.FTP_SERVER_DIR_PLUGINS }}
+          state-name: .ftp-deploy-sync-state-plugins-deportes.json
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/vendor/bin/**
             **/.DS_Store
             **/Thumbs.db
             **/*.map
@@ -143,3 +157,5 @@ jobs:
             **/*.bak
             **/*.backup
             **/*.log
+            **/.env
+            **/.env.*
