@@ -1,12 +1,16 @@
 name: Deploy WordPress Code
 
 on:
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
     inputs:
       target:
         description: "Destino del deploy"
         required: true
-        default: "algeciras"
+        default: "both"
         type: choice
         options:
           - algeciras
@@ -17,20 +21,11 @@ jobs:
   deploy-algeciras:
     name: Deploy to Algeciras
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.target == 'algeciras' || github.event.inputs.target == 'both' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'algeciras' || github.event.inputs.target == 'both' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Debug repository structure
-        run: |
-          pwd
-          ls -la
-          ls -la wp-content || true
-          ls -la wp-content/themes || true
-          ls -la wp-content/themes/alminuto-theme || true
-          ls -la wp-content/plugins || true
 
       - name: Deploy theme to Algeciras
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -41,7 +36,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./wp-content/themes/alminuto-theme/
-          server-dir: ${{ secrets.ALG_FTP_SERVER_DIR_THEME }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_THEME }}
           exclude: |
             **/.git*
             **/.git*/**
@@ -49,6 +44,15 @@ jobs:
             **/.DS_Store
             **/Thumbs.db
             **/*.map
+            **/*.sql
+            **/*.sql.gz
+            **/*.zip
+            **/*.tar
+            **/*.tar.gz
+            **/*.tgz
+            **/*.bak
+            **/*.backup
+            **/*.log
 
       - name: Deploy plugins to Algeciras
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -59,7 +63,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./wp-content/plugins/
-          server-dir: ${{ secrets.ALG_FTP_SERVER_DIR_PLUGINS }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_PLUGINS }}
           exclude: |
             **/.git*
             **/.git*/**
@@ -80,20 +84,11 @@ jobs:
   deploy-deportes:
     name: Deploy to Deportes
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.target == 'deportes' || github.event.inputs.target == 'both' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'deportes' || github.event.inputs.target == 'both' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Debug repository structure
-        run: |
-          pwd
-          ls -la
-          ls -la wp-content || true
-          ls -la wp-content/themes || true
-          ls -la wp-content/themes/alminuto-theme || true
-          ls -la wp-content/plugins || true
 
       - name: Deploy theme to Deportes
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -104,7 +99,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./wp-content/themes/alminuto-theme/
-          server-dir: ${{ secrets.DEP_FTP_SERVER_DIR_THEME }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_THEME }}
           exclude: |
             **/.git*
             **/.git*/**
@@ -112,6 +107,15 @@ jobs:
             **/.DS_Store
             **/Thumbs.db
             **/*.map
+            **/*.sql
+            **/*.sql.gz
+            **/*.zip
+            **/*.tar
+            **/*.tar.gz
+            **/*.tgz
+            **/*.bak
+            **/*.backup
+            **/*.log
 
       - name: Deploy plugins to Deportes
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -122,7 +126,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./wp-content/plugins/
-          server-dir: ${{ secrets.DEP_FTP_SERVER_DIR_PLUGINS }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_PLUGINS }}
           exclude: |
             **/.git*
             **/.git*/**
