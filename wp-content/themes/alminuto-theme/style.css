@@ -347,7 +347,6 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 
 .am-home-col--left
 {
-  width:560px;
   padding-right:15px;
   border-right:1px solid var(--am-border);
 }
