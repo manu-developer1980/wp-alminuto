@@ -51,9 +51,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<?php endif; ?>
 				</a>
 			</div>
-			<?php if ( is_active_sidebar( 'header-banners' ) ) : ?>
-				<?php dynamic_sidebar( 'header-banners' ); ?>
-			<?php endif; ?>
 		</div>
 	</div>
 </header>
