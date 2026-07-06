@@ -13,6 +13,7 @@ get_header();
 				<article class="am-card">
 					<div class="am-card-body">
 						<h1 class="am-single-title"><?php the_title(); ?></h1>
+						<p class="am-home-post-single-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 14 ) ); ?></p>
 						<?php echo alminuto_theme_post_meta_html(); ?>
 					</div>
 

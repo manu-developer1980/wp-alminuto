@@ -227,6 +227,8 @@ img { max-width: 100%; height: auto; display: block; }
   display: grid;
   gap: 14px;
   margin-bottom: 14px;
+  background-color: #fff;
+  padding:15px;
 }
 @media (min-width: 980px) {
   .am-home-columns {
@@ -239,7 +241,6 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .am-home-post {
   background: var(--am-card);
-  border: 1px solid var(--am-border);
   overflow: hidden;
   display: grid;
 }
@@ -281,6 +282,12 @@ img { max-width: 100%; height: auto; display: block; }
   font-size: 15px;
 }
 .am-home-post-excerpt { margin: 0; color: #000; font-size: 18px; line-height: 27px; }
+.am-home-post-single-excerpt{
+   color: #000;     
+   text-align: center;
+    font-size: 25px;
+    font-weight: bold;
+}
 .am-home-post--compact .am-home-post-thumb { aspect-ratio: 226 / 128; }
 
 .am-main {
@@ -299,15 +306,14 @@ img { max-width: 100%; height: auto; display: block; }
   background: var(--am-card);
   border: 1px solid var(--am-border);
   overflow: hidden;
+  padding: 24px;
 }
 .am-card-body {
   padding: 14px;
 }
 main.am-main > div.am-container > div.am-layout > section > article.am-card > div.am-card-body.am-content:nth-child(3) {
   padding-top: 36px;
-  padding-right: 36px;
   padding-bottom: 36px;
-  padding-left: 36px;
 }
 
 .am-section-title {
@@ -338,9 +344,16 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
   justify-content: center;
   text-align: center;
 }
+
+.am-home-col--left
+{
+  width:560px;
+  padding-right:15px;
+  border-right:1px solid var(--am-border);
+}
 .am-home-col--left .am-post-info {
-  font-size: 16px;
-  line-height: 16px;
+  font-size: 15px;
+  line-height: 15px;
   justify-content: flex-start;
   text-align: left;
 }
@@ -431,6 +444,7 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
   font-weight: 700;
   font-size: 15px;
   width: fit-content;
+  border-radius: 2px;
 }
 .am-btn:hover { background: var(--am-red-dark); text-decoration: none; }
 

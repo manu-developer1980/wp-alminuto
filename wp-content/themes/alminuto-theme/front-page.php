@@ -78,8 +78,9 @@ get_header();
 									<?php echo wp_kses_post( $img ); ?>
 								</a>
 								<div class="am-home-post-body">
-									<?php echo alminuto_theme_post_meta_html(); ?>
+									
 									<h2 class="am-home-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
+									<?php echo alminuto_theme_post_meta_html(); ?>
 									<p class="am-home-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 18 ) ); ?></p>
 									<a class="am-btn" href="<?php the_permalink(); ?>">Leer Más</a>
 								</div>
@@ -106,8 +107,9 @@ get_header();
 									<?php echo wp_kses_post( $img ); ?>
 								</a>
 								<div class="am-home-post-body">
-									<?php echo alminuto_theme_post_meta_html(); ?>
+									
 									<h2 class="am-home-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
+									<?php echo alminuto_theme_post_meta_html(); ?>
 									<p class="am-home-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 14 ) ); ?></p>
 									<a class="am-btn" href="<?php the_permalink(); ?>">Leer Más</a>
 								</div>
