@@ -20,11 +20,14 @@ get_header();
 				<?php while ( have_posts() ) : ?>
 					<?php the_post(); ?>
 					<article class="am-post">
-						<a class="am-post-thumb" href="<?php the_permalink(); ?>">
-							<?php if ( has_post_thumbnail() ) : ?>
-								<?php the_post_thumbnail( 'content_4_3' ); ?>
-							<?php endif; ?>
-						</a>
+						<?php $card = alminuto_theme_card_media( get_the_ID(), 'content_4_3' ); ?>
+						<?php if ( $card['has_video'] ) : ?>
+							<?php echo $card['html']; ?>
+						<?php else : ?>
+							<a class="am-post-thumb" href="<?php the_permalink(); ?>">
+								<?php echo wp_kses_post( $card['html'] ); ?>
+							</a>
+						<?php endif; ?>
 						<div class="am-post-body">
 							<?php echo alminuto_theme_post_meta_html(); ?>
 							<h2 class="am-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>

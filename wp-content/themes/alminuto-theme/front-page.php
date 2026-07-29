@@ -65,20 +65,16 @@ get_header();
 						<?php $i = 0; ?>
 						<?php while ( $left_query->have_posts() ) : ?>
 							<?php $left_query->the_post(); ?>
-							<?php
-							$img_id = get_post_thumbnail_id();
-							$size   = 'col_izquierda';
-							$img    = $img_id ? wp_get_attachment_image( $img_id, $size ) : '';
-							if ( ! $img && $img_id ) {
-								$img = wp_get_attachment_image( $img_id, 'full' );
-							}
-							?>
+							<?php $card = alminuto_theme_card_media( get_the_ID(), 'col_izquierda' ); ?>
 							<article class="am-home-post <?php echo $i === 0 ? 'am-home-post--featured' : ''; ?>">
-								<a class="am-home-post-thumb" href="<?php the_permalink(); ?>">
-									<?php echo wp_kses_post( $img ); ?>
-								</a>
+								<?php if ( $card['has_video'] ) : ?>
+									<?php echo $card['html']; ?>
+								<?php else : ?>
+									<a class="am-home-post-thumb" href="<?php the_permalink(); ?>">
+										<?php echo wp_kses_post( $card['html'] ); ?>
+									</a>
+								<?php endif; ?>
 								<div class="am-home-post-body">
-									
 									<h2 class="am-home-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
 									<?php echo alminuto_theme_post_meta_html(); ?>
 									<p class="am-home-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 18 ) ); ?></p>
@@ -94,20 +90,16 @@ get_header();
 					<?php if ( $right_query->have_posts() ) : ?>
 						<?php while ( $right_query->have_posts() ) : ?>
 							<?php $right_query->the_post(); ?>
-							<?php
-							$img_id = get_post_thumbnail_id();
-							$size   = 'col_derecha';
-							$img    = $img_id ? wp_get_attachment_image( $img_id, $size ) : '';
-							if ( ! $img && $img_id ) {
-								$img = wp_get_attachment_image( $img_id, 'full' );
-							}
-							?>
+							<?php $card = alminuto_theme_card_media( get_the_ID(), 'col_derecha' ); ?>
 							<article class="am-home-post am-home-post--compact">
-								<a class="am-home-post-thumb" href="<?php the_permalink(); ?>">
-									<?php echo wp_kses_post( $img ); ?>
-								</a>
+								<?php if ( $card['has_video'] ) : ?>
+									<?php echo $card['html']; ?>
+								<?php else : ?>
+									<a class="am-home-post-thumb" href="<?php the_permalink(); ?>">
+										<?php echo wp_kses_post( $card['html'] ); ?>
+									</a>
+								<?php endif; ?>
 								<div class="am-home-post-body">
-									
 									<h2 class="am-home-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
 									<?php echo alminuto_theme_post_meta_html(); ?>
 									<p class="am-home-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 14 ) ); ?></p>

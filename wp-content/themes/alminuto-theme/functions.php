@@ -369,12 +369,12 @@ function alminuto_theme_facebook_embed_html( $value ) {
 		return '<div class="am-post-embed">' . wp_kses( $value, $allowed ) . '</div>';
 	}
 
-	$url = $value;
-	if ( preg_match( '/^[0-9]+$/', $value ) ) {
-		$url = 'https://www.facebook.com/video.php?v=' . $value;
+	$url = alminuto_theme_normalize_facebook_video_url( $value );
+	if ( $url === '' ) {
+		return '';
 	}
 
-	$src = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $url ) . '&show_text=0&autoplay=0';
+	$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $url ) . '&show_text=0&autoplay=0';
 	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" title="Facebook"></iframe>';
 	return '<div class="am-post-embed">' . $iframe . '</div>';
 }
@@ -385,11 +385,6 @@ function alminuto_theme_primary_media_html( $post_id = 0 ) {
 		return '';
 	}
 
-	if ( has_post_thumbnail( $post_id ) ) {
-		$img = get_the_post_thumbnail( $post_id, 'content_4_3' );
-		return $img ? '<div class="am-post-thumb" style="aspect-ratio:auto;">' . $img . '</div>' : '';
-	}
-
 	$youtube  = (string) get_post_meta( $post_id, '_video_youtube', true );
 	$facebook = (string) get_post_meta( $post_id, '_video_facebook', true );
 
@@ -397,7 +392,116 @@ function alminuto_theme_primary_media_html( $post_id = 0 ) {
 	if ( $out !== '' ) {
 		return $out;
 	}
-	return alminuto_theme_facebook_embed_html( $facebook );
+	$out = alminuto_theme_facebook_embed_html( $facebook );
+	if ( $out !== '' ) {
+		return $out;
+	}
+
+	if ( has_post_thumbnail( $post_id ) ) {
+		$img = get_the_post_thumbnail( $post_id, 'content_4_3' );
+		return $img ? '<div class="am-post-thumb" style="aspect-ratio:auto;">' . $img . '</div>' : '';
+	}
+
+	return '';
+}
+
+function alminuto_theme_card_has_video( $post_id = 0 ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( $post_id <= 0 ) {
+		return false;
+	}
+	$youtube  = trim( (string) get_post_meta( $post_id, '_video_youtube', true ) );
+	$facebook = trim( (string) get_post_meta( $post_id, '_video_facebook', true ) );
+	return $youtube !== '' || $facebook !== '';
+}
+
+function alminuto_theme_card_video_embed( $post_id = 0 ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( $post_id <= 0 ) {
+		return '';
+	}
+
+	$allowed = alminuto_theme_video_allowed_html();
+
+	$youtube  = trim( (string) get_post_meta( $post_id, '_video_youtube', true ) );
+	if ( $youtube !== '' ) {
+		if ( stripos( $youtube, '<iframe' ) !== false ) {
+			return '<div class="am-card-embed">' . wp_kses( $youtube, $allowed ) . '</div>';
+		}
+		$oembed = wp_oembed_get( $youtube, [ 'width' => 640 ] );
+		if ( $oembed ) {
+			return '<div class="am-card-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
+		}
+		return '';
+	}
+
+	$facebook = trim( (string) get_post_meta( $post_id, '_video_facebook', true ) );
+	if ( $facebook !== '' ) {
+		if ( stripos( $facebook, '<iframe' ) !== false ) {
+			return '<div class="am-card-embed">' . wp_kses( $facebook, $allowed ) . '</div>';
+		}
+		$fb_url = alminuto_theme_normalize_facebook_video_url( $facebook );
+		if ( $fb_url !== '' ) {
+			$oembed = wp_oembed_get( $fb_url, [ 'width' => 640 ] );
+			if ( $oembed ) {
+				return '<div class="am-card-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
+			}
+			$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
+			$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" title="Facebook"></iframe>';
+			return '<div class="am-card-embed">' . $iframe . '</div>';
+		}
+		return '';
+	}
+
+	return '';
+}
+
+function alminuto_theme_normalize_facebook_video_url( $value ) {
+	$value = trim( (string) $value );
+	if ( $value === '' ) {
+		return '';
+	}
+
+	if ( preg_match( '/^[0-9]+$/', $value ) ) {
+		return 'https://www.facebook.com/video.php?v=' . $value;
+	}
+
+	if ( preg_match( '#facebook\.com/[^/]+/videos/[^/]+/(\d+)#', $value, $m ) ) {
+		return 'https://www.facebook.com/video.php?v=' . $m[1];
+	}
+
+	if ( preg_match( '#facebook\.com/[^/]+/videos/(\d+)#', $value, $m ) ) {
+		return 'https://www.facebook.com/video.php?v=' . $m[1];
+	}
+
+	if ( preg_match( '#facebook\.com/(?:[^/]+/)?(?:videos|reel)/(\d+)#', $value, $m ) ) {
+		return 'https://www.facebook.com/video.php?v=' . $m[1];
+	}
+
+	if ( preg_match( '#[?&]v=(\d+)#', $value, $m ) ) {
+		return 'https://www.facebook.com/video.php?v=' . $m[1];
+	}
+
+	if ( stripos( $value, 'facebook.com' ) !== false ) {
+		return $value;
+	}
+
+	return '';
+}
+
+function alminuto_theme_card_media( $post_id = 0, $size = 'col_izquierda' ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( $post_id <= 0 ) {
+		return [ 'has_video' => false, 'html' => '' ];
+	}
+	if ( alminuto_theme_card_has_video( $post_id ) ) {
+		return [ 'has_video' => true, 'html' => alminuto_theme_card_video_embed( $post_id ) ];
+	}
+	$img = '';
+	if ( has_post_thumbnail( $post_id ) ) {
+		$img = wp_get_attachment_image( get_post_thumbnail_id( $post_id ), $size );
+	}
+	return [ 'has_video' => false, 'html' => $img ];
 }
 
 function alminuto_theme_shortcode_video_youtube() {

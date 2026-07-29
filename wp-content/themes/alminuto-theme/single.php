@@ -18,9 +18,21 @@ get_header();
 					</div>
 
 					<?php
-					$media = alminuto_theme_primary_media_html( get_the_ID() );
+					$post_id = get_the_ID();
+					$youtube  = (string) get_post_meta( $post_id, '_video_youtube', true );
+					$facebook = (string) get_post_meta( $post_id, '_video_facebook', true );
+					$has_video = $youtube !== '' || $facebook !== '';
+
+					$media = alminuto_theme_primary_media_html( $post_id );
 					if ( $media ) {
 						echo $media;
+
+						if ( ! $has_video && has_post_thumbnail( $post_id ) ) {
+							$caption = (string) get_the_post_thumbnail_caption( $post_id );
+							if ( $caption !== '' ) {
+								echo '<div class="am-card-body am-post-thumb-caption">' . wp_kses_post( $caption ) . '</div>';
+							}
+						}
 					}
 					?>
 
