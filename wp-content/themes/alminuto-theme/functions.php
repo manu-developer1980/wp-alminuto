@@ -4,6 +4,266 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Security hardening — Al Minuto theme.
+ *
+ * - Security headers (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
+ * - Removes WordPress version, generator meta, version query strings.
+ * - Disables XML-RPC and theme/plugin file editing from wp-admin.
+ * - Hides login error messages to mitigate user enumeration.
+ * - Restricts oEmbed providers to a strict allowlist (SSRF mitigation).
+ * - Disables author archives enumeration.
+ */
+function alminuto_theme_send_security_headers() {
+	if ( is_admin() || headers_sent() ) {
+		return;
+	}
+
+	header( 'X-Content-Type-Options: nosniff' );
+	header( 'X-Frame-Options: SAMEORIGIN' );
+	header( 'Referrer-Policy: strict-origin-when-cross-origin' );
+	header( 'Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()' );
+
+	$csp  = "default-src 'self'; ";
+	$csp .= "script-src 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://connect.facebook.net; ";
+	$csp .= "img-src 'self' data: https:; ";
+	$csp .= "font-src 'self' data: https://use.fontawesome.com; ";
+	$csp .= "style-src 'self' 'unsafe-inline' https://use.fontawesome.com https://fonts.googleapis.com; ";
+	$csp .= "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://web.facebook.com https://players.brightcove.net; ";
+	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com; ";
+	$csp .= "frame-ancestors 'self'; ";
+	$csp .= "base-uri 'self'; ";
+	$csp .= "form-action 'self'; ";
+	$csp .= "report-uri /?alminuto_csp_report=1; ";
+	$csp .= "report-to csp-endpoint;";
+
+	header( 'Content-Security-Policy: ' . $csp );
+	header( 'Reporting-Endpoints: csp-endpoint="/?alminuto_csp_report=1"' );
+}
+add_action( 'send_headers', 'alminuto_theme_send_security_headers' );
+
+function alminuto_theme_remove_wp_version() {
+	remove_action( 'wp_head', 'wp_generator' );
+	add_filter( 'the_generator', '__return_empty_string' );
+	add_filter( 'style_loader_src', 'alminuto_theme_strip_version_query', 9999 );
+	add_filter( 'script_loader_src', 'alminuto_theme_strip_version_query', 9999 );
+}
+add_action( 'init', 'alminuto_theme_remove_wp_version' );
+
+function alminuto_theme_strip_version_query( $src ) {
+	if ( ! is_string( $src ) || $src === '' ) {
+		return $src;
+	}
+	if ( strpos( $src, 'ver=' ) !== false ) {
+		$src = remove_query_arg( 'ver', $src );
+	}
+	return $src;
+}
+
+function alminuto_theme_disable_xmlrpc( $methods ) {
+	if ( ! is_array( $methods ) ) {
+		return array();
+	}
+	return array();
+}
+add_filter( 'xmlrpc_methods', 'alminuto_theme_disable_xmlrpc' );
+add_filter( 'xmlrpc_enabled', '__return_false' );
+
+function alminuto_theme_disable_file_edit_for_non_admins() {
+	if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
+		define( 'DISALLOW_FILE_EDIT', true );
+	}
+}
+add_action( 'init', 'alminuto_theme_disable_file_edit_for_non_admins', 1 );
+
+function alminuto_theme_hide_login_errors() {
+	return __( 'Credenciales no válidas.', 'alminuto-theme' );
+}
+add_filter( 'login_errors', 'alminuto_theme_hide_login_errors' );
+
+function alminuto_theme_block_author_enumeration() {
+	if ( is_admin() ) {
+		return;
+	}
+	if ( isset( $_GET['author'] ) && $_GET['author'] !== '' ) {
+		wp_safe_redirect( home_url( '/' ), 301 );
+		exit;
+	}
+	if ( is_author() ) {
+		wp_safe_redirect( home_url( '/' ), 301 );
+		exit;
+	}
+}
+add_action( 'template_redirect', 'alminuto_theme_block_author_enumeration', 1 );
+
+function alminuto_theme_get_csp_reports_dir() {
+	$upload = wp_upload_dir();
+	$dir    = trailingslashit( $upload['basedir'] ) . 'alminuto-csp-reports';
+	if ( ! file_exists( $dir ) ) {
+		wp_mkdir_p( $dir );
+	}
+	$ht = $dir . '/.htaccess';
+	if ( ! file_exists( $ht ) ) {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_write
+		file_put_contents( $ht, "Require all denied\nDeny from all\n" );
+	}
+	$index = $dir . '/index.html';
+	if ( ! file_exists( $index ) ) {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_write
+		file_put_contents( $index, '' );
+	}
+	return $dir;
+}
+
+function alminuto_theme_get_csp_reports_file() {
+	$dir  = alminuto_theme_get_csp_reports_dir();
+	$day  = gmdate( 'Y-m-d' );
+	return $dir . '/csp-' . $day . '.jsonl';
+}
+
+function alminuto_theme_handle_csp_report() {
+	if ( empty( $_GET['alminuto_csp_report'] ) ) {
+		return;
+	}
+	if ( strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) !== 'POST' ) {
+		status_header( 405 );
+		exit;
+	}
+	$raw = file_get_contents( 'php://input' );
+	if ( ! is_string( $raw ) || $raw === '' ) {
+		status_header( 400 );
+		exit;
+	}
+	$payload = json_decode( $raw, true );
+	if ( ! is_array( $payload ) ) {
+		status_header( 400 );
+		exit;
+	}
+
+	$entry = [
+		'ts'     => gmdate( 'c' ),
+		'ip'     => isset( $_SERVER['REMOTE_ADDR'] ) ? (string) $_SERVER['REMOTE_ADDR'] : '',
+		'ua'     => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( (string) $_SERVER['HTTP_USER_AGENT'], 0, 255 ) : '',
+		'report' => $payload,
+	];
+
+	$line = wp_json_encode( $entry ) . "\n";
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_write
+	file_put_contents( alminuto_theme_get_csp_reports_file(), $line, FILE_APPEND | LOCK_EX );
+
+	status_header( 204 );
+	exit;
+}
+add_action( 'init', 'alminuto_theme_handle_csp_report', 1 );
+
+function alminuto_theme_read_csp_reports( $limit = 200 ) {
+	$dir  = alminuto_theme_get_csp_reports_dir();
+	$glob = glob( $dir . '/csp-*.jsonl' );
+	if ( ! is_array( $glob ) ) {
+		return [];
+	}
+	rsort( $glob );
+
+	$out  = [];
+	$read = 0;
+	foreach ( $glob as $file ) {
+		$lines = @file( $file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+		if ( ! is_array( $lines ) ) {
+			continue;
+		}
+		$lines = array_reverse( $lines );
+		foreach ( $lines as $line ) {
+			$entry = json_decode( $line, true );
+			if ( is_array( $entry ) ) {
+				$entry['__file'] = basename( $file );
+				$out[] = $entry;
+				$read++;
+				if ( $read >= $limit ) {
+					return $out;
+				}
+			}
+		}
+	}
+	return $out;
+}
+
+function alminuto_theme_clear_csp_reports() {
+	$dir  = alminuto_theme_get_csp_reports_dir();
+	$glob = glob( $dir . '/csp-*.jsonl' );
+	if ( ! is_array( $glob ) ) {
+		return 0;
+	}
+	$n = 0;
+	foreach ( $glob as $file ) {
+		if ( @unlink( $file ) ) {
+			$n++;
+		}
+	}
+	return $n;
+}
+
+function alminuto_theme_csp_cleanup_old_reports() {
+	$dir  = alminuto_theme_get_csp_reports_dir();
+	$glob = glob( $dir . '/csp-*.jsonl' );
+	if ( ! is_array( $glob ) ) {
+		return;
+	}
+	$threshold = time() - ( 7 * DAY_IN_SECONDS );
+	foreach ( $glob as $file ) {
+		if ( filemtime( $file ) < $threshold ) {
+			@unlink( $file );
+		}
+	}
+}
+add_action( 'alminuto_theme_csp_cleanup', 'alminuto_theme_csp_cleanup_old_reports' );
+if ( ! wp_next_scheduled( 'alminuto_theme_csp_cleanup' ) ) {
+	wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'alminuto_theme_csp_cleanup' );
+}
+
+function alminuto_theme_current_user_is_elsuper() {
+	if ( ! is_user_logged_in() ) {
+		return false;
+	}
+	$user = wp_get_current_user();
+	if ( ! $user || empty( $user->user_login ) ) {
+		return false;
+	}
+	return strtolower( (string) $user->user_login ) === 'elsuper';
+}
+
+function alminuto_theme_restrict_oembed_providers( $providers ) {
+	if ( ! is_array( $providers ) ) {
+		return $providers;
+	}
+	$blocked = [
+		'#https?://(www\.)?soundcloud\.com/.*#i',
+		'#https?://(www\.)?slideshare\.net/.*#i',
+		'#https?://(www\.)?dailymotion\.com/.*#i',
+		'#https?://(www\.)?flickr\.com/.*#i',
+		'#https?://(www\.)?ted\.com/talks/.*#i',
+		'#https?://wordpress\.tv/.*#i',
+		'#https?://(www\.)?scribd\.com/.*#i',
+		'#https?://(www\.)?kickstarter\.com/projects/.*#i',
+	];
+	foreach ( $blocked as $pattern ) {
+		if ( isset( $providers[ $pattern ] ) ) {
+			unset( $providers[ $pattern ] );
+		}
+	}
+	return $providers;
+}
+add_filter( 'oembed_providers', 'alminuto_theme_restrict_oembed_providers', 999 );
+
+function alminuto_theme_get_allowed_iframe_hosts() {
+	return [
+		'youtube.com',
+		'youtube-nocookie.com',
+		'youtu.be',
+		'facebook.com',
+		'web.facebook.com',
+	];
+}
+
 function alminuto_theme_setup() {
 	add_theme_support( 'title-tag' );
 	add_theme_support( 'post-thumbnails' );
@@ -256,9 +516,45 @@ function alminuto_theme_video_allowed_html() {
 		'referrerpolicy'  => true,
 		'loading'         => true,
 		'title'           => true,
+		'sandbox'         => true,
 	];
 	$allowed['div']     = [ 'class' => true ];
 	return $allowed;
+}
+
+function alminuto_theme_is_allowed_iframe_url( $url ) {
+	if ( ! is_string( $url ) || $url === '' ) {
+		return false;
+	}
+	$host = wp_parse_url( esc_url_raw( $url ), PHP_URL_HOST );
+	if ( ! $host ) {
+		return false;
+	}
+	$host = strtolower( $host );
+	$allowed = alminuto_theme_get_allowed_iframe_hosts();
+	foreach ( $allowed as $needle ) {
+		if ( substr( $host, -strlen( '.' . $needle ) ) === '.' . $needle || $host === $needle ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function alminuto_theme_sanitize_iframe_block( $value ) {
+	$value = trim( (string) $value );
+	if ( $value === '' || stripos( $value, '<iframe' ) === false ) {
+		return $value;
+	}
+	$allowed = alminuto_theme_video_allowed_html();
+	$value   = wp_kses( $value, $allowed );
+	if ( preg_match_all( '#<iframe[^>]+src=[\"\']([^\"\']+)[\"\']#i', $value, $matches ) ) {
+		foreach ( $matches[1] as $src ) {
+			if ( ! alminuto_theme_is_allowed_iframe_url( $src ) ) {
+				return '';
+			}
+		}
+	}
+	return $value;
 }
 
 function alminuto_theme_add_video_metabox() {
@@ -306,16 +602,24 @@ function alminuto_theme_save_video_metabox( $post_id ) {
 	if ( $youtube_raw === '' ) {
 		delete_post_meta( $post_id, '_video_youtube' );
 	} else {
-		$youtube_value = strpos( $youtube_raw, '<' ) !== false ? wp_kses( $youtube_raw, $allowed ) : sanitize_text_field( $youtube_raw );
-		update_post_meta( $post_id, '_video_youtube', $youtube_value );
+		$youtube_value = strpos( $youtube_raw, '<' ) !== false ? alminuto_theme_sanitize_iframe_block( $youtube_raw ) : sanitize_text_field( $youtube_raw );
+		if ( $youtube_value === '' ) {
+			delete_post_meta( $post_id, '_video_youtube' );
+		} else {
+			update_post_meta( $post_id, '_video_youtube', $youtube_value );
+		}
 	}
 
 	$facebook_raw = isset( $_POST['alminuto_video_facebook'] ) ? trim( (string) wp_unslash( $_POST['alminuto_video_facebook'] ) ) : '';
 	if ( $facebook_raw === '' ) {
 		delete_post_meta( $post_id, '_video_facebook' );
 	} else {
-		$facebook_value = strpos( $facebook_raw, '<' ) !== false ? wp_kses( $facebook_raw, $allowed ) : sanitize_text_field( $facebook_raw );
-		update_post_meta( $post_id, '_video_facebook', $facebook_value );
+		$facebook_value = strpos( $facebook_raw, '<' ) !== false ? alminuto_theme_sanitize_iframe_block( $facebook_raw ) : sanitize_text_field( $facebook_raw );
+		if ( $facebook_value === '' ) {
+			delete_post_meta( $post_id, '_video_facebook' );
+		} else {
+			update_post_meta( $post_id, '_video_facebook', $facebook_value );
+		}
 	}
 }
 add_action( 'save_post', 'alminuto_theme_save_video_metabox' );
@@ -343,17 +647,24 @@ function alminuto_theme_youtube_embed_html( $value ) {
 	$allowed = alminuto_theme_video_allowed_html();
 
 	if ( stripos( $value, '<iframe' ) !== false ) {
-		return '<div class="am-post-embed">' . wp_kses( $value, $allowed ) . '</div>';
+		$clean = alminuto_theme_sanitize_iframe_block( $value );
+		if ( $clean === '' ) {
+			return '';
+		}
+		return '<div class="am-post-embed">' . $clean . '</div>';
 	}
 
 	$id = alminuto_theme_extract_youtube_id( $value );
 	if ( $id === '' ) {
 		$oembed = wp_oembed_get( $value );
-		return $oembed ? '<div class="am-post-embed">' . wp_kses( $oembed, $allowed ) . '</div>' : '';
+		if ( ! $oembed ) {
+			return '';
+		}
+		return '<div class="am-post-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
 	}
 
-	$src = 'https://www.youtube.com/embed/' . rawurlencode( $id );
-	$iframe = '<iframe src="' . esc_url( $src ) . '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" title="YouTube"></iframe>';
+	$src = 'https://www.youtube-nocookie.com/embed/' . rawurlencode( $id );
+	$iframe = '<iframe src="' . esc_url( $src ) . '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="YouTube"></iframe>';
 	return '<div class="am-post-embed">' . $iframe . '</div>';
 }
 
@@ -366,16 +677,20 @@ function alminuto_theme_facebook_embed_html( $value ) {
 	$allowed = alminuto_theme_video_allowed_html();
 
 	if ( stripos( $value, '<iframe' ) !== false ) {
-		return '<div class="am-post-embed">' . wp_kses( $value, $allowed ) . '</div>';
+		$clean = alminuto_theme_sanitize_iframe_block( $value );
+		if ( $clean === '' ) {
+			return '';
+		}
+		return '<div class="am-post-embed">' . $clean . '</div>';
 	}
 
 	$url = alminuto_theme_normalize_facebook_video_url( $value );
-	if ( $url === '' ) {
+	if ( $url === '' || ! alminuto_theme_is_allowed_iframe_url( $url ) ) {
 		return '';
 	}
 
 	$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $url ) . '&show_text=0&autoplay=0';
-	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" title="Facebook"></iframe>';
+	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Facebook"></iframe>';
 	return '<div class="am-post-embed">' . $iframe . '</div>';
 }
 
@@ -426,7 +741,11 @@ function alminuto_theme_card_video_embed( $post_id = 0 ) {
 	$youtube  = trim( (string) get_post_meta( $post_id, '_video_youtube', true ) );
 	if ( $youtube !== '' ) {
 		if ( stripos( $youtube, '<iframe' ) !== false ) {
-			return '<div class="am-card-embed">' . wp_kses( $youtube, $allowed ) . '</div>';
+			$clean = alminuto_theme_sanitize_iframe_block( $youtube );
+			if ( $clean === '' ) {
+				return '';
+			}
+			return '<div class="am-card-embed">' . $clean . '</div>';
 		}
 		$oembed = wp_oembed_get( $youtube, [ 'width' => 640 ] );
 		if ( $oembed ) {
@@ -438,16 +757,20 @@ function alminuto_theme_card_video_embed( $post_id = 0 ) {
 	$facebook = trim( (string) get_post_meta( $post_id, '_video_facebook', true ) );
 	if ( $facebook !== '' ) {
 		if ( stripos( $facebook, '<iframe' ) !== false ) {
-			return '<div class="am-card-embed">' . wp_kses( $facebook, $allowed ) . '</div>';
+			$clean = alminuto_theme_sanitize_iframe_block( $facebook );
+			if ( $clean === '' ) {
+				return '';
+			}
+			return '<div class="am-card-embed">' . $clean . '</div>';
 		}
 		$fb_url = alminuto_theme_normalize_facebook_video_url( $facebook );
-		if ( $fb_url !== '' ) {
+		if ( $fb_url !== '' && alminuto_theme_is_allowed_iframe_url( $fb_url ) ) {
 			$oembed = wp_oembed_get( $fb_url, [ 'width' => 640 ] );
 			if ( $oembed ) {
 				return '<div class="am-card-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
 			}
 			$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
-			$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" title="Facebook"></iframe>';
+			$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Facebook"></iframe>';
 			return '<div class="am-card-embed">' . $iframe . '</div>';
 		}
 		return '';
@@ -482,8 +805,10 @@ function alminuto_theme_normalize_facebook_video_url( $value ) {
 		return 'https://www.facebook.com/video.php?v=' . $m[1];
 	}
 
-	if ( stripos( $value, 'facebook.com' ) !== false ) {
-		return $value;
+	$esc   = esc_url_raw( $value );
+	$host  = wp_parse_url( $esc, PHP_URL_HOST );
+	if ( $host && ( substr( strtolower( $host ), -strlen( 'facebook.com' ) ) === 'facebook.com' || strtolower( $host ) === 'facebook.com' ) ) {
+		return $esc;
 	}
 
 	return '';
@@ -897,12 +1222,15 @@ function alminuto_theme_right_column_html() {
 	if ( $opts['youtube_url'] ) {
 		$embed = wp_oembed_get( (string) $opts['youtube_url'] );
 		if ( $embed ) {
-			$out .= '<div class="am-right-embed">' . $embed . '</div>';
+			$out .= '<div class="am-right-embed">' . alminuto_theme_sanitize_iframe_block( $embed ) . '</div>';
 		}
 	}
 	if ( $opts['facebook_video_url'] ) {
-		$fb = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( (string) $opts['facebook_video_url'] ) . '&show_text=0&autoplay=0';
-		$out .= '<div class="am-right-embed"><iframe src="' . esc_url( $fb ) . '" scrolling="no" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe></div>';
+		$fb_url = alminuto_theme_normalize_facebook_video_url( (string) $opts['facebook_video_url'] );
+		if ( $fb_url !== '' && alminuto_theme_is_allowed_iframe_url( $fb_url ) ) {
+			$fb = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
+			$out .= '<div class="am-right-embed"><iframe src="' . esc_url( $fb ) . '" scrolling="no" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"></iframe></div>';
+		}
 	}
 
 	$out .= '<div class="am-section-title">Publicidad</div>';
@@ -1102,8 +1430,12 @@ function alminuto_theme_render_admin_page() {
 	}
 
 	$tab = isset( $_GET['tab'] ) ? sanitize_key( (string) $_GET['tab'] ) : 'home';
-	if ( ! in_array( $tab, [ 'home', 'banners', 'right', 'images' ], true ) ) {
+	if ( ! in_array( $tab, [ 'home', 'banners', 'right', 'images', 'security' ], true ) ) {
 		$tab = 'home';
+	}
+
+	if ( $tab === 'security' && ! alminuto_theme_current_user_is_elsuper() ) {
+		wp_die( esc_html__( 'No tienes permisos para acceder a esta sección.', 'alminuto-theme' ), esc_html__( 'Acceso restringido', 'alminuto-theme' ), [ 'response' => 403 ] );
 	}
 
 	if ( $tab === 'home' && isset( $_POST['alminuto_theme_panel_nonce'] ) && wp_verify_nonce( (string) $_POST['alminuto_theme_panel_nonce'], 'alminuto_theme_panel_save' ) ) {
@@ -1139,6 +1471,9 @@ function alminuto_theme_render_admin_page() {
 		'right'   => 'Columna Derecha',
 		'images'  => 'Imágenes',
 	];
+	if ( alminuto_theme_current_user_is_elsuper() ) {
+		$tabs['security'] = 'Seguridad';
+	}
 
 	echo '<div class="wrap">';
 	echo '<h1>Al Minuto</h1>';
@@ -1178,6 +1513,62 @@ function alminuto_theme_render_admin_page() {
 			echo '<tr><td><code>' . esc_html( $name ) . '</code></td><td>' . esc_html( (string) $w ) . '</td><td>' . esc_html( (string) $h ) . '</td><td>' . esc_html( $crop ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
+		echo '</section>';
+		echo '</div>';
+	} elseif ( $tab === 'security' ) {
+		echo '<div class="am-admin-wrap">';
+		echo '<section class="am-admin-card">';
+		echo '<h2>Cabeceras de seguridad activas</h2>';
+		echo '<p class="am-help">Estas cabeceras se envían en cada petición pública. Compruébalas con DevTools o con <code>curl -I</code>.</p>';
+		echo '<ul style="list-style:disc;padding-left:20px;">';
+		echo '<li><code>X-Content-Type-Options: nosniff</code></li>';
+		echo '<li><code>X-Frame-Options: SAMEORIGIN</code></li>';
+		echo '<li><code>Referrer-Policy: strict-origin-when-cross-origin</code></li>';
+		echo '<li><code>Permissions-Policy</code> (cámara, micro, geo, etc. deshabilitados)</li>';
+		echo '<li><code>Content-Security-Policy</code> estricta con whitelist de YouTube, Facebook, FontAwesome</li>';
+		echo '<li><code>Reporting-Endpoints: csp-endpoint</code> para reports</li>';
+		echo '</ul>';
+		echo '<p class="am-help">Endurecimientos adicionales activos: <strong>XML-RPC desactivado</strong>, <strong>edición de archivos bloqueada</strong>, <strong>errores de login genéricos</strong>, <strong>enumeración de autor bloqueada</strong>, <strong>version disclosure oculto</strong>, <strong>oEmbed providers restringidos</strong>, <strong>iframes con whitelist + sandbox</strong>, <strong>URLs saneadas en admin JS</strong>.</p>';
+		echo '</section>';
+
+		echo '<section class="am-admin-card">';
+		echo '<h2>CSP reports recientes</h2>';
+		echo '<p class="am-help">El navegador envía aquí un report cada vez que la CSP habría bloqueado algo. Usa esta lista para detectar qué recursos externos faltan en la whitelist antes de activar la CSP en modo estricto.</p>';
+
+		if ( isset( $_POST['alminuto_csp_clear'] ) && wp_verify_nonce( (string) $_POST['alminuto_csp_clear'], 'alminuto_csp_clear' ) ) {
+			$cleared = alminuto_theme_clear_csp_reports();
+			echo '<div class="notice notice-success is-dismissible"><p>Eliminados ' . esc_html( (string) $cleared ) . ' ficheros de reports.</p></div>';
+		}
+
+		echo '<form method="post" style="margin:8px 0 14px;">';
+		wp_nonce_field( 'alminuto_csp_clear', 'alminuto_csp_clear' );
+		echo '<button type="submit" name="alminuto_csp_clear" value="1" class="button">Vaciar reports</button>';
+		echo '</form>';
+
+		$reports = alminuto_theme_read_csp_reports( 200 );
+		if ( empty( $reports ) ) {
+			echo '<p class="am-help">Sin reports todavía. Recarga la home con DevTools abierto y mira la consola.</p>';
+		} else {
+			echo '<table class="widefat striped" style="margin-top:6px;">';
+			echo '<thead><tr><th>Fecha</th><th>Documento</th><th>Directiva</th><th>Bloqueado</th><th>Origen</th></tr></thead><tbody>';
+			foreach ( $reports as $entry ) {
+				$r = isset( $entry['report'] ) && is_array( $entry['report'] ) ? $entry['report'] : [];
+				$csp = isset( $r['csp-report'] ) && is_array( $r['csp-report'] ) ? $r['csp-report'] : ( isset( $r[0] ) && is_array( $r[0] ) ? $r[0] : [] );
+				$ts          = isset( $entry['ts'] ) ? (string) $entry['ts'] : '';
+				$doc_uri     = isset( $csp['document-uri'] ) ? (string) $csp['document-uri'] : '';
+				$violated    = isset( $csp['violated-directive'] ) ? (string) $csp['violated-directive'] : '';
+				$blocked     = isset( $csp['blocked-uri'] ) ? (string) $csp['blocked-uri'] : '';
+				$origin      = isset( $entry['ip'] ) ? (string) $entry['ip'] : '';
+				echo '<tr>';
+				echo '<td>' . esc_html( $ts ) . '</td>';
+				echo '<td style="word-break:break-all;">' . esc_html( $doc_uri ) . '</td>';
+				echo '<td><code>' . esc_html( $violated ) . '</code></td>';
+				echo '<td style="word-break:break-all;">' . esc_html( $blocked ) . '</td>';
+				echo '<td>' . esc_html( $origin ) . '</td>';
+				echo '</tr>';
+			}
+			echo '</tbody></table>';
+		}
 		echo '</section>';
 		echo '</div>';
 	}

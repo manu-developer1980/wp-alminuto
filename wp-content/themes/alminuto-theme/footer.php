@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</a>
 				</div>
 				<div class="am-footer-col am-footer-col--contact">
-					<a class="am-footer-contact" href="mailto:redaccion@algecirasalminuto.es" target="_blank" rel="nofollow noopener noreferrer">
+					<a class="am-footer-contact" href="mailto:redaccion@algecirasalminuto.es" rel="nofollow noopener noreferrer">
 						<span class="am-footer-contact-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
 						<span class="am-footer-contact-text">redaccion@algecirasalminuto.es</span>
 					</a>

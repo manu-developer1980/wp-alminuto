@@ -3,6 +3,26 @@
 		return window.wp && wp.media;
 	}
 
+	function escapeAttr(value) {
+		if (value === undefined || value === null) return "";
+		return String(value)
+			.replace(/&/g, "&amp;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;");
+	}
+
+	function escapeHtml(value) {
+		if (value === undefined || value === null) return "";
+		return String(value)
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+	}
+
 	function previewUrl(att) {
 		if (att && att.sizes) {
 			if (att.sizes.medium) return att.sizes.medium.url;
@@ -134,44 +154,44 @@
 				if (idx >= nextIndex) nextIndex = idx + 1;
 			});
 			atts.forEach(function (att) {
-				var idx = nextIndex++;
-				var $li = $(
-					'<li class="am-gallery-item" data-index="' +
-						idx +
-						'">' +
-						'<div class="am-gallery-row">' +
-						'<span class="dashicons dashicons-move am-gallery-handle" aria-hidden="true"></span>' +
-						'<div class="am-thumb am-top-left-preview"><img src="' +
-						thumbUrl(att) +
-						'" alt=""></div>' +
-						'<div class="am-actions"><button type="button" class="button am-top-left-pick">Cambiar</button></div>' +
-						'<button type="button" class="button-link-delete am-top-left-remove am-gallery-remove">Quitar</button>' +
-						"</div>" +
-						'<div class="am-gallery-meta">' +
-						'<input type="hidden" name="am_top_left[' +
-						idx +
-						'][id]" value="' +
-						att.id +
-						'">' +
-						'<div class="am-field"><label>Enlace</label><input type="url" class="regular-text" name="am_top_left[' +
-						idx +
-						'][url]" value="" placeholder="https://..."></div>' +
-						'<label><input type="checkbox" name="am_top_left[' +
-						idx +
-						'][new_tab]" value="1"> Abrir en nueva pestaña</label>' +
-						'<div class="am-actions" style="gap:12px;">' +
-						'<div class="am-field" style="margin-top:0;min-width:160px;"><label>Inicio</label><input type="date" name="am_top_left[' +
-						idx +
-						'][start]" value=""></div>' +
-						'<div class="am-field" style="margin-top:0;min-width:160px;"><label>Fin</label><input type="date" name="am_top_left[' +
-						idx +
-						'][end]" value=""></div>' +
-						"</div>" +
-						"</div>" +
-						"</li>"
-				);
-				$("#am_top_left_list").append($li);
-			});
+			var idx = nextIndex++;
+			var $li = $(
+				'<li class="am-gallery-item" data-index="' +
+					escapeAttr(idx) +
+					'">' +
+					'<div class="am-gallery-row">' +
+					'<span class="dashicons dashicons-move am-gallery-handle" aria-hidden="true"></span>' +
+					'<div class="am-thumb am-top-left-preview"><img src="' +
+					escapeAttr(thumbUrl(att)) +
+					'" alt=""></div>' +
+					'<div class="am-actions"><button type="button" class="button am-top-left-pick">Cambiar</button></div>' +
+					'<button type="button" class="button-link-delete am-top-left-remove am-gallery-remove">Quitar</button>' +
+					"</div>" +
+					'<div class="am-gallery-meta">' +
+					'<input type="hidden" name="am_top_left[' +
+					escapeAttr(idx) +
+					'][id]" value="' +
+					escapeAttr(att.id) +
+					'">' +
+					'<div class="am-field"><label>Enlace</label><input type="url" class="regular-text" name="am_top_left[' +
+					escapeAttr(idx) +
+					'][url]" value="" placeholder="https://..."></div>' +
+					'<label><input type="checkbox" name="am_top_left[' +
+					escapeAttr(idx) +
+					'][new_tab]" value="1"> Abrir en nueva pestaña</label>' +
+					'<div class="am-actions" style="gap:12px;">' +
+					'<div class="am-field" style="margin-top:0;min-width:160px;"><label>Inicio</label><input type="date" name="am_top_left[' +
+					escapeAttr(idx) +
+					'][start]" value=""></div>' +
+					'<div class="am-field" style="margin-top:0;min-width:160px;"><label>Fin</label><input type="date" name="am_top_left[' +
+					escapeAttr(idx) +
+					'][end]" value=""></div>' +
+					"</div>" +
+					"</div>" +
+					"</li>"
+			);
+			$("#am_top_left_list").append($li);
+		});
 			renumberTopLeft();
 			ensureSortableTopLeft();
 		});
@@ -188,7 +208,7 @@
 		var $li = $(this).closest("li");
 		pickImage(function (att) {
 			$li.find('input[type="hidden"][name*="[id]"]').val(att.id);
-			$li.find(".am-top-left-preview").html('<img src="' + thumbUrl(att) + '" alt="">');
+			$li.find(".am-top-left-preview").html('<img src="' + escapeAttr(thumbUrl(att)) + '" alt="">');
 		});
 	});
 
@@ -196,7 +216,7 @@
 		e.preventDefault();
 		pickImage(function (att) {
 			$("#news_rigor_image_id").val(att.id);
-			$("#news_rigor_preview").html('<img src="' + previewUrl(att) + '" alt="">');
+			$("#news_rigor_preview").html('<img src="' + escapeAttr(previewUrl(att)) + '" alt="">');
 			$("#news_rigor_clear").prop("disabled", false);
 			$("#news_rigor_pick").text("Cambiar imagen");
 		});
@@ -220,36 +240,36 @@
 				if (idx >= nextIndex) nextIndex = idx + 1;
 			});
 			atts.forEach(function (att) {
-				var idx = nextIndex++;
-				var $li = $(
-					'<li class="publi-item am-gallery-item" data-index="' +
-						idx +
-						'">' +
-						'<div class="am-gallery-row">' +
-						'<span class="dashicons dashicons-move am-gallery-handle publi-handle" aria-hidden="true"></span>' +
-						'<div class="publi-preview am-thumb"><img src="' +
-						thumbUrl(att) +
-						'" alt=""></div>' +
-						'<div class="am-actions"><button type="button" class="button publi-pick">Cambiar</button></div>' +
-						'<button type="button" class="button-link-delete publi-remove am-gallery-remove">Quitar</button>' +
-						"</div>" +
-						'<div class="am-gallery-meta">' +
-						'<input type="hidden" name="publi_gallery[' +
-						idx +
-						'][id]" value="' +
-						att.id +
-						'">' +
-						'<div class="am-field"><label>Enlace</label><input type="url" class="regular-text" name="publi_gallery[' +
-						idx +
-						'][url]" value="" placeholder="https://..."></div>' +
-						'<label><input type="checkbox" name="publi_gallery[' +
-						idx +
-						'][new_tab]" value="1"> Abrir en nueva pestaña</label>' +
-						"</div>" +
-						"</li>"
-				);
-				$("#publi_gallery_list").append($li);
-			});
+			var idx = nextIndex++;
+			var $li = $(
+				'<li class="publi-item am-gallery-item" data-index="' +
+					escapeAttr(idx) +
+					'">' +
+					'<div class="am-gallery-row">' +
+					'<span class="dashicons dashicons-move am-gallery-handle publi-handle" aria-hidden="true"></span>' +
+					'<div class="publi-preview am-thumb"><img src="' +
+					escapeAttr(thumbUrl(att)) +
+					'" alt=""></div>' +
+					'<div class="am-actions"><button type="button" class="button publi-pick">Cambiar</button></div>' +
+					'<button type="button" class="button-link-delete publi-remove am-gallery-remove">Quitar</button>' +
+					"</div>" +
+					'<div class="am-gallery-meta">' +
+					'<input type="hidden" name="publi_gallery[' +
+					escapeAttr(idx) +
+					'][id]" value="' +
+					escapeAttr(att.id) +
+					'">' +
+					'<div class="am-field"><label>Enlace</label><input type="url" class="regular-text" name="publi_gallery[' +
+					escapeAttr(idx) +
+					'][url]" value="" placeholder="https://..."></div>' +
+					'<label><input type="checkbox" name="publi_gallery[' +
+					escapeAttr(idx) +
+					'][new_tab]" value="1"> Abrir en nueva pestaña</label>' +
+					"</div>" +
+					"</li>"
+			);
+			$("#publi_gallery_list").append($li);
+		});
 			renumberPubli();
 			ensureSortablePubli();
 		});
@@ -266,7 +286,7 @@
 		var $li = $(this).closest("li");
 		pickImage(function (att) {
 			$li.find('input[type="hidden"][name*="[id]"]').val(att.id);
-			$li.find(".publi-preview").html('<img src="' + thumbUrl(att) + '" alt="">');
+			$li.find(".publi-preview").html('<img src="' + escapeAttr(thumbUrl(att)) + '" alt="">');
 		});
 	});
 })(jQuery);
