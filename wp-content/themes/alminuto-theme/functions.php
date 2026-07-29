@@ -548,8 +548,9 @@ add_filter( 'comments_array', '__return_empty_array', 20, 2 );
 
 function alminuto_theme_settings_defaults() {
 	return [
-		'home_left_posts'  => 20,
-		'home_right_posts' => 20,
+		'home_left_posts'        => 20,
+		'home_right_posts'       => 20,
+		'banner_slider_interval' => 5,
 	];
 }
 
@@ -657,11 +658,12 @@ function alminuto_theme_sanitize_banner_items( $raw ) {
 		if ( ! is_array( $row ) ) {
 			continue;
 		}
-		$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
-		$url     = isset( $row['url'] ) ? esc_url_raw( (string) $row['url'] ) : '';
-		$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
-		$start   = isset( $row['start'] ) ? sanitize_text_field( (string) $row['start'] ) : '';
-		$end     = isset( $row['end'] ) ? sanitize_text_field( (string) $row['end'] ) : '';
+		$id       = isset( $row['id'] ) ? (int) $row['id'] : 0;
+		$url      = isset( $row['url'] ) ? esc_url_raw( (string) $row['url'] ) : '';
+		$new_tab  = ! empty( $row['new_tab'] ) ? 1 : 0;
+		$start    = isset( $row['start'] ) ? sanitize_text_field( (string) $row['start'] ) : '';
+		$end      = isset( $row['end'] ) ? sanitize_text_field( (string) $row['end'] ) : '';
+		$interval = isset( $row['interval'] ) ? (int) $row['interval'] : 0;
 		if ( $id <= 0 ) {
 			continue;
 		}
@@ -674,12 +676,16 @@ function alminuto_theme_sanitize_banner_items( $raw ) {
 		if ( $start !== '' && $end !== '' && strcmp( $start, $end ) > 0 ) {
 			$end = '';
 		}
+		if ( $interval < 0 ) {
+			$interval = 0;
+		}
 		$out[] = [
-			'id'      => $id,
-			'url'     => $url,
-			'new_tab' => $new_tab,
-			'start'   => $start,
-			'end'     => $end,
+			'id'       => $id,
+			'url'      => $url,
+			'new_tab'  => $new_tab,
+			'start'    => $start,
+			'end'      => $end,
+			'interval' => $interval,
 		];
 	}
 	return $out;
@@ -711,22 +717,32 @@ function alminuto_theme_banners_shortcode( $atts ) {
 			'size'     => 'full',
 			'class'    => '',
 			'slider'   => 0,
-			'autoplay' => 9500,
+			'autoplay' => 0,
 		],
 		(array) $atts,
 		'banners_alminuto'
 	);
 
-	$limit  = max( 1, (int) $atts['limit'] );
-	$slot   = sanitize_key( (string) $atts['slot'] );
-	$size   = sanitize_key( (string) $atts['size'] );
-	$class  = trim( (string) $atts['class'] );
-	$slider = (int) $atts['slider'] === 1 || $atts['slider'] === 'true' || $atts['slider'] === 'yes';
-	$autoplay = max( 0, (int) $atts['autoplay'] );
+	$limit        = max( 1, (int) $atts['limit'] );
+	$slot         = sanitize_key( (string) $atts['slot'] );
+	$size         = sanitize_key( (string) $atts['size'] );
+	$class        = trim( (string) $atts['class'] );
+	$slider       = (int) $atts['slider'] === 1 || $atts['slider'] === 'true' || $atts['slider'] === 'yes';
+	$autoplay_atts = max( 0, (int) $atts['autoplay'] );
 
 	if ( $slot !== 'top_left' ) {
 		return '';
 	}
+
+	$global_interval = (int) ( alminuto_theme_get_settings()['banner_slider_interval'] ?? 5 );
+	if ( $global_interval < 1 ) {
+		$global_interval = 1;
+	}
+	if ( $global_interval > 60 ) {
+		$global_interval = 60;
+	}
+	$global_interval_ms = $global_interval * 1000;
+	$autoplay           = $autoplay_atts > 0 ? $autoplay_atts : $global_interval_ms;
 
 	$data = alminuto_theme_banners_get();
 	$list = (array) ( $data['top_left'] ?? [] );
@@ -745,15 +761,17 @@ function alminuto_theme_banners_shortcode( $atts ) {
 		if ( ! $img ) {
 			continue;
 		}
-		$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
-		$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
-		$html    = $img;
+		$url          = isset( $row['url'] ) ? (string) $row['url'] : '';
+		$new_tab      = ! empty( $row['new_tab'] ) ? 1 : 0;
+		$interval_row = isset( $row['interval'] ) ? (int) $row['interval'] : 0;
+		$html         = $img;
 		if ( $url ) {
 			$target = $new_tab ? ' target="_blank" rel="noopener noreferrer"' : '';
 			$html   = '<a href="' . esc_url( $url ) . '"' . $target . '>' . $img . '</a>';
 		}
+		$slide_interval = $interval_row > 0 ? $interval_row * 1000 : 0;
 		if ( $slider ) {
-			$items[] = '<div class="bam-slide">' . $html . '</div>';
+			$items[] = '<div class="bam-slide" data-interval="' . esc_attr( (string) $slide_interval ) . '">' . $html . '</div>';
 		} else {
 			$items[] = '<div class="bam-item">' . $html . '</div>';
 		}
@@ -784,7 +802,7 @@ function alminuto_theme_banners_shortcode( $atts ) {
 		wp_enqueue_script( 'alminuto-theme-banners' );
 		wp_add_inline_script(
 			'alminuto-theme-banners',
-			'(function(){function initSlider(root){var slides=root.querySelectorAll(".bam-slide");if(!slides.length){return}var idx=0;slides[0].classList.add("is-active");var autoplay=parseInt(root.getAttribute("data-autoplay")||"0",10);if(!autoplay||slides.length<2){return}var timer=null;function show(i){slides[idx].classList.remove("is-active");idx=i;slides[idx].classList.add("is-active")}function next(){show((idx+1)%slides.length)}function start(){stop();timer=setInterval(next,autoplay)}function stop(){if(timer){clearInterval(timer);timer=null}}root.addEventListener("mouseenter",stop);root.addEventListener("mouseleave",start);start()}document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll(".bam-slider").forEach(initSlider)})})();'
+			'(function(){function initSlider(root){var slides=root.querySelectorAll(".bam-slide");if(slides.length<2){return}var idx=0;var def=parseInt(root.getAttribute("data-autoplay")||"0",10);if(!def||def<500){def=5000}slides[0].classList.add("is-active");var timer=null;function show(i){slides[idx].classList.remove("is-active");idx=i;slides[idx].classList.add("is-active")}function currentInterval(){var v=parseInt(slides[idx].getAttribute("data-interval")||"0",10);return v>=500?v:def}function schedule(){if(timer){clearTimeout(timer)}timer=setTimeout(function(){show((idx+1)%slides.length);schedule()},currentInterval())}root.addEventListener("mouseenter",function(){if(timer){clearTimeout(timer);timer=null}});root.addEventListener("mouseleave",schedule);schedule()}document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll(".bam-slider").forEach(initSlider)})})();'
 		);
 	}
 
@@ -950,13 +968,18 @@ function alminuto_theme_render_banners_admin() {
 	echo '<h2>Top banner (slider)</h2>';
 	echo '<p class="am-help">Arrastra para reordenar. Fechas opcionales para programar.</p>';
 	echo '<div class="am-actions"><button type="button" class="button button-primary" id="am_top_left_add">Añadir imágenes</button></div>';
+	echo '<div class="am-help" style="margin-top:10px;">';
+	echo 'Tiempo general del slider: <strong>' . esc_html( (string) (int) alminuto_theme_get_settings()['banner_slider_interval'] ) . ' s</strong> (configurable en la pestaña Inicio).';
+	echo ' Déjalo en 0 para usar el general por defecto.</div>';
+
 	echo '<ul class="am-gallery-list" id="am_top_left_list">';
 	foreach ( $list as $index => $row ) {
-		$id      = isset( $row['id'] ) ? (int) $row['id'] : 0;
-		$url     = isset( $row['url'] ) ? (string) $row['url'] : '';
-		$new_tab = ! empty( $row['new_tab'] ) ? 1 : 0;
-		$start   = isset( $row['start'] ) ? (string) $row['start'] : '';
-		$end     = isset( $row['end'] ) ? (string) $row['end'] : '';
+		$id       = isset( $row['id'] ) ? (int) $row['id'] : 0;
+		$url      = isset( $row['url'] ) ? (string) $row['url'] : '';
+		$new_tab  = ! empty( $row['new_tab'] ) ? 1 : 0;
+		$start    = isset( $row['start'] ) ? (string) $row['start'] : '';
+		$end      = isset( $row['end'] ) ? (string) $row['end'] : '';
+		$interval = isset( $row['interval'] ) ? (int) $row['interval'] : 0;
 
 		echo '<li class="am-gallery-item" data-index="' . esc_attr( (string) $index ) . '">';
 		echo '<div class="am-gallery-row">';
@@ -972,6 +995,7 @@ function alminuto_theme_render_banners_admin() {
 		echo '<div class="am-actions" style="gap:12px;">';
 		echo '<div class="am-field" style="margin-top:0;min-width:160px;"><label>Inicio</label><input type="date" name="am_top_left[' . esc_attr( (string) $index ) . '][start]" value="' . esc_attr( $start ) . '"></div>';
 		echo '<div class="am-field" style="margin-top:0;min-width:160px;"><label>Fin</label><input type="date" name="am_top_left[' . esc_attr( (string) $index ) . '][end]" value="' . esc_attr( $end ) . '"></div>';
+		echo '<div class="am-field" style="margin-top:0;min-width:140px;"><label>Intervalo (s)</label><input type="number" min="0" step="1" name="am_top_left[' . esc_attr( (string) $index ) . '][interval]" value="' . esc_attr( (string) $interval ) . '" placeholder="general"></div>';
 		echo '</div>';
 		echo '</div>';
 		echo '</li>';
@@ -1085,17 +1109,20 @@ function alminuto_theme_render_admin_page() {
 	if ( $tab === 'home' && isset( $_POST['alminuto_theme_panel_nonce'] ) && wp_verify_nonce( (string) $_POST['alminuto_theme_panel_nonce'], 'alminuto_theme_panel_save' ) ) {
 		$defaults = alminuto_theme_settings_defaults();
 
-		$left  = isset( $_POST['home_left_posts'] ) ? (int) $_POST['home_left_posts'] : (int) $defaults['home_left_posts'];
-		$right = isset( $_POST['home_right_posts'] ) ? (int) $_POST['home_right_posts'] : (int) $defaults['home_right_posts'];
+		$left        = isset( $_POST['home_left_posts'] ) ? (int) $_POST['home_left_posts'] : (int) $defaults['home_left_posts'];
+		$right       = isset( $_POST['home_right_posts'] ) ? (int) $_POST['home_right_posts'] : (int) $defaults['home_right_posts'];
+		$interval_s  = isset( $_POST['banner_slider_interval'] ) ? (int) $_POST['banner_slider_interval'] : (int) $defaults['banner_slider_interval'];
 
-		$left  = max( 1, min( 50, $left ) );
-		$right = max( 1, min( 50, $right ) );
+		$left        = max( 1, min( 50, $left ) );
+		$right       = max( 1, min( 50, $right ) );
+		$interval_s  = max( 1, min( 60, $interval_s ) );
 
 		update_option(
 			'alminuto_theme_settings',
 			[
-				'home_left_posts'  => $left,
-				'home_right_posts' => $right,
+				'home_left_posts'        => $left,
+				'home_right_posts'       => $right,
+				'banner_slider_interval' => $interval_s,
 			],
 			false
 		);
@@ -1129,6 +1156,7 @@ function alminuto_theme_render_admin_page() {
 		echo '<table class="form-table" role="presentation">';
 		echo '<tr><th scope="row"><label for="home_left_posts">Artículos en la Columna Izquierda</label></th><td><input type="number" min="1" max="50" id="home_left_posts" name="home_left_posts" value="' . esc_attr( (string) (int) $settings['home_left_posts'] ) . '"></td></tr>';
 		echo '<tr><th scope="row"><label for="home_right_posts">Inicio · Artículos en la Columna Derecha</label></th><td><input type="number" min="1" max="50" id="home_right_posts" name="home_right_posts" value="' . esc_attr( (string) (int) $settings['home_right_posts'] ) . '"></td></tr>';
+		echo '<tr><th scope="row"><label for="banner_slider_interval">Intervalo general del slider de banners (segundos)</label></th><td><input type="number" min="1" max="60" step="1" id="banner_slider_interval" name="banner_slider_interval" value="' . esc_attr( (string) (int) $settings['banner_slider_interval'] ) . '"><p class="description">Tiempo por defecto del slider. Cada banner puede tener su propio intervalo en la pestaña Banners (0 = usar este general).</p></td></tr>';
 		echo '</table>';
 		submit_button( 'Guardar' );
 		echo '</form>';
