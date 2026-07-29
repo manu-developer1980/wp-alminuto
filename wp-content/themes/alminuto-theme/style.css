@@ -285,25 +285,25 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .am-home-post-title {
   font-family: "Futura Medium", sans-serif;
-  font-size: 32px;
+  font-size: clamp(20px, 2.6vw, 32px);
+  line-height: 1.1;
   font-weight: 700;
-  line-height: 32px;
   margin: 0;
 }
 .am-home-col--right .am-home-post-title {
-  font-size: 20px;
-  line-height: 20px;
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.1;
 }
 .am-home-post-excerpt {
   margin: 0;
   color: #000;
-  font-size: 18px;
-  line-height: 27px;
+  font-size: clamp(14px, 1.6vw, 18px);
+  line-height: 1.5;
 }
 .am-home-post-single-excerpt {
   color: #000;
   text-align: center;
-  font-size: 25px;
+  font-size: clamp(18px, 2.2vw, 25px);
   font-weight: bold;
 }
 .am-home-post--compact .am-home-post-thumb { aspect-ratio: 226 / 128; }
@@ -437,9 +437,9 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 .am-archive-title {
   margin: 0;
   font-family: "Futura Medium", sans-serif;
-  font-size: 40px;
+  font-size: clamp(24px, 3.4vw, 40px);
   font-weight: 700;
-  line-height: 40px;
+  line-height: 1.1;
   color: #000;
 }
 @media (min-width: 720px) {
@@ -477,8 +477,8 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 }
 
 .am-post-body { padding: 12px; display: grid; gap: 8px; }
-.am-post-title { font-family: "Futura Medium", sans-serif; font-size: 25px; font-weight: 700; line-height: 25px; margin: 0; color: #000; }
-.am-post-excerpt { margin: 0; color: #000; font-size: 18px; line-height: 27px; }
+.am-post-title { font-family: "Futura Medium", sans-serif; font-size: clamp(18px, 2vw, 25px); font-weight: 700; line-height: 1.1; margin: 0; color: #000; }
+.am-post-excerpt { margin: 0; color: #000; font-size: clamp(14px, 1.6vw, 18px); line-height: 1.5; }
 .am-btn {
      display: inline-flex;
     align-items: center;
@@ -494,8 +494,8 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 }
 .am-btn:hover { background: var(--am-red-dark); text-decoration: none; }
 
-.am-single-title { margin: 0 0 10px; font-family: "Futura Medium", sans-serif; font-size: 33px; line-height: 36.3px; font-weight: 700; text-align: center; }
-.am-post-thumb-caption { padding-top: 10px; font-size: 14px; line-height: 1.35; color: #444; text-align: center; }
+.am-single-title { margin: 0 0 10px; font-family: "Futura Medium", sans-serif; font-size: clamp(22px, 3vw, 33px); line-height: 1.1; font-weight: 700; text-align: center; }
+.am-post-thumb-caption { padding-top: 10px; font-size: clamp(12px, 1.4vw, 14px); line-height: 1.35; color: #444; text-align: center; }
 .am-page {
   max-width: 860px;
   margin: 0 auto;
@@ -504,15 +504,15 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 .am-page-title {
   margin: 0 0 18px;
   font-family: "Futura Medium", sans-serif;
-  font-size: 40px;
+  font-size: clamp(26px, 3.6vw, 40px);
   font-weight: 700;
-  line-height: 40px;
+  line-height: 1.1;
   text-align: center;
   color: #000;
 }
-.am-content {  font-size: 18px; font-family: "Futura Light", sans-serif; }
+.am-content {  font-size: clamp(15px, 1.7vw, 18px); font-family: "Futura Light", sans-serif; }
 .am-content p { margin: 0 0 16px; }
-.am-content h2, .am-content h3 { margin: 22px 0 10px; line-height: 1.25; }
+.am-content h2, .am-content h3 { margin: 22px 0 10px; line-height: 1.25; font-size: clamp(18px, 2.2vw, 22px); }
 .am-content a { text-decoration: underline; }
 
 .am-share {
