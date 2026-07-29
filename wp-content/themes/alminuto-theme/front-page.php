@@ -3,8 +3,8 @@
 get_header();
 
 ?>
-<div class="am-layout">
-	<section>
+<div class="am-layout am-layout--home">
+	<section class="am-home-main">
 		<?php $settings = function_exists( 'alminuto_theme_get_settings' ) ? alminuto_theme_get_settings() : [ 'home_left_posts' => 20, 'home_right_posts' => 20 ]; ?>
 		<?php
 		$front_id = (int) get_option( 'page_on_front' );
@@ -14,7 +14,7 @@ get_header();
 				$content = apply_filters( 'the_content', $front_post->post_content );
 				if ( trim( wp_strip_all_tags( $content ) ) !== '' ) {
 					?>
-					<article class="am-card" style="margin-bottom:14px;">
+					<article class="am-card am-home-notice">
 						<div class="am-card-body am-content">
 							<?php echo wp_kses_post( $content ); ?>
 						</div>
@@ -23,8 +23,6 @@ get_header();
 				}
 			}
 		}
-		?>
-		<?php
 		?>
 
 		<?php
@@ -48,18 +46,14 @@ get_header();
 				'no_found_rows'       => true,
 			]
 		);
-
-		$shown_ids = [];
-		foreach ( array_merge( $left_query->posts, $right_query->posts ) as $p ) {
-			$shown_ids[] = (int) $p->ID;
-		}
-		$shown_ids = array_values( array_unique( $shown_ids ) );
 		?>
 
-		<?php get_template_part( 'template-parts/common/top-banner' ); ?>
-
 		<?php if ( $left_query->have_posts() || $right_query->have_posts() ) : ?>
-			<div class="am-home-columns" id="contenedor">
+			<div class="am-home-grid">
+				<div class="am-home-banner">
+					<?php get_template_part( 'template-parts/common/top-banner' ); ?>
+				</div>
+
 				<div class="am-home-col am-home-col--left">
 					<?php if ( $left_query->have_posts() ) : ?>
 						<?php $i = 0; ?>
@@ -115,7 +109,7 @@ get_header();
 		<?php wp_reset_postdata(); ?>
 	</section>
 
-	<aside>
+	<aside class="am-home-aside">
 		<?php get_template_part( 'template-parts/common/right-column' ); ?>
 	</aside>
 </div>
