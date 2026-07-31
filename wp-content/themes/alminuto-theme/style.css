@@ -106,8 +106,8 @@ img { max-width: 100%; height: auto; display: block; }
 .am-social a svg { width: 20px; height: 20px; fill: #fff; }
 .am-social a.am-social--facebook { background: #3b5998; }
 .am-topbar > .am-container > .am-topbar-inner > .am-social > a.am-social--facebook { color: #ffffff; }
-.am-social a.am-social--twitter { background: #1da1f2; }
-.am-topbar > .am-container > .am-topbar-inner > .am-social > a.am-social--twitter { color: #ffffff; }
+.am-social a.am-social--x { background: #000000; }
+.am-topbar > .am-container > .am-topbar-inner > .am-social > a.am-social--x { color: #ffffff; }
 .am-social a.am-social--youtube { background: #cd201f; }
 .am-topbar > .am-container > .am-topbar-inner > .am-social > a.am-social--youtube { color: #ffffff; }
 .am-social a.am-social--instagram { background: #262626; }
@@ -536,8 +536,9 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
   line-height: 20px;
 }
 .am-share-btn:hover { opacity: 0.92; }
+.am-share-btn svg { width: 20px; height: 20px; fill: #fff; }
 .am-share-btn--facebook { background: #3b5998; }
-.am-share-btn--twitter { background: #1da1f2; }
+.am-share-btn--x { background: #000000; }
 .am-share-btn--whatsapp { background: #25d366; }
 .am-share-btn--telegram { background: #0088cc; }
 

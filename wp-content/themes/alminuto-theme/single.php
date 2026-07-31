@@ -51,8 +51,8 @@ get_header();
 						<a class="am-share-btn am-share-btn--facebook" href="<?php echo esc_url( $share['facebook'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook">
 							<i aria-hidden="true" class="fab fa-facebook"></i>
 						</a>
-						<a class="am-share-btn am-share-btn--twitter" href="<?php echo esc_url( $share['twitter'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on Twitter">
-							<i aria-hidden="true" class="fab fa-twitter"></i>
+						<a class="am-share-btn am-share-btn--x" href="<?php echo esc_url( $share['x'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on X">
+							<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
 						</a>
 						<a class="am-share-btn am-share-btn--whatsapp" href="<?php echo esc_url( $share['whatsapp'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="Share on WhatsApp">
 							<i aria-hidden="true" class="fab fa-whatsapp"></i>

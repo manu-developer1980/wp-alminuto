@@ -455,7 +455,7 @@ function alminuto_theme_share_links( $url, $title ) {
 
 	return [
 		'facebook' => 'https://www.facebook.com/sharer/sharer.php?u=' . $encoded_url,
-		'twitter'  => 'https://twitter.com/intent/tweet?url=' . $encoded_url . '&text=' . $encoded_title,
+		'x'        => 'https://x.com/intent/post?url=' . $encoded_url . '&text=' . $encoded_title,
 		'whatsapp' => 'https://wa.me/?text=' . $encoded_title . '%20' . $encoded_url,
 		'telegram' => 'https://t.me/share/url?url=' . $encoded_url . '&text=' . $encoded_title,
 	];
