@@ -25,12 +25,12 @@ function alminuto_theme_send_security_headers() {
 	header( 'Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()' );
 
 	$csp  = "default-src 'self'; ";
-	$csp .= "script-src 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://connect.facebook.net; ";
+	$csp .= "script-src 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.gstatic.com; ";
 	$csp .= "img-src 'self' data: https:; ";
-	$csp .= "font-src 'self' data: https://use.fontawesome.com; ";
+	$csp .= "font-src 'self' data: https://use.fontawesome.com https://fonts.gstatic.com; ";
 	$csp .= "style-src 'self' 'unsafe-inline' https://use.fontawesome.com https://fonts.googleapis.com; ";
 	$csp .= "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://web.facebook.com https://players.brightcove.net; ";
-	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com; ";
+	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; ";
 	$csp .= "frame-ancestors 'self'; ";
 	$csp .= "base-uri 'self'; ";
 	$csp .= "form-action 'self'; ";
