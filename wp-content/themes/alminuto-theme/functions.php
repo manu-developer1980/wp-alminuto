@@ -704,7 +704,7 @@ function alminuto_theme_facebook_embed_html( $value ) {
 	}
 
 	$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $url ) . '&show_text=0&autoplay=0';
-	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-presentation allow-popups" title="Facebook"></iframe>';
+	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Facebook"></iframe>';
 	return '<div class="am-post-embed">' . $iframe . '</div>';
 }
 
@@ -784,7 +784,7 @@ function alminuto_theme_card_video_embed( $post_id = 0 ) {
 				return '<div class="am-card-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
 			}
 			$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
-			$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-presentation allow-popups" title="Facebook"></iframe>';
+			$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Facebook"></iframe>';
 			return '<div class="am-card-embed">' . $iframe . '</div>';
 		}
 		return '';
@@ -1243,7 +1243,7 @@ function alminuto_theme_right_column_html() {
 		$fb_url = alminuto_theme_normalize_facebook_video_url( (string) $opts['facebook_video_url'] );
 		if ( $fb_url !== '' && alminuto_theme_is_allowed_iframe_url( $fb_url ) ) {
 			$fb = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
-			$out .= '<div class="am-right-embed"><iframe src="' . esc_url( $fb ) . '" scrolling="no" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-presentation allow-popups"></iframe></div>';
+			$out .= '<div class="am-right-embed"><iframe src="' . esc_url( $fb ) . '" scrolling="no" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"></iframe></div>';
 		}
 	}
 
