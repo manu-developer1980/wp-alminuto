@@ -231,6 +231,20 @@ function alminuto_theme_current_user_is_elsuper() {
 	return strtolower( (string) $user->user_login ) === 'elsuper';
 }
 
+/**
+ * Override SiteGround Speed Optimizer's font preloads with the actual
+ * URLs declared in style.css. The plugin's auto-scanner can cache
+ * stale paths after a font rename, producing 404s in the console.
+ * Keep this list in sync with the @font-face declarations in style.css.
+ */
+function alminuto_theme_safe_font_preloads( $pre ) {
+	return [
+		'/wp-content/uploads/futura-light-bt.woff',
+		'/wp-content/uploads/futura-medium-bt-1.woff',
+	];
+}
+add_filter( 'pre_option_siteground_optimizer_fonts_preload_urls', 'alminuto_theme_safe_font_preloads' );
+
 function alminuto_theme_restrict_oembed_providers( $providers ) {
 	if ( ! is_array( $providers ) ) {
 		return $providers;
