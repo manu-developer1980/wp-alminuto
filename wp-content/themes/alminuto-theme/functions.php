@@ -858,7 +858,7 @@ function alminuto_theme_facebook_url_embed( $url, $wrapper_class = 'am-post-embe
 
 	// The official Facebook embed iframe. The `href` parameter is the
 	// canonical video URL (URL-encoded).
-	$embed_src = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $direct_url ) . '&show_text=0&width=560';
+	$embed_src = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $direct_url ) . '&show_text=0';
 
 	$wrapper_class = trim( (string) $wrapper_class );
 	if ( $wrapper_class === '' ) {
@@ -872,10 +872,8 @@ function alminuto_theme_facebook_url_embed( $url, $wrapper_class = 'am-post-embe
 		. 'scrolling="no" '
 		. 'frameborder="0" '
 		. 'allowfullscreen="true" '
-		. 'allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" '
-		. 'loading="lazy" '
-		. 'referrerpolicy="strict-origin-when-cross-origin" '
-		. 'title="Facebook video"></iframe>'
+		. 'allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">'
+		. '</iframe>'
 		. '<noscript><a class="am-fb-fallback" href="' . esc_url( $direct_url ) . '" target="_blank" rel="noopener noreferrer">Ver vídeo en Facebook</a></noscript>'
 		. '</div>';
 }
