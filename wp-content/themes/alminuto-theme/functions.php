@@ -29,8 +29,9 @@ function alminuto_theme_send_security_headers() {
 	$csp .= "img-src 'self' data: https:; ";
 	$csp .= "font-src 'self' data: https://use.fontawesome.com https://fonts.gstatic.com; ";
 	$csp .= "style-src 'self' 'unsafe-inline' https://use.fontawesome.com https://fonts.googleapis.com; ";
-	$csp .= "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://web.facebook.com https://players.brightcove.net; ";
-	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net; ";
+	$csp .= "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://web.facebook.com https://players.brightcove.net https://*.fbcdn.net; ";
+	$csp .= "media-src 'self' https://*.fbcdn.net data: blob:; ";
+	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com https://*.facebook.com https://*.fbcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net https://www.google.com https://www.google.es https://www.googleadservices.com; ";
 	$csp .= "frame-ancestors 'self'; ";
 	$csp .= "base-uri 'self'; ";
 	$csp .= "form-action 'self'; ";
