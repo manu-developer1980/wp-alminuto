@@ -449,6 +449,29 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 .am-fb-embed .fb-video { width: 100%; height: 100%; }
 .am-fb-embed .cmplz-placeholder-parent { height: 100% !important; }
 
+/* "Below" variant of the fallback: rendered as a discrete link UNDER the
+   iframe (not as a full-area replacement) so the user can still watch the
+   video if it eventually plays. JS appends this after 8s as a safety net
+   for browsers where the FB iframe is blocked (Brave Shields, ad-blockers,
+   strict Safari ITP). */
+.am-fb-fallback--below {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 14px;
+  background: #1877f2;
+  color: #fff;
+  text-decoration: none;
+  font-family: "Futura Medium", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  border-radius: 4px;
+  text-align: center;
+}
+.am-fb-fallback--below:hover { background: #0d5bc4; text-decoration: none; color: #fff; }
+
 .am-fb-fallback {
   display: flex;
   align-items: center;
