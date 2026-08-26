@@ -446,6 +446,7 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
    height (well-defined because the wrapper has `aspect-ratio: 16/9`), and
    the iframe fills it. Scoped to `.am-fb-embed` so it doesn't affect
    other Complianz placeholders (YouTube, etc.). */
+.am-fb-embed .fb-video { width: 100%; height: 100%; }
 .am-fb-embed .cmplz-placeholder-parent { height: 100% !important; }
 
 .am-fb-fallback {

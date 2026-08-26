@@ -31,7 +31,7 @@ function alminuto_theme_send_security_headers() {
 	$csp .= "style-src 'self' 'unsafe-inline' https://use.fontawesome.com https://fonts.googleapis.com; ";
 	$csp .= "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://web.facebook.com https://players.brightcove.net https://*.fbcdn.net; ";
 	$csp .= "media-src 'self' https://*.fbcdn.net data: blob:; ";
-	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com https://*.facebook.com https://*.fbcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net https://www.google.com https://www.google.es https://www.googleadservices.com; ";
+	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com https://*.facebook.com https://connect.facebook.net https://*.fbcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net https://www.google.com https://www.google.es https://www.googleadservices.com; ";
 	$csp .= "frame-ancestors 'self'; ";
 	$csp .= "base-uri 'self'; ";
 	$csp .= "form-action 'self'; ";
@@ -859,73 +859,92 @@ function alminuto_theme_facebook_url_embed( $url, $wrapper_class = 'am-post-embe
 
 	// The official Facebook embed iframe. The `href` parameter is the
 	// canonical video URL (URL-encoded).
-	$embed_src = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $direct_url ) . '&show_text=0';
-
-	$wrapper_class = trim( (string) $wrapper_class );
-	if ( $wrapper_class === '' ) {
-		$wrapper_class = 'am-post-embed';
-	}
-
+	// FB.XFBML plugin: the official Facebook SDK runs in the parent page's
+	// context (not inside a third-party iframe) and replaces this div with
+	// an embedded video player. The SDK + the player's XHRs to fbcdn.net
+	// happen from the parent origin, so they are NOT subject to Safari's
+	// Intelligent Tracking Prevention the way a direct iframe embed is.
+	//
+	// Why this is the only reliable cross-browser approach:
+	//   - A direct <iframe src="facebook.com/plugins/video.php?…"> is a
+	//     third-party iframe from the page's perspective. Safari ITP and
+	//     Brave Shields throttle / block its network requests (bootloader
+	//     never finishes, video data XHRs fail, player restarts at ~2s).
+	//   - With the SDK approach, the parent page itself loads the SDK
+	//     script (script-src already allows connect.facebook.net), the SDK
+	//     replaces the .fb-video div with an <iframe>, and the player
+	//     iframe is created by code that lives on the parent origin. The
+	//     player can fetch its bootloader and video chunks without ITP
+	//     interference.
+	//
+	// Fallback: a direct link to the video on Facebook sits inside the
+	// .fb-video div. The SDK replaces the div's content with an iframe, so
+	// the link is removed on success. If the SDK fails to load (ad-blocker,
+	// network) the link remains visible.
 	return '<div class="' . esc_attr( $wrapper_class ) . ' am-fb-embed" data-fb-href="' . esc_url( $direct_url ) . '">'
-		. '<iframe class="am-fb-iframe" src="' . esc_url( $embed_src ) . '" '
-		. 'width="100%" '
-		. 'style="border:none;overflow:hidden;width:100%;height:100%" '
-		. 'scrolling="no" '
-		. 'frameborder="0" '
-		. 'allowfullscreen="true" '
-		. 'allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">'
-		. '</iframe>'
+		. '<div class="fb-video" data-href="' . esc_url( $direct_url ) . '" data-allowfullscreen="true" data-show-text="false">'
+		. '<a class="am-fb-fallback" href="' . esc_url( $direct_url ) . '" target="_blank" rel="noopener noreferrer">Ver vídeo en Facebook</a>'
+		. '</div>'
 		. '<noscript><a class="am-fb-fallback" href="' . esc_url( $direct_url ) . '" target="_blank" rel="noopener noreferrer">Ver vídeo en Facebook</a></noscript>'
 		. '</div>';
 }
 
 /**
- * JS fallback for the Facebook embed iframe.
+ * Loads the official Facebook SDK and triggers XFBML parsing so the
+ * `.fb-video` divs in the page are replaced by embedded players.
  *
- * The iframe works in 99% of cases, but if the user's browser blocks the
- * Facebook CDN (Brave Shields, Strict Tracking Protection, ad-blocker), the
- * iframe stays empty and the user sees a black box. This script waits 6
- * seconds, then checks whether the iframe has a meaningful content area;
- * if not, it hides the iframe and surfaces a direct link to the video on
- * Facebook instead.
+ *   - Lazy: only runs when the page actually contains a .fb-video.
+ *   - `xfbml=1` enables XFBML parsing. No App ID is required for video
+ *     embeds (only for Login / App Events / etc.).
+ *   - After the SDK script loads, `FB.XFBML.parse()` is called manually
+ *     so any .fb-video added after DOMContentLoaded is also rendered.
+ *   - 10 s timeout: if the SDK didn't manage to render any .fb-video
+ *     (ad-blocker, network), the fallback link inside each div becomes
+ *     visible (it was hidden by the SDK on success because the SDK
+ *     replaced the div's content with an iframe).
  */
 function alminuto_theme_facebook_sdk_loader() {
 	?>
-	<script id="alminuto-fb-fallback">
+	<div id="fb-root"></div>
+	<script id="alminuto-fb-sdk-loader">
 	(function(){
+		function loadSDK(){
+			if(window.FB || document.getElementById('facebook-jssdk')){ return; }
+			var s = document.createElement('script');
+			s.id = 'facebook-jssdk';
+			s.src = 'https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0';
+			s.async = true;
+			s.defer = true;
+			s.crossOrigin = 'anonymous';
+			s.onload = function(){
+				try {
+					if(window.FB && typeof window.FB.XFBML === 'object' && typeof window.FB.XFBML.parse === 'function'){
+						window.FB.XFBML.parse();
+					}
+				} catch(e){}
+			};
+			document.body.appendChild(s);
+		}
 		function showFallback(){
 			var nodes = document.querySelectorAll('.am-fb-embed');
 			for(var i=0; i<nodes.length; i++){
 				var wrap = nodes[i];
 				if(wrap.getAttribute('data-fb-fallback') === '1'){ continue; }
-				var iframe = wrap.querySelector('iframe.am-fb-iframe');
-				if(!iframe){ continue; }
-				var ok = false;
-				try {
-					if(iframe.contentWindow && iframe.contentWindow.document && iframe.contentWindow.document.body && iframe.contentWindow.document.body.children.length > 0){
-						ok = true;
-					}
-				} catch(e) {
-					// Cross-origin: assume it loaded.
-					ok = true;
+				var v = wrap.querySelector('.fb-video');
+				if(!v){ continue; }
+				// If the SDK rendered, the div now contains an <iframe>.
+				if(v.querySelector('iframe')){ continue; }
+				var link = v.querySelector('.am-fb-fallback');
+				if(link){
+					link.style.display = 'flex';
 				}
-				if(ok){ continue; }
-				var href = wrap.getAttribute('data-fb-href');
-				if(!href){ continue; }
-				var a = document.createElement('a');
-				a.href = href;
-				a.target = '_blank';
-				a.rel = 'noopener noreferrer';
-				a.className = 'am-fb-fallback';
-				a.textContent = 'Ver vídeo en Facebook';
-				iframe.style.display = 'none';
-				wrap.appendChild(a);
 				wrap.setAttribute('data-fb-fallback', '1');
 			}
 		}
 		function init(){
-			if(!document.querySelector('.am-fb-embed')){ return; }
-			setTimeout(showFallback, 6000);
+			if(!document.querySelector('.fb-video')){ return; }
+			loadSDK();
+			setTimeout(showFallback, 10000);
 		}
 		if(document.readyState === 'loading'){
 			document.addEventListener('DOMContentLoaded', init);
