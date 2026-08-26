@@ -430,9 +430,9 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
 .am-post-embed { width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
 .am-post-embed iframe { width: 100%; height: 100%; border: 0; }
 
-/* Safari fallback: direct URL link rendered instead of the Facebook video iframe
-   (Safari renders the FB plugin iframe cut in half / black). */
-.am-post-embed--safari { background: #1877f2; }
+/* URL fallback: direct video URL rendered instead of the Facebook video iframe
+   (works in every browser, including Safari and Brave with anti-tracking). */
+.am-post-embed--url { background: #1877f2; }
 .am-fb-fallback {
   display: flex;
   align-items: center;

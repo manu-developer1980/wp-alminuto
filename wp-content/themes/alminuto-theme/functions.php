@@ -688,37 +688,26 @@ function alminuto_theme_facebook_embed_html( $value ) {
 		return '';
 	}
 
-	$allowed = alminuto_theme_video_allowed_html();
-
-	if ( stripos( $value, '<iframe' ) !== false ) {
-		$clean = alminuto_theme_sanitize_iframe_block( $value );
-		if ( $clean === '' ) {
-			return '';
-		}
-		// Safari-specific fix: the Facebook video iframe renders cut in half / black on Safari.
-		// Replace it with a direct link to the Facebook video URL.
-		if ( alminuto_theme_is_safari() && preg_match( '#https?://[^"\']+#i', $clean, $m ) ) {
+	// Always use the direct video URL instead of the Facebook video plugin iframe.
+	// The iframe (facebook.com/plugins/video.php) is unreliable across browsers:
+	//   - Safari renders it cut in half / black.
+	//   - Brave and other anti-tracking browsers block it.
+	// The URL-based block opens the official Facebook video page in a new tab,
+	// which works reliably everywhere.
+	$url = alminuto_theme_normalize_facebook_video_url( $value );
+	if ( $url === '' ) {
+		// Fallback: if the value contains an iframe we couldn't normalize to a URL,
+		// try to extract a Facebook URL from the iframe src.
+		if ( stripos( $value, '<iframe' ) !== false && preg_match( '#https?://[^"\']+#i', $value, $m ) ) {
 			$url = alminuto_theme_normalize_facebook_video_url( $m[0] );
-			if ( $url !== '' ) {
-				return alminuto_theme_facebook_safari_fallback( $url, 'am-post-embed' );
-			}
 		}
-		return '<div class="am-post-embed">' . $clean . '</div>';
 	}
 
-	$url = alminuto_theme_normalize_facebook_video_url( $value );
-	if ( $url === '' || ! alminuto_theme_is_allowed_iframe_url( $url ) ) {
+	if ( $url === '' ) {
 		return '';
 	}
 
-	// Safari-specific fix: use direct video URL (no iframe) to avoid the cut-in-half/black bug.
-	if ( alminuto_theme_is_safari() ) {
-		return alminuto_theme_facebook_safari_fallback( $url, 'am-post-embed' );
-	}
-
-	$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $url ) . '&show_text=0&autoplay=0';
-	$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Facebook"></iframe>';
-	return '<div class="am-post-embed">' . $iframe . '</div>';
+	return alminuto_theme_facebook_url_embed( $url, 'am-post-embed' );
 }
 
 function alminuto_theme_primary_media_html( $post_id = 0 ) {
@@ -763,58 +752,33 @@ function alminuto_theme_card_video_embed( $post_id = 0 ) {
 		return '';
 	}
 
-	$allowed = alminuto_theme_video_allowed_html();
-
 	$youtube  = trim( (string) get_post_meta( $post_id, '_video_youtube', true ) );
 	if ( $youtube !== '' ) {
-		if ( stripos( $youtube, '<iframe' ) !== false ) {
-			$clean = alminuto_theme_sanitize_iframe_block( $youtube );
-			if ( $clean === '' ) {
-				return '';
-			}
-			return '<div class="am-card-embed">' . $clean . '</div>';
-		}
-		$oembed = wp_oembed_get( $youtube, [ 'width' => 640 ] );
-		if ( $oembed ) {
-			return '<div class="am-card-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
+		$yt = alminuto_theme_youtube_embed_html( $youtube );
+		if ( $yt !== '' ) {
+			return str_replace( 'am-post-embed', 'am-card-embed', $yt );
 		}
 		return '';
 	}
 
 	$facebook = trim( (string) get_post_meta( $post_id, '_video_facebook', true ) );
-	if ( $facebook !== '' ) {
-		if ( stripos( $facebook, '<iframe' ) !== false ) {
-			$clean = alminuto_theme_sanitize_iframe_block( $facebook );
-			if ( $clean === '' ) {
-				return '';
-			}
-			// Safari-specific fix: replace Facebook video iframe with a direct URL link.
-			if ( alminuto_theme_is_safari() && preg_match( '#https?://[^"\']+#i', $clean, $m ) ) {
-				$url = alminuto_theme_normalize_facebook_video_url( $m[0] );
-				if ( $url !== '' ) {
-					return alminuto_theme_facebook_safari_fallback( $url, 'am-card-embed' );
-				}
-			}
-			return '<div class="am-card-embed">' . $clean . '</div>';
-		}
-		$fb_url = alminuto_theme_normalize_facebook_video_url( $facebook );
-		if ( $fb_url !== '' && alminuto_theme_is_allowed_iframe_url( $fb_url ) ) {
-			// Safari-specific fix: skip oEmbed/iframe and use a direct URL link.
-			if ( alminuto_theme_is_safari() ) {
-				return alminuto_theme_facebook_safari_fallback( $fb_url, 'am-card-embed' );
-			}
-			$oembed = wp_oembed_get( $fb_url, [ 'width' => 640 ] );
-			if ( $oembed ) {
-				return '<div class="am-card-embed">' . wp_kses( $oembed, $allowed ) . '</div>';
-			}
-			$src    = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
-			$iframe = '<iframe src="' . esc_url( $src ) . '" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Facebook"></iframe>';
-			return '<div class="am-card-embed">' . $iframe . '</div>';
-		}
+	if ( $facebook === '' ) {
 		return '';
 	}
 
-	return '';
+	// Use the direct video URL for Facebook. The iframe is unreliable across browsers.
+	$fb_url = '';
+	if ( stripos( $facebook, '<iframe' ) !== false && preg_match( '#https?://[^"\']+#i', $facebook, $m ) ) {
+		$fb_url = alminuto_theme_normalize_facebook_video_url( $m[0] );
+	}
+	if ( $fb_url === '' ) {
+		$fb_url = alminuto_theme_normalize_facebook_video_url( $facebook );
+	}
+	if ( $fb_url === '' ) {
+		return '';
+	}
+
+	return alminuto_theme_facebook_url_embed( $fb_url, 'am-card-embed' );
 }
 
 function alminuto_theme_normalize_facebook_video_url( $value ) {
@@ -853,40 +817,23 @@ function alminuto_theme_normalize_facebook_video_url( $value ) {
 }
 
 /**
- * Detects Apple Safari (macOS and iOS) from the User-Agent, excluding
- * other WebKit-based browsers (Chrome, Edge, Firefox, Opera, Brave, etc.).
+ * Renders a Facebook video block using the direct video URL instead of the
+ * Facebook video plugin iframe.
  *
- * Used to apply a Safari-specific workaround for the Facebook video plugin
- * iframe, which Safari renders cut in half / black.
- */
-function alminuto_theme_is_safari() {
-	if ( empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
-		return false;
-	}
-	$ua = (string) $_SERVER['HTTP_USER_AGENT'];
-	if ( stripos( $ua, 'safari' ) === false ) {
-		return false;
-	}
-	$excludes = [ 'chrome', 'chromium', 'crios', 'fxios', 'edg', 'edgios', 'opr', 'opera', 'brave', 'vivaldi', 'duckduckgo' ];
-	foreach ( $excludes as $needle ) {
-		if ( stripos( $ua, $needle ) !== false ) {
-			return false;
-		}
-	}
-	return true;
-}
-
-/**
- * Renders a Facebook video block that uses the direct video URL instead
- * of the plugins/video.php iframe. This is the Safari-safe fallback that
- * avoids the "video cut in half / black" bug of the Facebook iframe embed
- * on Apple Safari.
+ * The iframe (facebook.com/plugins/video.php) is unreliable across browsers:
+ *   - Safari renders it cut in half / black.
+ *   - Brave and other anti-tracking browsers block it.
+ *
+ * This block uses the canonical `facebook.com/video.php?v=…` URL inside a
+ * target="_blank" link, which works reliably on every browser and avoids
+ * any third-party iframe / tracker. The user clicks and lands on the
+ * official Facebook video page to watch it.
  *
  * @param string $url           Normalized Facebook video URL.
  * @param string $wrapper_class CSS class for the outer wrapper (e.g. am-post-embed, am-card-embed, am-right-embed).
  * @return string HTML block with a direct link to the Facebook video.
  */
-function alminuto_theme_facebook_safari_fallback( $url, $wrapper_class = 'am-post-embed' ) {
+function alminuto_theme_facebook_url_embed( $url, $wrapper_class = 'am-post-embed' ) {
 	$url = (string) $url;
 	if ( $url === '' ) {
 		return '';
@@ -903,7 +850,7 @@ function alminuto_theme_facebook_safari_fallback( $url, $wrapper_class = 'am-pos
 		$wrapper_class = 'am-post-embed';
 	}
 
-	return '<div class="' . esc_attr( $wrapper_class ) . ' am-post-embed--safari">'
+	return '<div class="' . esc_attr( $wrapper_class ) . ' am-post-embed--url">'
 		. '<a class="am-fb-fallback" href="' . esc_url( $direct_url ) . '" target="_blank" rel="noopener noreferrer" aria-label="Ver vídeo en Facebook">'
 		. '<span class="am-fb-fallback-icon" aria-hidden="true">'
 		. '<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>'
@@ -1326,14 +1273,8 @@ function alminuto_theme_right_column_html() {
 	}
 	if ( $opts['facebook_video_url'] ) {
 		$fb_url = alminuto_theme_normalize_facebook_video_url( (string) $opts['facebook_video_url'] );
-		if ( $fb_url !== '' && alminuto_theme_is_allowed_iframe_url( $fb_url ) ) {
-			// Safari-specific fix: use direct URL link instead of the Facebook video iframe.
-			if ( alminuto_theme_is_safari() ) {
-				$out .= alminuto_theme_facebook_safari_fallback( $fb_url, 'am-right-embed' );
-			} else {
-				$fb = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $fb_url ) . '&show_text=0&autoplay=0';
-				$out .= '<div class="am-right-embed"><iframe src="' . esc_url( $fb ) . '" scrolling="no" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"></iframe></div>';
-			}
+		if ( $fb_url !== '' ) {
+			$out .= alminuto_theme_facebook_url_embed( $fb_url, 'am-right-embed' );
 		}
 	}
 
