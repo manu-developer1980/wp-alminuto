@@ -436,6 +436,18 @@ main.am-main > div.am-container > div.am-layout > aside > div.am-right-block > d
    is what fixes the Safari bug where the iframe rendered "cut in half /
    black". The `.am-fb-embed` class on the wrapper itself is just a hook
    for the JS/noscript fallback. */
+
+/* Complianz (cookie consent plugin) wraps blocked embeds in
+   `.cmplz-placeholder-parent` with `height: inherit`. That collapses
+   inside our aspect-ratio container (the parent's `height` is `auto` when
+   it comes from `aspect-ratio`, not from a numeric `height`), so the
+   iframe ends up with 0 height and shows as "cut in half / black". Setting
+   it to `height: 100%` makes the wrapper resolve to the wrapper's actual
+   height (well-defined because the wrapper has `aspect-ratio: 16/9`), and
+   the iframe fills it. Scoped to `.am-fb-embed` so it doesn't affect
+   other Complianz placeholders (YouTube, etc.). */
+.am-fb-embed .cmplz-placeholder-parent { height: 100% !important; }
+
 .am-fb-fallback {
   display: flex;
   align-items: center;
