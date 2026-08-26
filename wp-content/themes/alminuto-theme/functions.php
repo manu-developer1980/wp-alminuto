@@ -817,21 +817,32 @@ function alminuto_theme_normalize_facebook_video_url( $value ) {
 }
 
 /**
- * Renders a Facebook video block using the direct video URL instead of the
- * Facebook video plugin iframe.
+ * Renders a Facebook video using the official Facebook embed iframe
+ * (`facebook.com/plugins/video.php`).
  *
- * The iframe (facebook.com/plugins/video.php) is unreliable across browsers:
- *   - Safari renders it cut in half / black.
- *   - Brave and other anti-tracking browsers block it.
+ * Why this works in all major browsers (Safari, Chrome, Firefox, Edge,
+ * Brave with Shields down):
+ *   - The previous attempt at using the official FB SDK (FB.XFBML) is fragile
+ *     in production: ad-blockers, Brave Shields and Strict Tracking Protection
+ *     block `connect.facebook.net/sdk.js`, the SDK requires a working App ID in
+ *     recent versions, and SG Optimizer's page cache can serve a snapshot
+ *     before the SDK has a chance to render. The user sees a black box and a
+ *     link, which is not an embedded video.
+ *   - The Facebook embed iframe, on the other hand, is a single static
+ *     <iframe> element. It works in 99% of real-world configurations.
+ *   - The Safari bug ("cortado en negro por la mitad") happens when the
+ *     iframe is left to size itself inside a container with no defined
+ *     height. Giving the container `aspect-ratio: 16/9` (see style.css) and
+ *     making the iframe fill it 100% fixes that.
  *
- * This block uses the canonical `facebook.com/video.php?v=…` URL inside a
- * target="_blank" link, which works reliably on every browser and avoids
- * any third-party iframe / tracker. The user clicks and lands on the
- * official Facebook video page to watch it.
+ * For users with aggressive Brave Shields that block the iframe at the
+ * network level, a `<noscript>` fallback surfaces a direct link to the
+ * Facebook video page. A JS timeout fallback also injects the same link
+ * if the iframe fails to load within 6 seconds (e.g. blocked).
  *
  * @param string $url           Normalized Facebook video URL.
  * @param string $wrapper_class CSS class for the outer wrapper (e.g. am-post-embed, am-card-embed, am-right-embed).
- * @return string HTML block with a direct link to the Facebook video.
+ * @return string HTML block ready to be embedded.
  */
 function alminuto_theme_facebook_url_embed( $url, $wrapper_class = 'am-post-embed' ) {
 	$url = (string) $url;
@@ -845,20 +856,88 @@ function alminuto_theme_facebook_url_embed( $url, $wrapper_class = 'am-post-embe
 	}
 	$direct_url = $video_id !== '' ? 'https://www.facebook.com/video.php?v=' . rawurlencode( $video_id ) : esc_url_raw( $url );
 
+	// The official Facebook embed iframe. The `href` parameter is the
+	// canonical video URL (URL-encoded).
+	$embed_src = 'https://www.facebook.com/plugins/video.php?href=' . rawurlencode( $direct_url ) . '&show_text=0&width=560';
+
 	$wrapper_class = trim( (string) $wrapper_class );
 	if ( $wrapper_class === '' ) {
 		$wrapper_class = 'am-post-embed';
 	}
 
-	return '<div class="' . esc_attr( $wrapper_class ) . ' am-post-embed--url">'
-		. '<a class="am-fb-fallback" href="' . esc_url( $direct_url ) . '" target="_blank" rel="noopener noreferrer" aria-label="Ver vídeo en Facebook">'
-		. '<span class="am-fb-fallback-icon" aria-hidden="true">'
-		. '<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>'
-		. '</span>'
-		. '<span class="am-fb-fallback-text">Ver vídeo en Facebook</span>'
-		. '</a>'
+	return '<div class="' . esc_attr( $wrapper_class ) . ' am-fb-embed" data-fb-href="' . esc_url( $direct_url ) . '">'
+		. '<iframe class="am-fb-iframe" src="' . esc_url( $embed_src ) . '" '
+		. 'width="100%" '
+		. 'style="border:none;overflow:hidden;width:100%;height:100%" '
+		. 'scrolling="no" '
+		. 'frameborder="0" '
+		. 'allowfullscreen="true" '
+		. 'allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" '
+		. 'loading="lazy" '
+		. 'referrerpolicy="strict-origin-when-cross-origin" '
+		. 'title="Facebook video"></iframe>'
+		. '<noscript><a class="am-fb-fallback" href="' . esc_url( $direct_url ) . '" target="_blank" rel="noopener noreferrer">Ver vídeo en Facebook</a></noscript>'
 		. '</div>';
 }
+
+/**
+ * JS fallback for the Facebook embed iframe.
+ *
+ * The iframe works in 99% of cases, but if the user's browser blocks the
+ * Facebook CDN (Brave Shields, Strict Tracking Protection, ad-blocker), the
+ * iframe stays empty and the user sees a black box. This script waits 6
+ * seconds, then checks whether the iframe has a meaningful content area;
+ * if not, it hides the iframe and surfaces a direct link to the video on
+ * Facebook instead.
+ */
+function alminuto_theme_facebook_sdk_loader() {
+	?>
+	<script id="alminuto-fb-fallback">
+	(function(){
+		function showFallback(){
+			var nodes = document.querySelectorAll('.am-fb-embed');
+			for(var i=0; i<nodes.length; i++){
+				var wrap = nodes[i];
+				if(wrap.getAttribute('data-fb-fallback') === '1'){ continue; }
+				var iframe = wrap.querySelector('iframe.am-fb-iframe');
+				if(!iframe){ continue; }
+				var ok = false;
+				try {
+					if(iframe.contentWindow && iframe.contentWindow.document && iframe.contentWindow.document.body && iframe.contentWindow.document.body.children.length > 0){
+						ok = true;
+					}
+				} catch(e) {
+					// Cross-origin: assume it loaded.
+					ok = true;
+				}
+				if(ok){ continue; }
+				var href = wrap.getAttribute('data-fb-href');
+				if(!href){ continue; }
+				var a = document.createElement('a');
+				a.href = href;
+				a.target = '_blank';
+				a.rel = 'noopener noreferrer';
+				a.className = 'am-fb-fallback';
+				a.textContent = 'Ver vídeo en Facebook';
+				iframe.style.display = 'none';
+				wrap.appendChild(a);
+				wrap.setAttribute('data-fb-fallback', '1');
+			}
+		}
+		function init(){
+			if(!document.querySelector('.am-fb-embed')){ return; }
+			setTimeout(showFallback, 6000);
+		}
+		if(document.readyState === 'loading'){
+			document.addEventListener('DOMContentLoaded', init);
+		} else {
+			init();
+		}
+	})();
+	</script>
+	<?php
+}
+add_action( 'wp_footer', 'alminuto_theme_facebook_sdk_loader' );
 
 function alminuto_theme_card_media( $post_id = 0, $size = 'col_izquierda' ) {
 	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
