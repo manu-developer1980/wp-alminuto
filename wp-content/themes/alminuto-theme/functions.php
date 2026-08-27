@@ -406,6 +406,229 @@ function alminuto_theme_limit_intermediate_image_sizes_advanced( $sizes ) {
 }
 add_filter( 'intermediate_image_sizes_advanced', 'alminuto_theme_limit_intermediate_image_sizes_advanced', 99 );
 
+/**
+ * Returns a unique log file path for the cleanup tool. Lazily creates the
+ * directory. The timestamp in the filename guarantees uniqueness across
+ * concurrent runs and makes post-mortem auditing trivial.
+ */
+function alminuto_theme_get_cleanup_log_file() {
+	$upload = wp_upload_dir();
+	$dir    = trailingslashit( $upload['basedir'] ) . 'alminuto-cleanup-logs';
+	if ( ! file_exists( $dir ) ) {
+		wp_mkdir_p( $dir );
+		// Block direct HTTP access to the log dir.
+		file_put_contents( $dir . '/index.php', "<?php // Silence is golden.\n" );
+	}
+	return $dir . '/cleanup-' . gmdate( 'Ymd-His' ) . '.log';
+}
+
+/**
+ * Cleans up old posts and their attachments.
+ *
+ * Two modes:
+ *   - dry_run: counts candidates and samples affected content. No writes.
+ *   - real:    rewrites internal links FIRST, then deletes posts in
+ *              batches (cascade attachments via wp_delete_post's force flag).
+ *
+ * Sticky posts are always excluded. Posts newer than 30 days are excluded
+ * unless an explicit start_date is provided.
+ *
+ * @param array $args {
+ *     @type bool   $dry_run       Default true.
+ *     @type int    $before_days   Default 30. Ignored if start_date given.
+ *     @type string $start_date    YYYY-MM-DD. Optional.
+ *     @type string $end_date      YYYY-MM-DD. Optional.
+ *     @type bool   $skip_sticky   Default true.
+ *     @type int    $batch_size    Default 100.
+ *     @type callable $log_callback Optional. Receives string messages.
+ * }
+ * @return array Stats and sample data.
+ */
+function alminuto_theme_cleanup_old_posts( $args = array() ) {
+	global $wpdb;
+
+	$defaults = array(
+		'dry_run'      => true,
+		'before_days'  => 30,
+		'start_date'   => null,
+		'end_date'     => null,
+		'skip_sticky'  => true,
+		'batch_size'   => 100,
+		'log_callback' => null,
+	);
+	$args = wp_parse_args( $args, $defaults );
+
+	// Hard safety: never delete posts younger than 30 days unless an explicit
+	// start_date was given.
+	if ( empty( $args['start_date'] ) && (int) $args['before_days'] < 30 ) {
+		$args['before_days'] = 30;
+	}
+
+	$log = function ( $msg ) use ( $args ) {
+		if ( is_callable( $args['log_callback'] ) ) {
+			call_user_func( $args['log_callback'], $msg );
+		}
+	};
+
+	// Build date query.
+	$date_query = array();
+	if ( ! empty( $args['start_date'] ) ) {
+		$date_query['after']  = $args['start_date'];
+		$date_query['inclusive'] = true;
+	}
+	if ( ! empty( $args['end_date'] ) ) {
+		$date_query['before'] = $args['end_date'];
+		$date_query['inclusive'] = true;
+	}
+	if ( empty( $date_query ) ) {
+		$date_query['before'] = gmdate( 'Y-m-d', strtotime( '-' . (int) $args['before_days'] . ' days' ) );
+	}
+
+	$query_args = array(
+		'post_type'           => 'post',
+		'post_status'         => 'publish',
+		'posts_per_page'      => -1,
+		'fields'              => 'ids',
+		'date_query'          => array( $date_query ),
+		'no_found_rows'       => true,
+		'suppress_filters'    => false,
+		'ignore_sticky_posts' => (bool) $args['skip_sticky'],
+	);
+
+	$post_ids = get_posts( $query_args );
+
+	$stats = array(
+		'posts_to_delete'    => count( $post_ids ),
+		'links_rewritten'    => 0,
+		'attachments_deleted' => 0,
+		'posts_deleted'      => 0,
+		'sample_titles'      => array(),
+		'affected_link_count' => 0,
+		'affected_link_samples' => array(),
+		'dry_run'            => (bool) $args['dry_run'],
+	);
+
+	if ( empty( $post_ids ) ) {
+		$log( 'No posts match the criteria. Nothing to do.' );
+		return $stats;
+	}
+
+	// Sample titles (first 20).
+	$sample_posts = get_posts( array(
+		'post__in'       => array_slice( $post_ids, 0, 20 ),
+		'post_type'      => 'post',
+		'post_status'    => 'publish',
+		'posts_per_page' => 20,
+		'fields'         => 'post_title',
+	) );
+	foreach ( $sample_posts as $p ) {
+		$stats['sample_titles'][] = $p->post_title;
+	}
+
+	// For dry-run: also count which OTHER posts would lose internal links.
+	if ( $args['dry_run'] ) {
+		$urls = array();
+		// Limit to first 500 for performance; full count is an estimate.
+		foreach ( array_slice( $post_ids, 0, 500 ) as $pid ) {
+			$url = get_permalink( $pid );
+			if ( $url ) {
+				$urls[] = $url;
+			}
+		}
+
+		if ( ! empty( $urls ) ) {
+			$like_clauses = array();
+			$params       = array();
+			foreach ( $urls as $url ) {
+				$like_clauses[] = 'post_content LIKE %s';
+				$params[]       = '%' . $wpdb->esc_like( $url ) . '%';
+			}
+			$sql = "SELECT ID, post_title FROM $wpdb->posts
+					WHERE post_status = 'publish'
+					AND post_type = 'post'
+					AND (" . implode( ' OR ', $like_clauses ) . ')
+					LIMIT 50';
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$affected = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
+			$stats['affected_link_count'] = (int) $wpdb->get_var(
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				"SELECT COUNT(*) FROM $wpdb->posts
+				 WHERE post_status = 'publish'
+				 AND post_type = 'post'
+				 AND (" . implode( ' OR ', $like_clauses ) . ')'
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			);
+			foreach ( (array) $affected as $a ) {
+				$stats['affected_link_samples'][] = $a->post_title;
+			}
+		}
+		$log( sprintf( 'Dry run: %d posts would be deleted, %d posts would lose internal links.', $stats['posts_to_delete'], $stats['affected_link_count'] ) );
+		return $stats;
+	}
+
+	// Real run: rewrite links first, then delete in batches.
+	$log( sprintf( 'Starting real cleanup of %d posts (batch size %d).', count( $post_ids ), (int) $args['batch_size'] ) );
+
+	foreach ( array_chunk( $post_ids, (int) $args['batch_size'] ) as $batch_index => $batch ) {
+		$log( sprintf( 'Batch %d: rewriting links for %d posts.', $batch_index + 1, count( $batch ) ) );
+
+		// Step 1: rewrite internal links.
+		foreach ( $batch as $post_id ) {
+			$post_url = get_permalink( $post_id );
+			if ( ! $post_url ) {
+				continue;
+			}
+
+			$like    = '%' . $wpdb->esc_like( $post_url ) . '%';
+			$linked  = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT ID, post_content FROM $wpdb->posts
+					 WHERE post_status = 'publish'
+					 AND post_type = 'post'
+					 AND post_content LIKE %s",
+					$like
+				)
+			);
+
+			foreach ( (array) $linked as $linked_post ) {
+				$new_content = preg_replace_callback(
+					'/<a\s+[^>]*href=[\"\']' . preg_quote( $post_url, '/' ) . '[\"\'][^>]*>(.*?)<\/a>/is',
+					static function ( $m ) {
+						return $m[1];
+					},
+					$linked_post->post_content
+				);
+				if ( $new_content !== $linked_post->post_content ) {
+					wp_update_post( array(
+						'ID'           => (int) $linked_post->ID,
+						'post_content' => $new_content,
+					) );
+					$stats['links_rewritten']++;
+				}
+			}
+		}
+
+		// Step 2: delete posts (cascades attachments via force=true).
+		foreach ( $batch as $post_id ) {
+			$children = get_children( array(
+				'post_parent' => $post_id,
+				'post_type'   => 'attachment',
+			) );
+			$stats['attachments_deleted'] += count( $children );
+
+			$deleted = wp_delete_post( (int) $post_id, true );
+			if ( $deleted ) {
+				$stats['posts_deleted']++;
+			}
+		}
+
+		$log( sprintf( 'Batch %d complete. Cumulative: %d posts deleted, %d links rewritten.', $batch_index + 1, $stats['posts_deleted'], $stats['links_rewritten'] ) );
+	}
+
+	$log( sprintf( 'Done. Deleted %d posts, %d attachments, rewrote %d internal links.', $stats['posts_deleted'], $stats['attachments_deleted'], $stats['links_rewritten'] ) );
+	return $stats;
+}
+
 function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
 	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
@@ -1038,8 +1261,83 @@ function alminuto_theme_admin_menu() {
 		'dashicons-admin-generic',
 		2.1
 	);
+	add_submenu_page(
+		'alminuto-theme-panel',
+		'Limpiar imágenes y artículos antiguos',
+		'Limpiar imágenes',
+		'manage_options',
+		'alminuto-cleanup',
+		'alminuto_theme_render_cleanup_page'
+	);
 }
 add_action( 'admin_menu', 'alminuto_theme_admin_menu' );
+
+/**
+ * Renders the cleanup admin page and handles form submission.
+ *
+ * Two-step flow: the form is submitted with a `dry_run` checkbox. With
+ * dry_run checked, it shows what WOULD be deleted (no writes). With it
+ * unchecked, it performs the real cleanup after a JS confirm() dialog.
+ */
+function alminuto_theme_render_cleanup_page() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Permisos insuficientes.', 'alminuto-theme' ) );
+	}
+
+	$result         = null;
+	$was_dry_run    = false;
+	$error_message  = null;
+	$log_file_path  = null;
+
+	if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['alminuto_cleanup_nonce'] ) ) {
+		if ( ! wp_verify_nonce( $_POST['alminuto_cleanup_nonce'], 'alminuto_cleanup' ) ) {
+			wp_die( esc_html__( 'Nonce inválido. Recarga la página.', 'alminuto-theme' ) );
+		}
+
+		$dry_run = ! empty( $_POST['dry_run'] );
+		$args    = array(
+			'dry_run' => $dry_run,
+		);
+		if ( ! empty( $_POST['before_days'] ) ) {
+			$args['before_days'] = max( 30, (int) $_POST['before_days'] );
+		}
+		if ( ! empty( $_POST['start_date'] ) ) {
+			$args['start_date'] = sanitize_text_field( wp_unslash( $_POST['start_date'] ) );
+		}
+		if ( ! empty( $_POST['end_date'] ) ) {
+			$args['end_date'] = sanitize_text_field( wp_unslash( $_POST['end_date'] ) );
+		}
+
+		$log_file_path = alminuto_theme_get_cleanup_log_file();
+		$args['log_callback'] = static function ( $msg ) use ( $log_file_path ) {
+			file_put_contents( $log_file_path, '[' . gmdate( 'Y-m-d H:i:s' ) . '] ' . $msg . "\n", FILE_APPEND );
+		};
+
+		try {
+			$result      = alminuto_theme_cleanup_old_posts( $args );
+			$was_dry_run = $dry_run;
+		} catch ( Exception $e ) {
+			$error_message = $e->getMessage();
+			if ( is_callable( $args['log_callback'] ) ) {
+				call_user_func( $args['log_callback'], 'ERROR: ' . $e->getMessage() );
+			}
+		}
+	}
+
+	$template = locate_template( 'template-parts/admin/cleanup-page.php' );
+	if ( ! $template ) {
+		echo '<div class="wrap"><h1>Limpiar imágenes</h1><p>Vista no encontrada.</p></div>';
+		return;
+	}
+
+	// Make vars available to the template.
+	$cleanup_result        = $result;
+	$cleanup_was_dry_run   = $was_dry_run;
+	$cleanup_error         = $error_message;
+	$cleanup_log_file_path = $log_file_path;
+
+	include $template;
+}
 
 function alminuto_theme_admin_enqueue( $hook_suffix ) {
 	if ( $hook_suffix !== 'toplevel_page_alminuto-theme-panel' ) {
