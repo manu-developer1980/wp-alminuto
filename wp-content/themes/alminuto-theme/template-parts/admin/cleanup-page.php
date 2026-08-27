@@ -129,46 +129,104 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<?php endif; ?>
 
 		<table class="widefat striped" style="max-width: 720px;">
-			<tbody>
+		<tbody>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Artículos a eliminar / eliminados', 'alminuto-theme' ); ?></th>
+				<td>
+					<?php echo esc_html( (int) $cleanup_result['posts_deleted'] ); ?> / <?php echo esc_html( (int) $cleanup_result['posts_to_delete'] ); ?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+					<?php
+					echo esc_html(
+						$cleanup_was_dry_run
+							? __( 'Adjuntos que se borrarían en cascada', 'alminuto-theme' )
+							: __( 'Adjuntos borrados en cascada', 'alminuto-theme' )
+					);
+					?>
+				</th>
+				<td>
+					<?php echo esc_html( (int) $cleanup_result['attachments_to_delete'] ); ?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Enlaces internos reescritos', 'alminuto-theme' ); ?></th>
+				<td><?php echo esc_html( (int) $cleanup_result['links_rewritten'] ); ?></td>
+			</tr>
+			<?php if ( $cleanup_was_dry_run ) : ?>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Artículos a eliminar / eliminados', 'alminuto-theme' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Posts que perderían enlaces', 'alminuto-theme' ); ?></th>
 					<td>
-						<?php echo esc_html( (int) $cleanup_result['posts_deleted'] ); ?> / <?php echo esc_html( (int) $cleanup_result['posts_to_delete'] ); ?>
+						<?php
+						printf(
+							/* translators: %d: number of posts that would lose internal links */
+							esc_html__( '%d artículos', 'alminuto-theme' ),
+							(int) $cleanup_result['affected_link_count']
+						);
+						?>
 					</td>
 				</tr>
+			<?php endif; ?>
+		</tbody>
+	</table>
+
+	<?php if ( ! empty( $cleanup_result['sample_titles'] ) ) : ?>
+		<h3><?php esc_html_e( 'Muestra de títulos (primeros 20)', 'alminuto-theme' ); ?></h3>
+		<ul style="max-width: 720px; max-height: 240px; overflow: auto; background: #fff; border: 1px solid #ccd0d4; padding: 8px 8px 8px 24px;">
+			<?php foreach ( $cleanup_result['sample_titles'] as $title ) : ?>
+				<li><?php echo esc_html( $title ); ?></li>
+			<?php endforeach; ?>
+		</ul>
+	<?php endif; ?>
+
+	<?php if ( $cleanup_was_dry_run && ! empty( $cleanup_result['sample_attachments'] ) ) : ?>
+		<h3><?php esc_html_e( 'Muestra de imágenes que se borrarían (primeras 20)', 'alminuto-theme' ); ?></h3>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: 1: shown attachments, 2: total attachments to delete */
+				esc_html__( 'Mostrando %1$d de %2$d adjuntos. Cada adjunto se elimina junto con sus miniaturas al borrar el artículo padre.', 'alminuto-theme' ),
+				count( $cleanup_result['sample_attachments'] ),
+				(int) $cleanup_result['attachments_to_delete']
+			);
+			?>
+		</p>
+		<table class="widefat striped" style="max-width: 960px;">
+			<thead>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Adjuntos borrados en cascada', 'alminuto-theme' ); ?></th>
-					<td><?php echo esc_html( (int) $cleanup_result['attachments_deleted'] ); ?></td>
+					<th style="width: 60px;"><?php esc_html_e( 'ID', 'alminuto-theme' ); ?></th>
+					<th style="width: 140px;"><?php esc_html_e( 'Miniatura', 'alminuto-theme' ); ?></th>
+					<th><?php esc_html_e( 'Archivo', 'alminuto-theme' ); ?></th>
+					<th><?php esc_html_e( 'Artículo padre', 'alminuto-theme' ); ?></th>
 				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Enlaces internos reescritos', 'alminuto-theme' ); ?></th>
-					<td><?php echo esc_html( (int) $cleanup_result['links_rewritten'] ); ?></td>
-				</tr>
-				<?php if ( $cleanup_was_dry_run ) : ?>
+			</thead>
+			<tbody>
+				<?php foreach ( $cleanup_result['sample_attachments'] as $att ) : ?>
+					<?php
+					$thumb_url = wp_get_attachment_image_url( (int) $att['id'], 'thumbnail' );
+					$parent    = $att['parent_title'] !== '' ? $att['parent_title'] : '(sin título)';
+					?>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Posts que perderían enlaces', 'alminuto-theme' ); ?></th>
+						<td><?php echo esc_html( (int) $att['id'] ); ?></td>
 						<td>
-							<?php
-							printf(
-								/* translators: %d: number of posts that would lose internal links */
-								esc_html__( '%d artículos', 'alminuto-theme' ),
-								(int) $cleanup_result['affected_link_count']
-							);
-							?>
+							<?php if ( $thumb_url ) : ?>
+								<img src="<?php echo esc_url( $thumb_url ); ?>" alt="" style="max-width: 120px; max-height: 80px; height: auto;" loading="lazy" />
+							<?php else : ?>
+								<span class="description"><?php esc_html_e( '(no disponible)', 'alminuto-theme' ); ?></span>
+							<?php endif; ?>
+						</td>
+						<td><code><?php echo esc_html( $att['filename'] ); ?></code></td>
+						<td>
+							<a href="<?php echo esc_url( admin_url( 'post.php?post=' . (int) $att['parent_id'] . '&action=edit' ) ); ?>" target="_blank" rel="noopener noreferrer">
+								<?php echo esc_html( $parent ); ?>
+							</a>
 						</td>
 					</tr>
-				<?php endif; ?>
+				<?php endforeach; ?>
 			</tbody>
 		</table>
-
-		<?php if ( ! empty( $cleanup_result['sample_titles'] ) ) : ?>
-			<h3><?php esc_html_e( 'Muestra de títulos (primeros 20)', 'alminuto-theme' ); ?></h3>
-			<ul style="max-width: 720px; max-height: 240px; overflow: auto; background: #fff; border: 1px solid #ccd0d4; padding: 8px 8px 8px 24px;">
-				<?php foreach ( $cleanup_result['sample_titles'] as $title ) : ?>
-					<li><?php echo esc_html( $title ); ?></li>
-				<?php endforeach; ?>
-			</ul>
-		<?php endif; ?>
+	<?php endif; ?>
 
 		<?php if ( $cleanup_was_dry_run && ! empty( $cleanup_result['affected_link_samples'] ) ) : ?>
 			<h3><?php esc_html_e( 'Muestra de posts que perderían enlaces', 'alminuto-theme' ); ?></h3>

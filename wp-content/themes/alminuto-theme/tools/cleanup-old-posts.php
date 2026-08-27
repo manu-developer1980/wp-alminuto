@@ -100,10 +100,11 @@ function alminuto_theme_cleanup_command( $args, $assoc_args ) {
 
 	WP_CLI::log( '' );
 	WP_CLI::log( '=== Summary ===' );
-	WP_CLI::log( 'Elapsed:                 ' . $elapsed . 's' );
-	WP_CLI::log( 'Posts to delete:         ' . $result['posts_to_delete'] );
-	WP_CLI::log( 'Posts deleted:           ' . $result['posts_deleted'] );
-	WP_CLI::log( 'Attachments deleted:     ' . $result['attachments_deleted'] );
+	WP_CLI::log( 'Elapsed:                  ' . $elapsed . 's' );
+	WP_CLI::log( 'Posts to delete:          ' . $result['posts_to_delete'] );
+	WP_CLI::log( 'Posts deleted:            ' . $result['posts_deleted'] );
+	WP_CLI::log( 'Attachments to delete:    ' . $result['attachments_to_delete'] );
+	WP_CLI::log( 'Attachments deleted:      ' . $result['attachments_deleted'] );
 	WP_CLI::log( 'Internal links rewritten: ' . $result['links_rewritten'] );
 
 	if ( $dry_run ) {
@@ -113,6 +114,18 @@ function alminuto_theme_cleanup_command( $args, $assoc_args ) {
 			WP_CLI::log( 'Sample of posts to delete (first 20):' );
 			foreach ( $result['sample_titles'] as $title ) {
 				WP_CLI::log( '  - ' . $title );
+			}
+		}
+		if ( ! empty( $result['sample_attachments'] ) ) {
+			WP_CLI::log( '' );
+			WP_CLI::log( 'Sample of attachments to delete (first 20):' );
+			foreach ( $result['sample_attachments'] as $att ) {
+				$parent = $att['parent_title'] !== '' ? $att['parent_title'] : '(no parent title)';
+				WP_CLI::log( sprintf( '  - #%d  %s  (parent: %s)', $att['id'], $att['filename'], $parent ) );
+			}
+			$remaining = $result['attachments_to_delete'] - count( $result['sample_attachments'] );
+			if ( $remaining > 0 ) {
+				WP_CLI::log( sprintf( '  ... and %d more attachments not shown.', $remaining ) );
 			}
 		}
 	}
