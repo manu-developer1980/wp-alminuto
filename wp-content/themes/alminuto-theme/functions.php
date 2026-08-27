@@ -359,6 +359,11 @@ function alminuto_theme_image_sizes() {
 		'col_derecha'       => [ 'width' => 280, 'height' => 160, 'crop' => [ 'center', 'center' ] ],
 		'content_4_3'       => [ 'width' => 855, 'height' => 640, 'crop' => [ 'center', 'center' ] ],
 		'content_4_3_m'     => [ 'width' => 480, 'height' => 360, 'crop' => [ 'center', 'center' ] ],
+		// Used for the single post hero / featured image. No crop so the
+		// photographer's original framing is preserved; 1920px is the width
+		// Google Discover requires for large previews and covers the
+		// theme's 1160px container at 2x for Retina.
+		'single_full'       => [ 'width' => 1920, 'height' => 0, 'crop' => false ],
 	];
 }
 
