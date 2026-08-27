@@ -55,8 +55,9 @@ if ( ! function_exists( 'alminuto_theme_cleanup_old_posts' ) ) {
  *     wp alminuto cleanup --before-days=365 --batch=50
  *
  * @when after_wp_load
+ * @subcommand cleanup
  */
-WP_CLI::add_command( 'alminuto cleanup', static function ( $args, $assoc_args ) {
+function alminuto_theme_cleanup_command( $args, $assoc_args ) {
 	$dry_run = isset( $assoc_args['dry-run'] );
 
 	$cleanup_args = array(
@@ -115,13 +116,6 @@ WP_CLI::add_command( 'alminuto cleanup', static function ( $args, $assoc_args ) 
 			}
 		}
 	}
-}, array(
-	'synopsis' => array(
-		array( 'type' => 'flag', 'name' => 'dry-run', 'description' => 'Count and sample only, no writes.' ),
-		array( 'type' => 'assoc', 'name' => 'before-days', 'description' => 'Delete posts older than N days.' ),
-		array( 'type' => 'assoc', 'name' => 'start', 'description' => 'Inclusive start of custom range (YYYY-MM-DD).' ),
-		array( 'type' => 'assoc', 'name' => 'end', 'description' => 'Inclusive end of custom range (YYYY-MM-DD).' ),
-		array( 'type' => 'assoc', 'name' => 'batch', 'description' => 'Posts per batch (default 100).' ),
-		array( 'type' => 'flag', 'name' => 'yes', 'description' => 'Skip the confirmation prompt.' ),
-	),
-) );
+}
+
+WP_CLI::add_command( 'alminuto', 'alminuto_theme_cleanup_command' );
