@@ -629,6 +629,11 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 	return $stats;
 }
 
+// Load the WP-CLI command for the cleanup tool (no-op in non-CLI context).
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once __DIR__ . '/tools/cleanup-old-posts.php';
+}
+
 function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
 	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
