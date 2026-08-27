@@ -498,20 +498,33 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 	$post_ids = get_posts( $query_args );
 
 	$stats = array(
-		'posts_to_delete'    => count( $post_ids ),
-		'links_rewritten'    => 0,
-		'attachments_deleted' => 0,
-		'posts_deleted'      => 0,
-		'sample_titles'      => array(),
-		'affected_link_count' => 0,
+		'posts_to_delete'      => count( $post_ids ),
+		'attachments_to_delete' => 0,
+		'links_rewritten'      => 0,
+		'attachments_deleted'  => 0,
+		'posts_deleted'        => 0,
+		'sample_titles'        => array(),
+		'sample_attachments'   => array(),
+		'affected_link_count'  => 0,
 		'affected_link_samples' => array(),
-		'dry_run'            => (bool) $args['dry_run'],
+		'dry_run'              => (bool) $args['dry_run'],
 	);
 
 	if ( empty( $post_ids ) ) {
 		$log( 'No posts match the criteria. Nothing to do.' );
 		return $stats;
 	}
+
+	// Count attachments that will be deleted in cascade (cheap query with the
+	// post_parent index). Always populated, not just in dry-run, so the real
+	// run's final summary can also display the total upfront.
+	$post_ids_csv  = implode( ',', array_map( 'intval', $post_ids ) );
+	$stats['attachments_to_delete'] = (int) $wpdb->get_var(
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		"SELECT COUNT(*) FROM $wpdb->posts
+		 WHERE post_type = 'attachment'
+		 AND post_parent IN ($post_ids_csv)"
+	);
 
 	// Sample titles (first 20).
 	$sample_posts = get_posts( array(
@@ -527,6 +540,27 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 
 	// For dry-run: also count which OTHER posts would lose internal links.
 	if ( $args['dry_run'] ) {
+		// Sample of attachments that will be deleted (with their parent post
+		// title for context).
+		$sample_atts = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT a.ID, a.post_parent, a.post_title AS filename, p.post_title AS parent_title
+			 FROM $wpdb->posts a
+			 LEFT JOIN $wpdb->posts p ON p.ID = a.post_parent
+			 WHERE a.post_type = 'attachment'
+			 AND a.post_parent IN ($post_ids_csv)
+			 ORDER BY a.ID DESC
+			 LIMIT 20"
+		);
+		foreach ( (array) $sample_atts as $att ) {
+			$stats['sample_attachments'][] = array(
+				'id'           => (int) $att->ID,
+				'filename'     => $att->filename,
+				'parent_id'    => (int) $att->post_parent,
+				'parent_title' => $att->parent_title,
+			);
+		}
+
 		$urls = array();
 		// Limit to first 500 for performance; full count is an estimate.
 		foreach ( array_slice( $post_ids, 0, 500 ) as $pid ) {
@@ -562,7 +596,7 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 				$stats['affected_link_samples'][] = $a->post_title;
 			}
 		}
-		$log( sprintf( 'Dry run: %d posts would be deleted, %d posts would lose internal links.', $stats['posts_to_delete'], $stats['affected_link_count'] ) );
+		$log( sprintf( 'Dry run: %d posts would be deleted, %d attachments in cascade, %d posts would lose internal links.', $stats['posts_to_delete'], $stats['attachments_to_delete'], $stats['affected_link_count'] ) );
 		return $stats;
 	}
 
