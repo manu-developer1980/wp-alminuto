@@ -642,13 +642,22 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 			}
 		}
 
-		// Step 2: delete posts (cascades attachments via force=true).
+		// Step 2: delete child attachments first, then the post itself.
+		// wp_delete_attachment() removes the post AND the physical files
+		// (original + all intermediate sizes registered via add_image_size).
+		// wp_delete_post() does NOT cascade to child attachments, so we must
+		// call wp_delete_attachment() on each child explicitly.
 		foreach ( $batch as $post_id ) {
 			$children = get_children( array(
 				'post_parent' => $post_id,
 				'post_type'   => 'attachment',
 			) );
-			$stats['attachments_deleted'] += count( $children );
+			foreach ( (array) $children as $child_id => $child ) {
+				$deleted_att = wp_delete_attachment( (int) $child_id, true );
+				if ( $deleted_att ) {
+					$stats['attachments_deleted']++;
+				}
+			}
 
 			$deleted = wp_delete_post( (int) $post_id, true );
 			if ( $deleted ) {

@@ -24,6 +24,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 			'alminuto-theme'
 		); ?>
 	</p>
+	<p class="description">
+		<?php esc_html_e(
+			'Cada adjunto borrado elimina también el fichero original y todas las miniaturas registradas (thumbnail, medium, large, single_full, etc.).',
+			'alminuto-theme'
+		); ?>
+	</p>
 
 	<form method="post" id="alminuto-cleanup-form">
 		<?php wp_nonce_field( 'alminuto_cleanup', 'alminuto_cleanup_nonce' ); ?>
