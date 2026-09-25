@@ -21,8 +21,8 @@ get_header();
 							<?php endif; ?>
 						</a>
 						<div class="am-post-body">
-							<?php echo alminuto_theme_post_meta_html(); ?>
 							<h2 class="am-post-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
+							<?php echo alminuto_theme_post_meta_html(); ?>
 							<p class="am-post-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 22 ) ); ?></p>
 							<a class="am-btn" href="<?php the_permalink(); ?>">Leer más</a>
 						</div>
