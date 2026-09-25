@@ -27,8 +27,8 @@ function alminuto_theme_send_security_headers() {
 	$csp  = "default-src 'self'; ";
 	$csp .= "script-src 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com https://s.ytimg.com https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.gstatic.com; ";
 	$csp .= "img-src 'self' data: https:; ";
-	$csp .= "font-src 'self' data: https://use.fontawesome.com https://fonts.gstatic.com; ";
-	$csp .= "style-src 'self' 'unsafe-inline' https://use.fontawesome.com https://fonts.googleapis.com; ";
+	$csp .= "font-src 'self' data: https://fonts.gstatic.com; ";
+	$csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ";
 	$csp .= "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://web.facebook.com https://players.brightcove.net https://*.fbcdn.net https://www.ivoox.com https://*.ivoox.com; ";
 	$csp .= "media-src 'self' https://*.fbcdn.net https://*.ivoox.com data: blob:; ";
 	$csp .= "connect-src 'self' https://www.youtube.com https://www.facebook.com https://*.facebook.com https://connect.facebook.net https://*.fbcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net https://www.google.com https://www.google.es https://www.googleadservices.com; ";
@@ -683,7 +683,6 @@ function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
 	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
 	wp_enqueue_style( 'alminuto-theme', get_stylesheet_uri(), [], $version );
-	wp_enqueue_style( 'font-awesome', 'https://use.fontawesome.com/releases/v5.15.4/css/all.css', [], '5.15.4' );
 
 	wp_register_script( 'alminuto-theme', '', [], $version, true );
 	wp_enqueue_script( 'alminuto-theme' );
@@ -766,13 +765,14 @@ function alminuto_theme_post_meta_html( $post_id = 0 ) {
 	$author_name = get_the_author_meta( 'display_name', $author_id );
 	$avatar      = get_avatar( $author_id, 24, '', $author_name, [ 'class' => 'am-post-info-avatar' ] );
 
-	$icon_calendar = '<i aria-hidden="true" class="fas fa-calendar"></i>';
-	$icon_clock    = '<i aria-hidden="true" class="fas fa-clock"></i>';
+	$icon_calendar = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M128 0c17.7 0 32 14.3 32 32V64H288V32c0-17.7 14.3-32 32-32s32 14.3 32 32V64h48c26.5 0 48 21.5 48 48v48H0V112C0 85.5 21.5 64 48 64H96V32c0-17.7 14.3-32 32-32zM0 192H448V464c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V192zm64 80c-8.8 0-16 7.2-16 16v48c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V288c0-8.8-7.2-16-16-16H64zm128 0c-8.8 0-16 7.2-16 16v48c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V288c0-8.8-7.2-16-16-16H192zm144 16v48c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V288c0-8.8-7.2-16-16-16H336c-8.8 0-16 7.2-16 16z"/></svg>';
+	$icon_clock    = '<svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M256 0a256 256 0 1 1 0 512A256 256 0 1 1 256 0zm0 464a208 208 0 1 0 0-416 208 208 0 1 0 0 416zm16-288V256c0 8.8-7.2 16-16 16H152c-8.8 0-16-7.2-16-16s7.2-16 16-16h88V176c0-8.8 7.2-16 16-16s16 7.2 16 16z"/></svg>';
+	$icon_user     = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3 0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7 0-98.5-79.8-178.3-178.3-178.3h-91.4z"/></svg>';
 
 	$out  = '<ul class="am-post-info">';
 	$out .= '<li class="am-post-info-item am-post-info-item--date"><span class="am-post-info-icon">' . $icon_calendar . '</span><span class="am-post-info-text">' . esc_html( $date ) . '</span></li>';
 	$out .= '<li class="am-post-info-item am-post-info-item--time"><span class="am-post-info-icon">' . $icon_clock . '</span><span class="am-post-info-text">' . esc_html( $time ) . '</span></li>';
-	$out .= '<li class="am-post-info-item am-post-info-item--author"><span class="am-post-info-icon"><i aria-hidden="true" class="fas fa-user"></i></span><span class="am-post-info-text">' . esc_html( $author_name ) . '</span></li>';
+	$out .= '<li class="am-post-info-item am-post-info-item--author"><span class="am-post-info-icon">' . $icon_user . '</span><span class="am-post-info-text">' . esc_html( $author_name ) . '</span></li>';
 	$out .= '</ul>';
 
 	return wp_kses(
@@ -782,6 +782,17 @@ function alminuto_theme_post_meta_html( $post_id = 0 ) {
 			'li'   => [ 'class' => true ],
 			'span' => [ 'class' => true ],
 			'i'    => [ 'class' => true, 'aria-hidden' => true ],
+			'svg'  => [
+				'viewbox'     => true,
+				'width'       => true,
+				'height'      => true,
+				'aria-hidden' => true,
+				'focusable'   => true,
+			],
+			'path' => [
+				'fill' => true,
+				'd'    => true,
+			],
 			'img'  => [
 				'class'    => true,
 				'src'      => true,
@@ -1227,7 +1238,7 @@ function alminuto_theme_facebook_sdk_loader() {
 }
 add_action( 'wp_footer', 'alminuto_theme_facebook_sdk_loader' );
 
-function alminuto_theme_card_media( $post_id = 0, $size = 'col_izquierda' ) {
+function alminuto_theme_card_media( $post_id = 0, $size = 'col_izquierda', $img_attr = [] ) {
 	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
 	if ( $post_id <= 0 ) {
 		return [ 'has_video' => false, 'html' => '' ];
@@ -1237,7 +1248,7 @@ function alminuto_theme_card_media( $post_id = 0, $size = 'col_izquierda' ) {
 	}
 	$img = '';
 	if ( has_post_thumbnail( $post_id ) ) {
-		$img = wp_get_attachment_image( get_post_thumbnail_id( $post_id ), $size );
+		$img = wp_get_attachment_image( get_post_thumbnail_id( $post_id ), $size, false, $img_attr );
 	}
 	return [ 'has_video' => false, 'html' => $img ];
 }
@@ -1561,7 +1572,8 @@ function alminuto_theme_banners_shortcode( $atts ) {
 	$list = (array) ( $data['top_left'] ?? [] );
 	$now  = (int) current_time( 'timestamp' );
 
-	$items = [];
+	$items       = [];
+	$first_slide = true;
 	foreach ( $list as $row ) {
 		if ( ! alminuto_theme_banner_item_is_active( $row, $now ) ) {
 			continue;
@@ -1570,7 +1582,11 @@ function alminuto_theme_banners_shortcode( $atts ) {
 		if ( $id <= 0 ) {
 			continue;
 		}
-		$img = wp_get_attachment_image( $id, $size, false, [ 'loading' => 'eager' ] );
+		$img_attrs = $first_slide
+			? [ 'loading' => 'eager', 'decoding' => 'async' ]
+			: [ 'loading' => 'lazy', 'decoding' => 'async' ];
+		$first_slide = false;
+		$img = wp_get_attachment_image( $id, $size, false, $img_attrs );
 		if ( ! $img ) {
 			continue;
 		}
@@ -1691,10 +1707,10 @@ function alminuto_theme_right_column_html() {
 	$out = '<div class="am-right-block">';
 	$out .= '<div class="am-section-title">Noticias con rigor</div>';
 	if ( (int) $opts['news_rigor_image_id'] > 0 ) {
-		$img = wp_get_attachment_image( (int) $opts['news_rigor_image_id'], $img_size, false, [ 'loading' => 'lazy' ] );
+		$img = wp_get_attachment_image( (int) $opts['news_rigor_image_id'], $img_size, false, [ 'loading' => 'lazy', 'decoding' => 'async' ] );
 		if ( $img ) {
 			if ( $opts['news_rigor_url'] ) {
-				$out .= '<a href="' . esc_url( (string) $opts['news_rigor_url'] ) . '" target="_self" rel="nofollow noopener noreferrer">' . $img . '</a>';
+				$out .= '<a href="' . esc_url( (string) $opts['news_rigor_url'] ) . '" target="_self" rel="nofollow noopener noreferrer" aria-label="Noticias con rigor">' . $img . '</a>';
 			} else {
 				$out .= $img;
 			}
@@ -1729,14 +1745,14 @@ function alminuto_theme_right_column_html() {
 		if ( $id <= 0 ) {
 			continue;
 		}
-		$img = wp_get_attachment_image( $id, $img_size, false, [ 'loading' => 'lazy' ] );
+		$img = wp_get_attachment_image( $id, $img_size, false, [ 'loading' => 'lazy', 'decoding' => 'async' ] );
 		if ( ! $img ) {
 			continue;
 		}
 		$wrap_class = $idx === 0 ? 'am-right-publi-main' : 'am-right-publi-item';
 		if ( $url ) {
 			$target = $new_tab ? ' target="_blank" rel="nofollow noopener noreferrer"' : ' target="_self" rel="nofollow noopener noreferrer"';
-			$out   .= '<a class="' . esc_attr( $wrap_class ) . '" href="' . esc_url( $url ) . '"' . $target . '>' . $img . '</a>';
+			$out   .= '<a class="' . esc_attr( $wrap_class ) . '" href="' . esc_url( $url ) . '"' . $target . ' aria-label="Publicidad">' . $img . '</a>';
 		} else {
 			$out .= '<div class="' . esc_attr( $wrap_class ) . '">' . $img . '</div>';
 		}

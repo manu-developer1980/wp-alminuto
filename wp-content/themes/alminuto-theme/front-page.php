@@ -63,12 +63,17 @@ get_header();
 						<?php $i = 0; ?>
 						<?php while ( $left_query->have_posts() ) : ?>
 							<?php $left_query->the_post(); ?>
-							<?php $card = alminuto_theme_card_media( get_the_ID(), 'col_izquierda' ); ?>
+							<?php
+							$card_attr = $i === 0
+								? [ 'loading' => 'eager', 'fetchpriority' => 'high', 'decoding' => 'async' ]
+								: [ 'loading' => 'lazy', 'decoding' => 'async' ];
+							$card = alminuto_theme_card_media( get_the_ID(), 'col_izquierda', $card_attr );
+							?>
 							<article class="am-home-post <?php echo $i === 0 ? 'am-home-post--featured' : ''; ?>">
 								<?php if ( $card['has_video'] ) : ?>
 									<?php echo $card['html']; ?>
 								<?php else : ?>
-									<a class="am-home-post-thumb" href="<?php the_permalink(); ?>">
+									<a class="am-home-post-thumb" href="<?php the_permalink(); ?>" aria-label="<?php the_title_attribute(); ?>">
 										<?php echo wp_kses_post( $card['html'] ); ?>
 									</a>
 								<?php endif; ?>
@@ -88,12 +93,12 @@ get_header();
 					<?php if ( $right_query->have_posts() ) : ?>
 						<?php while ( $right_query->have_posts() ) : ?>
 							<?php $right_query->the_post(); ?>
-							<?php $card = alminuto_theme_card_media( get_the_ID(), 'col_derecha' ); ?>
+							<?php $card = alminuto_theme_card_media( get_the_ID(), 'col_derecha', [ 'loading' => 'lazy', 'decoding' => 'async' ] ); ?>
 							<article class="am-home-post am-home-post--compact">
 								<?php if ( $card['has_video'] ) : ?>
 									<?php echo $card['html']; ?>
 								<?php else : ?>
-									<a class="am-home-post-thumb" href="<?php the_permalink(); ?>">
+									<a class="am-home-post-thumb" href="<?php the_permalink(); ?>" aria-label="<?php the_title_attribute(); ?>">
 										<?php echo wp_kses_post( $card['html'] ); ?>
 									</a>
 								<?php endif; ?>

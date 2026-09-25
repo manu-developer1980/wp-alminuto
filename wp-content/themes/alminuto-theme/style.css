@@ -554,12 +554,26 @@ main.am-main>div.am-container>div.am-layout>aside>div.am-right-block>div.am-sect
   justify-content: center;
 }
 
-.am-post-info-icon i {
+.am-post-info-icon i,
+.am-post-info-icon svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
   line-height: 16px;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.am-home-col--left .am-post-info-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.am-home-col--right .am-post-info-icon svg {
+  width: 12px;
+  height: 12px;
 }
 
 .am-post-info-avatar {
@@ -1003,6 +1017,13 @@ article.am-card>.am-card-body.am-post-thumb-caption {
   display: inline-flex;
   width: 22px;
   justify-content: center;
+  align-items: center;
+}
+
+.am-footer-contact-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .am-footer-contact-text {

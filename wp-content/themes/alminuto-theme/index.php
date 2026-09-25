@@ -12,12 +12,18 @@ get_header();
 		<?php get_template_part( 'template-parts/common/top-banner' ); ?>
 		<div class="am-post-grid">
 			<?php if ( have_posts() ) : ?>
+				<?php $i = 0; ?>
 				<?php while ( have_posts() ) : ?>
 					<?php the_post(); ?>
 					<article class="am-post">
-						<a class="am-post-thumb" href="<?php the_permalink(); ?>">
+						<a class="am-post-thumb" href="<?php the_permalink(); ?>" aria-label="<?php the_title_attribute(); ?>">
 							<?php if ( has_post_thumbnail() ) : ?>
-								<?php the_post_thumbnail( 'content_4_3' ); ?>
+								<?php
+								$thumb_attr = $i === 0
+									? [ 'loading' => 'eager', 'fetchpriority' => 'high', 'decoding' => 'async' ]
+									: [ 'loading' => 'lazy', 'decoding' => 'async' ];
+								the_post_thumbnail( 'content_4_3', $thumb_attr );
+								?>
 							<?php endif; ?>
 						</a>
 						<div class="am-post-body">
@@ -27,6 +33,7 @@ get_header();
 							<a class="am-btn" href="<?php the_permalink(); ?>">Leer más</a>
 						</div>
 					</article>
+					<?php $i++; ?>
 				<?php endwhile; ?>
 			<?php else : ?>
 				<div class="am-card"><div class="am-card-body">No hay contenido.</div></div>

@@ -21,14 +21,20 @@ get_header();
 
 		<div class="am-post-grid">
 			<?php if ( have_posts() ) : ?>
+				<?php $i = 0; ?>
 				<?php while ( have_posts() ) : ?>
 					<?php the_post(); ?>
 					<article class="am-post">
-						<?php $card = alminuto_theme_card_media( get_the_ID(), 'content_4_3' ); ?>
+						<?php
+						$card_attr = $i === 0
+							? [ 'loading' => 'eager', 'fetchpriority' => 'high', 'decoding' => 'async' ]
+							: [ 'loading' => 'lazy', 'decoding' => 'async' ];
+						$card = alminuto_theme_card_media( get_the_ID(), 'content_4_3', $card_attr );
+						?>
 						<?php if ( $card['has_video'] ) : ?>
 							<?php echo $card['html']; ?>
 						<?php else : ?>
-							<a class="am-post-thumb" href="<?php the_permalink(); ?>">
+							<a class="am-post-thumb" href="<?php the_permalink(); ?>" aria-label="<?php the_title_attribute(); ?>">
 								<?php echo wp_kses_post( $card['html'] ); ?>
 							</a>
 						<?php endif; ?>
@@ -39,6 +45,7 @@ get_header();
 							<a class="am-btn" href="<?php the_permalink(); ?>">Leer más</a>
 						</div>
 					</article>
+					<?php $i++; ?>
 				<?php endwhile; ?>
 			<?php else : ?>
 				<div class="am-card"><div class="am-card-body">No hay entradas en esta categoría.</div></div>
