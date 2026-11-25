@@ -550,4 +550,299 @@ class Alminuto_Backup_Engine {
 		}
 		return $size;
 	}
+
+	/**
+	 * Restores a backup from Google Drive by its backup_id in history.
+	 *
+	 * @param string $backup_id Backup identifier from history.
+	 * @return array Result summary.
+	 */
+	public static function restore( $backup_id ) {
+		if ( get_transient( self::LOCK_TRANSIENT ) ) {
+			return [
+				'status'  => 'error',
+				'message' => __( 'Ya hay una copia o restauración en curso.', 'alminuto-theme' ),
+			];
+		}
+
+		$history = self::get_history();
+		$target  = null;
+		foreach ( $history as $entry ) {
+			if ( isset( $entry['backup_id'] ) && (string) $entry['backup_id'] === (string) $backup_id ) {
+				$target = $entry;
+				break;
+			}
+		}
+
+		if ( ! $target || empty( $target['files'] ) || ! is_array( $target['files'] ) ) {
+			return [
+				'status'  => 'error',
+				'message' => __( 'No se encontraron archivos asociados a esa copia en el historial.', 'alminuto-theme' ),
+			];
+		}
+
+		set_transient( self::LOCK_TRANSIENT, time(), 30 * MINUTE_IN_SECONDS );
+
+		if ( function_exists( 'set_time_limit' ) ) {
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			@set_time_limit( 0 );
+		}
+		if ( function_exists( 'ignore_user_abort' ) ) {
+			ignore_user_abort( true );
+		}
+
+		$started_at = time();
+		$temp_dir   = self::get_backup_dir();
+		$temp_files = [];
+		$logs       = [];
+		$live_phase = __( 'Iniciando restauración...', 'alminuto-theme' );
+		$live_pct   = 5;
+
+		$sync_live = static function ( $running = true, $status = '', $message = '' ) use ( &$logs, &$live_phase, &$live_pct, $started_at ) {
+			self::update_live_status(
+				[
+					'running'    => $running,
+					'phase'      => $live_phase,
+					'percent'    => $live_pct,
+					'started_at' => $started_at,
+					'status'     => $status,
+					'message'    => $message,
+					'logs'       => $logs,
+				]
+			);
+		};
+
+		$log_cb = static function ( $msg ) use ( &$logs, $sync_live ) {
+			$logs[] = '[' . wp_date( 'Y-m-d H:i:s' ) . '] ' . $msg;
+			$sync_live( true );
+		};
+
+		$sync_live( true );
+
+		try {
+			if ( ! Alminuto_Backup_GDrive::is_connected() ) {
+				throw new RuntimeException( __( 'Google Drive no está conectado.', 'alminuto-theme' ) );
+			}
+
+			$db_file    = null;
+			$media_file = null;
+			foreach ( $target['files'] as $f ) {
+				if ( ( $f['type'] ?? '' ) === 'db' && ! empty( $f['id'] ) ) {
+					$db_file = $f;
+				} elseif ( ( $f['type'] ?? '' ) === 'media' && ! empty( $f['id'] ) ) {
+					$media_file = $f;
+				}
+			}
+
+			if ( ! $db_file && ! $media_file ) {
+				throw new RuntimeException( __( 'La copia seleccionada no contiene IDs de Google Drive válidos.', 'alminuto-theme' ) );
+			}
+
+			if ( $media_file ) {
+				$media_local  = $temp_dir . '/restore-' . basename( (string) $media_file['name'] );
+				$temp_files[] = $media_local;
+
+				$live_phase = __( 'Descargando Media desde Google Drive...', 'alminuto-theme' );
+				$live_pct   = 15;
+				$log_cb( sprintf( 'Descargando Media (%s)...', $media_file['name'] ) );
+
+				$dl = Alminuto_Backup_GDrive::download_file( $media_file['id'], $media_local, $log_cb );
+				if ( is_wp_error( $dl ) ) {
+					throw new RuntimeException( $dl->get_error_message() );
+				}
+
+				$live_phase = __( 'Restaurando archivos de Media (uploads)...', 'alminuto-theme' );
+				$live_pct   = 35;
+				$log_cb( 'Extrayendo archivos de Media en wp-content/uploads...' );
+				$extracted = self::restore_media( $media_local );
+				$live_pct  = 55;
+				$log_cb( sprintf( 'Media restaurada (%d archivos).', $extracted ) );
+			}
+
+			if ( $db_file ) {
+				$db_local     = $temp_dir . '/restore-' . basename( (string) $db_file['name'] );
+				$temp_files[] = $db_local;
+
+				$live_phase = __( 'Descargando BBDD desde Google Drive...', 'alminuto-theme' );
+				$live_pct   = 65;
+				$log_cb( sprintf( 'Descargando BBDD (%s)...', $db_file['name'] ) );
+
+				$dl = Alminuto_Backup_GDrive::download_file( $db_file['id'], $db_local, $log_cb );
+				if ( is_wp_error( $dl ) ) {
+					throw new RuntimeException( $dl->get_error_message() );
+				}
+
+				$live_phase = __( 'Restaurando base de datos...', 'alminuto-theme' );
+				$live_pct   = 80;
+				$log_cb( 'Importando volcado SQL en la base de datos...' );
+				$queries = self::restore_database( $db_local );
+				$live_pct = 98;
+				$log_cb( sprintf( 'BBDD restaurada (%d sentencias ejecutadas).', $queries ) );
+			}
+
+			$live_phase = __( 'Restauración completada', 'alminuto-theme' );
+			$live_pct   = 100;
+			$msg        = __( 'Copia restaurada correctamente.', 'alminuto-theme' );
+			$sync_live( false, 'success', $msg );
+
+			return [
+				'status'  => 'success',
+				'message' => $msg,
+				'logs'    => $logs,
+			];
+		} catch ( Throwable $e ) {
+			$live_phase = __( 'Error en la restauración', 'alminuto-theme' );
+			$logs[]     = '[' . wp_date( 'Y-m-d H:i:s' ) . '] ERROR: ' . $e->getMessage();
+			$sync_live( false, 'error', $e->getMessage() );
+
+			return [
+				'status'  => 'error',
+				'message' => $e->getMessage(),
+				'logs'    => $logs,
+			];
+		} finally {
+			foreach ( $temp_files as $file ) {
+				if ( file_exists( $file ) ) {
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+					@unlink( $file );
+				}
+			}
+			delete_transient( self::LOCK_TRANSIENT );
+		}
+	}
+
+	/**
+	 * Imports a SQL or gzipped SQL dump into the current WordPress database.
+	 *
+	 * @param string $sql_path Path to .sql or .sql.gz file.
+	 * @return int Number of SQL statements executed.
+	 * @throws RuntimeException On read or SQL failure.
+	 */
+	public static function restore_database( $sql_path ) {
+		global $wpdb;
+
+		$is_gz = substr( $sql_path, -3 ) === '.gz';
+		if ( $is_gz && ! function_exists( 'gzopen' ) ) {
+			throw new RuntimeException( __( 'La extensión zlib no está disponible para descomprimir la BBDD.', 'alminuto-theme' ) );
+		}
+
+		$handle = $is_gz ? gzopen( $sql_path, 'rb' ) : fopen( $sql_path, 'rb' );
+		if ( ! $handle ) {
+			throw new RuntimeException( __( 'No se pudo abrir el archivo de BBDD para restaurar.', 'alminuto-theme' ) );
+		}
+
+		$executed = 0;
+		$buffer   = '';
+
+		try {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->query( 'SET FOREIGN_KEY_CHECKS = 0;' );
+
+			while ( true ) {
+				$eof = $is_gz ? gzeof( $handle ) : feof( $handle );
+				if ( $eof ) {
+					break;
+				}
+				$line = $is_gz ? gzgets( $handle ) : fgets( $handle );
+				if ( $line === false ) {
+					break;
+				}
+
+				$trimmed = trim( $line );
+				if ( $buffer === '' && ( $trimmed === '' || strpos( $trimmed, '--' ) === 0 || strpos( $trimmed, '/*' ) === 0 ) ) {
+					continue;
+				}
+
+				$buffer .= $line;
+				if ( substr( rtrim( $line ), -1 ) === ';' ) {
+					$stmt   = trim( $buffer );
+					$buffer = '';
+					if ( $stmt !== '' ) {
+						// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared
+						$ok = $wpdb->query( $stmt );
+						if ( $ok === false && $wpdb->last_error !== '' ) {
+							throw new RuntimeException( sprintf( 'Error SQL al restaurar: %s', $wpdb->last_error ) );
+						}
+						$executed++;
+					}
+				}
+			}
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->query( 'SET FOREIGN_KEY_CHECKS = 1;' );
+		} finally {
+			if ( $is_gz ) {
+				gzclose( $handle );
+			} else {
+				fclose( $handle );
+			}
+		}
+
+		return $executed;
+	}
+
+	/**
+	 * Extracts a media ZIP archive into wp-content/uploads safely.
+	 *
+	 * @param string $zip_path Path to the media ZIP file.
+	 * @return int Number of extracted files.
+	 * @throws RuntimeException If ZipArchive fails.
+	 */
+	public static function restore_media( $zip_path ) {
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			throw new RuntimeException( __( 'La extensión PHP ZipArchive no está disponible en el servidor.', 'alminuto-theme' ) );
+		}
+
+		$zip = new ZipArchive();
+		if ( $zip->open( $zip_path ) !== true ) {
+			throw new RuntimeException( __( 'No se pudo abrir el archivo ZIP de media para restaurar.', 'alminuto-theme' ) );
+		}
+
+		$upload        = wp_upload_dir();
+		$base_dir      = wp_normalize_path( untrailingslashit( (string) $upload['basedir'] ) );
+		$excluded_dirs = [ 'alminuto-backups', 'alminuto-csp-reports' ];
+		$extracted     = 0;
+
+		try {
+			$total = $zip->numFiles;
+			for ( $i = 0; $i < $total; $i++ ) {
+				$name = $zip->getNameIndex( $i );
+				if ( ! is_string( $name ) || $name === '' || $name === '.empty' ) {
+					continue;
+				}
+				$norm = wp_normalize_path( ltrim( $name, '/' ) );
+				if ( strpos( $norm, '../' ) !== false || strpos( $norm, '..\\' ) !== false || $norm === '..' ) {
+					continue;
+				}
+
+				$first_segment = strtok( $norm, '/' );
+				if ( in_array( $first_segment, $excluded_dirs, true ) ) {
+					continue;
+				}
+
+				$dest = $base_dir . '/' . $norm;
+				if ( substr( $norm, -1 ) === '/' ) {
+					wp_mkdir_p( $dest );
+					continue;
+				}
+
+				wp_mkdir_p( dirname( $dest ) );
+				$stream = $zip->getStream( $name );
+				if ( ! $stream ) {
+					continue;
+				}
+				$out = fopen( $dest, 'wb' );
+				if ( $out ) {
+					stream_copy_to_stream( $stream, $out );
+					fclose( $out );
+					$extracted++;
+				}
+				fclose( $stream );
+			}
+		} finally {
+			$zip->close();
+		}
+
+		return $extracted;
+	}
 }

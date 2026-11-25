@@ -248,6 +248,25 @@ function alminuto_backup_ajax_start() {
 add_action( 'wp_ajax_alminuto_backup_start', 'alminuto_backup_ajax_start' );
 
 /**
+ * AJAX: Restores a backup from Google Drive by backup_id.
+ */
+function alminuto_backup_ajax_restore() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => __( 'Permisos insuficientes.', 'alminuto-theme' ) ], 403 );
+	}
+	check_ajax_referer( 'alminuto_backup_ajax', 'nonce' );
+
+	$backup_id = isset( $_POST['backup_id'] ) ? sanitize_text_field( wp_unslash( $_POST['backup_id'] ) ) : '';
+	if ( $backup_id === '' ) {
+		wp_send_json_error( [ 'message' => __( 'ID de copia inválido.', 'alminuto-theme' ) ], 400 );
+	}
+
+	$result = Alminuto_Backup_Engine::restore( $backup_id );
+	wp_send_json_success( $result );
+}
+add_action( 'wp_ajax_alminuto_backup_restore', 'alminuto_backup_ajax_restore' );
+
+/**
  * Renders the Copias de seguridad admin page.
  */
 function alminuto_theme_render_backups_page() {

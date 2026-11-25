@@ -516,6 +516,61 @@ class Alminuto_Backup_GDrive {
 	}
 
 	/**
+	 * Downloads a file from Google Drive directly to a local path using streaming.
+	 *
+	 * @param string        $file_id    Google Drive file ID.
+	 * @param string        $dest_path  Local destination file path.
+	 * @param callable|null $log_cb     Optional logger callback.
+	 * @return true|WP_Error
+	 */
+	public static function download_file( $file_id, $dest_path, $log_cb = null ) {
+		$file_id = trim( (string) $file_id );
+		if ( $file_id === '' ) {
+			return new WP_Error( 'missing_file_id', __( 'Falta el ID del archivo en Google Drive.', 'alminuto-theme' ) );
+		}
+
+		$token = self::get_valid_access_token();
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		$url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( $file_id ) . '?alt=media';
+		$res = wp_remote_get(
+			$url,
+			[
+				'timeout'  => 300,
+				'stream'   => true,
+				'filename' => $dest_path,
+				'headers'  => [
+					'Authorization' => 'Bearer ' . $token,
+				],
+			]
+		);
+
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+
+		$code = wp_remote_retrieve_response_code( $res );
+		if ( $code < 200 || $code >= 300 ) {
+			return new WP_Error(
+				'drive_download_failed',
+				sprintf( 'Error descargando de Drive (HTTP %d).', $code )
+			);
+		}
+
+		if ( ! file_exists( $dest_path ) || filesize( $dest_path ) <= 0 ) {
+			return new WP_Error( 'drive_download_empty', __( 'El archivo descargado de Google Drive está vacío.', 'alminuto-theme' ) );
+		}
+
+		if ( is_callable( $log_cb ) ) {
+			call_user_func( $log_cb, sprintf( 'Descargado de Google Drive (%s).', size_format( filesize( $dest_path ) ) ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Deletes older backup groups in Google Drive beyond the configured retention count.
 	 *
 	 * @param int           $keep_count Number of most recent backup runs to keep.

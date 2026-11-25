@@ -121,6 +121,49 @@
 		});
 	}
 
+	document.addEventListener("click", function (e) {
+		var btn = e.target && e.target.closest ? e.target.closest(".am-restore-btn") : null;
+		if (!btn) return;
+
+		var backupId = btn.getAttribute("data-backup-id");
+		var label = btn.getAttribute("data-label") || backupId;
+		if (!backupId || !payload.ajaxUrl || !payload.ajaxNonce || !window.fetch) return;
+
+		var ok = window.confirm(
+			"ATENCIÓN: Se va a restaurar la copia del " + label + ".\n\n" +
+			"Esto sobrescribirá la base de datos y/o los archivos de medios actuales. ¿Deseas continuar?"
+		);
+		if (!ok) return;
+
+		document.querySelectorAll(".am-restore-btn").forEach(function (el) {
+			el.disabled = true;
+		});
+		if (runBtn) runBtn.disabled = true;
+
+		updateLiveUI({
+			phase: "Iniciando restauración...",
+			percent: 5,
+			logs: ["Iniciando restauración de la copia " + label + "..."],
+		});
+
+		if (livePanel && livePanel.scrollIntoView) {
+			livePanel.scrollIntoView({ behavior: "smooth", block: "center" });
+		}
+
+		var body = new FormData();
+		body.append("action", "alminuto_backup_restore");
+		body.append("nonce", payload.ajaxNonce);
+		body.append("backup_id", backupId);
+
+		fetch(payload.ajaxUrl, {
+			method: "POST",
+			credentials: "same-origin",
+			body: body,
+		}).catch(function () {});
+
+		setTimeout(startPolling, 600);
+	});
+
 	// Visual monthly calendar
 	var calGrid = document.getElementById("am-cal-grid");
 	var calTitle = document.getElementById("am-cal-title");

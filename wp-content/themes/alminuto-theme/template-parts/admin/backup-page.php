@@ -424,6 +424,7 @@ $weekdays = [
 							<th><?php esc_html_e( 'Tamaño', 'alminuto-theme' ); ?></th>
 							<th><?php esc_html_e( 'Duración', 'alminuto-theme' ); ?></th>
 							<th><?php esc_html_e( 'Detalle', 'alminuto-theme' ); ?></th>
+							<th><?php esc_html_e( 'Acciones', 'alminuto-theme' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -457,6 +458,27 @@ $weekdays = [
 											<summary style="cursor:pointer;color:#2271b1;"><?php esc_html_e( 'Ver log', 'alminuto-theme' ); ?></summary>
 											<div class="am-log-box"><?php echo esc_html( implode( "\n", $item['logs'] ) ); ?></div>
 										</details>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?php
+									$can_restore = $is_connected
+										&& $ok
+										&& ! empty( $item['backup_id'] )
+										&& ! empty( $item['files'] );
+									?>
+									<?php if ( $can_restore ) : ?>
+										<button
+											type="button"
+											class="button button-small am-restore-btn"
+											data-backup-id="<?php echo esc_attr( (string) $item['backup_id'] ); ?>"
+											data-label="<?php echo esc_attr( ( $ts ? wp_date( 'd/m/Y H:i', $ts ) : '' ) . ' (' . implode( ' + ', $parts ) . ')' ); ?>"
+											<?php disabled( ! empty( $live_status['running'] ) ); ?>
+										>
+											<?php esc_html_e( 'Restaurar', 'alminuto-theme' ); ?>
+										</button>
+									<?php else : ?>
+										<span class="description">—</span>
 									<?php endif; ?>
 								</td>
 							</tr>
