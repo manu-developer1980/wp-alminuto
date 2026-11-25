@@ -18,8 +18,9 @@ class Alminuto_Backup_Engine {
 	const HISTORY_OPTION   = 'alminuto_backup_history';
 	const LIVE_OPTION      = 'alminuto_backup_live_status';
 	const LOCK_TRANSIENT   = 'alminuto_backup_running_lock';
-	const CANCEL_TRANSIENT = 'alminuto_backup_cancel_flag';
-	const MAX_HISTORY      = 20;
+	const CANCEL_TRANSIENT   = 'alminuto_backup_cancel_flag';
+	const MAX_HISTORY        = 20;
+	const MEDIA_VOLUME_BYTES = 419430400; // 400 MB per TAR volume.
 
 	/**
 	 * Returns (and secures) the temporary local backup directory inside uploads.
@@ -264,47 +265,94 @@ class Alminuto_Backup_Engine {
 			}
 
 			if ( $include_media ) {
-				$media_name   = sprintf( '%s-%s-media.tar', $site_slug, $stamp );
-				$media_path   = $temp_dir . '/' . $media_name;
-				$temp_files[] = $media_path;
+				$media_prefix = sprintf( '%s-%s-media', $site_slug, $stamp );
 
-				$live_phase     = __( 'Empaquetando carpeta de medios (uploads)...', 'alminuto-theme' );
-				$live_pct       = 50;
-				$log_cb( 'Empaquetando carpeta de medios (uploads)...' );
-				$pack_progress = static function ( $count, $bytes ) use ( &$live_phase, &$live_pct, $sync_live ) {
-					$live_phase = sprintf( 'Empaquetando media (%d archivos · %s)...', (int) $count, size_format( (int) $bytes ) );
-					$live_pct   = min( 64, 50 + (int) floor( $count / 5000 ) );
-					$sync_live( true );
+				$live_phase = __( 'Inventariando carpeta de medios (uploads)...', 'alminuto-theme' );
+				$live_pct   = 48;
+				$sync_live( true );
+				$inventory       = self::inventory_media();
+				$total_files     = (int) $inventory['count'];
+				$inventory_bytes = max( 1, (int) $inventory['bytes'] );
+				$log_cb(
+					sprintf(
+						'Inventario de media: %d archivos (%s). Se dividirán en volúmenes de hasta 400 MB.',
+						$total_files,
+						size_format( (int) $inventory['bytes'] )
+					)
+				);
+
+				$packed_so_far   = 0;
+				$uploaded_so_far = 0;
+
+				$update_media_pct = static function () use ( &$packed_so_far, &$uploaded_so_far, $inventory_bytes, &$live_pct ) {
+					$ratio    = min( 1, ( $packed_so_far + $uploaded_so_far ) / ( 2 * $inventory_bytes ) );
+					$live_pct = 50 + (int) round( $ratio * 45 );
 				};
-				$media_bytes = self::export_media( $media_path, $pack_progress );
-				$live_pct    = 65;
-				$log_cb( sprintf( 'Media empaquetada (%s).', size_format( $media_bytes ) ) );
 
-				$live_phase     = __( 'Subiendo Media a Google Drive...', 'alminuto-theme' );
-				$progress_media = static function ( $sent, $total ) use ( &$live_phase, &$live_pct, $sync_live ) {
-					$ratio      = $total > 0 ? ( $sent / $total ) : 1;
-					$live_pct   = (int) round( 65 + ( $ratio * 30 ) );
+				$pack_progress = static function ( $count, $part_index, $total_packed ) use ( &$live_phase, &$packed_so_far, $total_files, $update_media_pct, $sync_live ) {
+					$packed_so_far = (int) $total_packed;
+					$update_media_pct();
 					$live_phase = sprintf(
-						'Subiendo Media a Google Drive (%d%% · %s / %s)...',
-						(int) round( $ratio * 100 ),
-						size_format( $sent ),
-						size_format( $total )
+						'Empaquetando media parte %d (%d / %d archivos · %s)...',
+						(int) $part_index,
+						(int) $count,
+						$total_files,
+						size_format( $packed_so_far )
 					);
 					$sync_live( true );
 				};
 
-				$uploaded = Alminuto_Backup_GDrive::upload_file( $media_path, $media_name, 'application/x-tar', $backup_id, $log_cb, $progress_media );
-				if ( is_wp_error( $uploaded ) ) {
-					throw new RuntimeException( $uploaded->get_error_message() );
-				}
-				$drive_files[] = [
-					'type' => 'media',
-					'name' => $media_name,
-					'id'   => (string) ( $uploaded['id'] ?? '' ),
-					'url'  => (string) ( $uploaded['webViewLink'] ?? '' ),
-					'size' => $media_bytes,
-				];
-				$total_bytes += $media_bytes;
+				$volume_cb = static function ( $part_path, $part_name, $part_size, $part_index ) use (
+					$backup_id,
+					$log_cb,
+					&$drive_files,
+					&$media_bytes,
+					&$total_bytes,
+					&$uploaded_so_far,
+					&$live_phase,
+					$update_media_pct,
+					$sync_live
+				) {
+					$log_cb( sprintf( 'Volumen %d listo (%s): %s', (int) $part_index, size_format( $part_size ), $part_name ) );
+					$base_uploaded  = $uploaded_so_far;
+					$progress_media = static function ( $sent, $total ) use ( &$live_phase, &$uploaded_so_far, $base_uploaded, $part_index, $update_media_pct, $sync_live ) {
+						$uploaded_so_far = $base_uploaded + (int) $sent;
+						$update_media_pct();
+						$ratio      = $total > 0 ? ( $sent / $total ) : 1;
+						$live_phase = sprintf(
+							'Subiendo parte %d a Drive (%d%% · %s / %s)...',
+							(int) $part_index,
+							(int) round( $ratio * 100 ),
+							size_format( $sent ),
+							size_format( $total )
+						);
+						$sync_live( true );
+					};
+
+					try {
+						$uploaded = Alminuto_Backup_GDrive::upload_file( $part_path, $part_name, 'application/x-tar', $backup_id, $log_cb, $progress_media );
+						if ( is_wp_error( $uploaded ) ) {
+							throw new RuntimeException( $uploaded->get_error_message() );
+						}
+						$uploaded_so_far = $base_uploaded + (int) $part_size;
+						$drive_files[]   = [
+							'type' => 'media',
+							'name' => $part_name,
+							'id'   => (string) ( $uploaded['id'] ?? '' ),
+							'url'  => (string) ( $uploaded['webViewLink'] ?? '' ),
+							'size' => $part_size,
+						];
+						$media_bytes += $part_size;
+						$total_bytes += $part_size;
+					} finally {
+						if ( file_exists( $part_path ) ) {
+							// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+							@unlink( $part_path );
+						}
+					}
+				};
+
+				self::export_media_volumes( $temp_dir, $media_prefix, $volume_cb, $pack_progress );
 			}
 
 			if ( $retention > 0 ) {
@@ -482,41 +530,135 @@ class Alminuto_Backup_Engine {
 	}
 
 	/**
-	 * Packages wp-content/uploads into a streaming USTAR/PAX TAR archive, excluding backup & CSP folders.
+	 * Counts eligible media files and total bytes in wp-content/uploads before archiving.
 	 *
-	 * Sequential O(N) streaming uses at most 2 open file descriptors and avoids ZipArchive's
-	 * O(N^2) central-directory rewrites on libraries with tens of thousands of files.
-	 *
-	 * @param string        $dest_tar_path Destination TAR file path.
-	 * @param callable|null $progress_cb   Optional callback( int $file_count, int $bytes_written ).
-	 * @return int Final TAR file size in bytes.
-	 * @throws RuntimeException If the archive cannot be written.
+	 * @return array{count:int, bytes:int}
 	 */
-	public static function export_media( $dest_tar_path, $progress_cb = null ) {
+	public static function inventory_media() {
+		$upload   = wp_upload_dir();
+		$base_dir = wp_normalize_path( untrailingslashit( (string) $upload['basedir'] ) );
+		if ( ! is_dir( $base_dir ) ) {
+			return [ 'count' => 0, 'bytes' => 0 ];
+		}
+
+		$excluded_dirs = [ 'alminuto-backups', 'alminuto-csp-reports' ];
+		$base_len      = strlen( $base_dir ) + 1;
+		$count         = 0;
+		$bytes         = 0;
+
+		$iterator = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $base_dir, FilesystemIterator::SKIP_DOTS ),
+			RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		foreach ( $iterator as $item ) {
+			$full_path = wp_normalize_path( $item->getPathname() );
+			$rel_path  = substr( $full_path, $base_len );
+			if ( $rel_path === false || $rel_path === '' ) {
+				continue;
+			}
+			$first_segment = strtok( $rel_path, '/' );
+			if ( in_array( $first_segment, $excluded_dirs, true ) ) {
+				continue;
+			}
+			$basename = $item->getFilename();
+			if ( $basename === '.DS_Store' || $basename === 'Thumbs.db' ) {
+				continue;
+			}
+			if ( $item->isFile() && $item->isReadable() ) {
+				$count++;
+				$bytes += (int) $item->getSize();
+				if ( $count % 2000 === 0 ) {
+					self::check_cancelled();
+				}
+			}
+		}
+
+		return [
+			'count' => $count,
+			'bytes' => $bytes,
+		];
+	}
+
+	/**
+	 * Packages wp-content/uploads into streaming USTAR/PAX TAR volumes (max ~400 MB each),
+	 * invoking $volume_cb after each volume so it can be uploaded and deleted before the next.
+	 *
+	 * @param string        $temp_dir    Temporary directory for volumes.
+	 * @param string        $prefix      Filename prefix (e.g. site-date-media).
+	 * @param callable      $volume_cb   Callback( string $path, string $name, int $size, int $part_index ).
+	 * @param callable|null $progress_cb Optional callback( int $file_count, int $part_index, int $total_packed ).
+	 * @return int Total bytes across all volumes.
+	 * @throws RuntimeException If writing fails.
+	 */
+	public static function export_media_volumes( $temp_dir, $prefix, $volume_cb, $progress_cb = null ) {
 		$upload   = wp_upload_dir();
 		$base_dir = wp_normalize_path( untrailingslashit( (string) $upload['basedir'] ) );
 		if ( ! is_dir( $base_dir ) ) {
 			throw new RuntimeException( __( 'No existe el directorio de medios (uploads).', 'alminuto-theme' ) );
 		}
 
-		$tar = fopen( $dest_tar_path, 'wb' );
-		if ( ! $tar ) {
-			throw new RuntimeException( __( 'No se pudo crear el archivo TAR de media.', 'alminuto-theme' ) );
-		}
-
 		$excluded_dirs = [ 'alminuto-backups', 'alminuto-csp-reports' ];
 		$base_len      = strlen( $base_dir ) + 1;
 		$file_count    = 0;
-		$bytes_written = 0;
+		$total_packed  = 0;
+		$part_index    = 1;
+		$part_bytes    = 0;
+		$tar           = null;
+		$part_path     = '';
+		$part_name     = '';
 
-		$write_all = static function ( $data ) use ( $tar, &$bytes_written ) {
-			$len = strlen( $data );
-			$res = fwrite( $tar, $data );
-			if ( $res === false || $res !== $len ) {
-				throw new RuntimeException( __( 'Error escribiendo en el archivo TAR de media.', 'alminuto-theme' ) );
+		$open_part = static function () use ( &$tar, &$part_path, &$part_name, &$part_bytes, &$part_index, $temp_dir, $prefix ) {
+			$part_name  = sprintf( '%s-part%02d.tar', $prefix, $part_index );
+			$part_path  = trailingslashit( $temp_dir ) . $part_name;
+			$part_bytes = 0;
+			$tar        = fopen( $part_path, 'wb' );
+			if ( ! $tar ) {
+				throw new RuntimeException( sprintf( 'No se pudo crear el volumen TAR: %s', $part_name ) );
 			}
-			$bytes_written += $len;
 		};
+
+		$write_all = static function ( $data ) use ( &$tar, &$part_path, &$part_bytes, &$total_packed, &$file_count ) {
+			$len = strlen( $data );
+			$res = @fwrite( $tar, $data );
+			if ( $res === false || $res !== $len ) {
+				$last_err = error_get_last();
+				$os_msg   = is_array( $last_err ) && ! empty( $last_err['message'] ) ? $last_err['message'] : 'fwrite failed';
+				$free     = function_exists( 'disk_free_space' ) ? @disk_free_space( dirname( $part_path ) ) : false;
+				$free_str = $free !== false ? size_format( (int) $free ) : 'desconocido';
+				throw new RuntimeException(
+					sprintf(
+						'Error escribiendo en el volumen TAR tras %d archivos (%s en volumen, libre en disco: %s): %s',
+						$file_count,
+						size_format( $part_bytes ),
+						$free_str,
+						$os_msg
+					)
+				);
+			}
+			$part_bytes   += $len;
+			$total_packed += $len;
+		};
+
+		$close_and_flush_part = static function () use ( &$tar, &$part_path, &$part_name, &$part_index, $write_all, $volume_cb ) {
+			if ( ! $tar ) {
+				return;
+			}
+			$write_all( str_repeat( "\0", 1024 ) );
+			fclose( $tar );
+			$tar = null;
+
+			clearstatcache( true, $part_path );
+			$final_size = filesize( $part_path );
+			if ( $final_size === false || $final_size <= 0 ) {
+				throw new RuntimeException( sprintf( 'El volumen TAR resultó vacío: %s', $part_name ) );
+			}
+
+			call_user_func( $volume_cb, $part_path, $part_name, $final_size, $part_index );
+			$part_index++;
+		};
+
+		$open_part();
 
 		try {
 			$iterator = new RecursiveIteratorIterator(
@@ -547,6 +689,11 @@ class Alminuto_Backup_Engine {
 
 				$size  = (int) $item->getSize();
 				$mtime = (int) $item->getMTime();
+
+				if ( $part_bytes > 0 && ( $part_bytes + $size + 2048 ) > self::MEDIA_VOLUME_BYTES ) {
+					$close_and_flush_part();
+					$open_part();
+				}
 
 				if ( strlen( $rel_path ) > 100 ) {
 					$pax_record = 'path=' . $rel_path . "\n";
@@ -603,22 +750,22 @@ class Alminuto_Backup_Engine {
 					self::check_cancelled();
 				}
 				if ( is_callable( $progress_cb ) && ( $file_count % 1000 === 0 ) ) {
-					call_user_func( $progress_cb, $file_count, $bytes_written );
+					call_user_func( $progress_cb, $file_count, $part_index, $total_packed );
 				}
 			}
 
-			// End-of-archive marker: two 512-byte zero blocks.
-			$write_all( str_repeat( "\0", 1024 ) );
+			$close_and_flush_part();
 		} finally {
-			fclose( $tar );
+			if ( $tar ) {
+				fclose( $tar );
+			}
+			if ( $part_path !== '' && file_exists( $part_path ) ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+				@unlink( $part_path );
+			}
 		}
 
-		clearstatcache( true, $dest_tar_path );
-		$final_size = filesize( $dest_tar_path );
-		if ( $final_size === false || $final_size <= 0 ) {
-			throw new RuntimeException( __( 'El archivo TAR de media resultó vacío.', 'alminuto-theme' ) );
-		}
-		return $final_size;
+		return $total_packed;
 	}
 
 	/**
@@ -734,40 +881,46 @@ class Alminuto_Backup_Engine {
 				throw new RuntimeException( __( 'Google Drive no está conectado.', 'alminuto-theme' ) );
 			}
 
-			$db_file    = null;
-			$media_file = null;
+			$db_file     = null;
+			$media_files = [];
 			foreach ( $target['files'] as $f ) {
 				if ( ( $f['type'] ?? '' ) === 'db' && ! empty( $f['id'] ) ) {
 					$db_file = $f;
 				} elseif ( ( $f['type'] ?? '' ) === 'media' && ! empty( $f['id'] ) ) {
-					$media_file = $f;
+					$media_files[] = $f;
 				}
 			}
 
-			if ( ! $db_file && ! $media_file ) {
+			if ( ! $db_file && empty( $media_files ) ) {
 				throw new RuntimeException( __( 'La copia seleccionada no contiene IDs de Google Drive válidos.', 'alminuto-theme' ) );
 			}
 
-			if ( $media_file ) {
+			$total_parts = count( $media_files );
+			foreach ( $media_files as $idx => $media_file ) {
+				$part_num     = $idx + 1;
 				$media_local  = $temp_dir . '/restore-' . basename( (string) $media_file['name'] );
 				$temp_files[] = $media_local;
 
-				$live_phase = __( 'Descargando Media desde Google Drive...', 'alminuto-theme' );
-				$live_pct   = 15;
-				$log_cb( sprintf( 'Descargando Media (%s)...', $media_file['name'] ) );
+				$live_phase = sprintf( 'Descargando Media (%d/%d) desde Google Drive...', $part_num, $total_parts );
+				$live_pct   = 10 + (int) round( ( $idx / max( 1, $total_parts ) ) * 45 );
+				$log_cb( sprintf( 'Descargando Media %d/%d (%s)...', $part_num, $total_parts, $media_file['name'] ) );
 
 				$dl = Alminuto_Backup_GDrive::download_file( $media_file['id'], $media_local, $log_cb );
 				if ( is_wp_error( $dl ) ) {
 					throw new RuntimeException( $dl->get_error_message() );
 				}
 
-				$live_phase = __( 'Restaurando archivos de Media (uploads)...', 'alminuto-theme' );
-				$live_pct   = 35;
-				$log_cb( 'Extrayendo archivos de Media en wp-content/uploads...' );
+				$live_phase = sprintf( 'Restaurando Media (%d/%d)...', $part_num, $total_parts );
+				$log_cb( sprintf( 'Extrayendo archivos de Media (%d/%d) en wp-content/uploads...', $part_num, $total_parts ) );
 				$extracted = self::restore_media( $media_local );
-				$live_pct  = 55;
-				$log_cb( sprintf( 'Media restaurada (%d archivos).', $extracted ) );
+				$log_cb( sprintf( 'Parte %d/%d restaurada (%d archivos).', $part_num, $total_parts, $extracted ) );
+
+				if ( file_exists( $media_local ) ) {
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+					@unlink( $media_local );
+				}
 			}
+			$live_pct = 55;
 
 			if ( $db_file ) {
 				$db_local     = $temp_dir . '/restore-' . basename( (string) $db_file['name'] );
