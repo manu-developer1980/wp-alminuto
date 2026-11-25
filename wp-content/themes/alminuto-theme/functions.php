@@ -488,7 +488,7 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 
 	$query_args = array(
 		'post_type'           => 'post',
-		'post_status'         => 'publish',
+		'post_status'         => array( 'publish', 'draft' ),
 		'posts_per_page'      => -1,
 		'fields'              => 'ids',
 		'date_query'          => array( $date_query ),
@@ -532,7 +532,7 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 	$sample_posts = get_posts( array(
 		'post__in'       => array_slice( $post_ids, 0, 20 ),
 		'post_type'      => 'post',
-		'post_status'    => 'publish',
+		'post_status'    => array( 'publish', 'draft' ),
 		'posts_per_page' => 20,
 		'fields'         => 'post_title',
 	) );
