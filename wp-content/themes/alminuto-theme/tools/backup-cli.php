@@ -3,9 +3,9 @@
  * Registers a WP-CLI command for alminuto-theme Google Drive backups.
  *
  * Usage:
- *   wp alminuto backup
- *   wp alminuto backup --no-media
- *   wp alminuto backup --no-db
+ *   wp alminuto-backup
+ *   wp alminuto-backup --no-media
+ *   wp alminuto-backup --no-db
  *
  * @package alminuto-theme
  */
@@ -30,7 +30,6 @@ if ( ! class_exists( 'Alminuto_Backup_Engine' ) ) {
  * : Skip uploads/media backup.
  *
  * @when after_wp_load
- * @subcommand backup
  */
 function alminuto_theme_backup_command( $args, $assoc_args ) {
 	$include_db    = ! isset( $assoc_args['no-db'] );
@@ -59,4 +58,4 @@ function alminuto_theme_backup_command( $args, $assoc_args ) {
 	}
 }
 
-WP_CLI::add_command( 'alminuto backup', 'alminuto_theme_backup_command' );
+WP_CLI::add_command( 'alminuto-backup', 'alminuto_theme_backup_command' );

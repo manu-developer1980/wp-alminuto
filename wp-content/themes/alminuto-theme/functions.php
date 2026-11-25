@@ -602,75 +602,353 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 		return $stats;
 	}
 
-	// Real run: rewrite links first, then delete in batches.
+	// Real run: rewrite links in a single pass, then delete in batches with deferred counting.
+	if ( function_exists( 'set_time_limit' ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		@set_time_limit( 0 );
+	}
+	if ( function_exists( 'ignore_user_abort' ) ) {
+		ignore_user_abort( true );
+	}
+
 	$log( sprintf( 'Starting real cleanup of %d posts (batch size %d).', count( $post_ids ), (int) $args['batch_size'] ) );
 
-	foreach ( array_chunk( $post_ids, (int) $args['batch_size'] ) as $batch_index => $batch ) {
-		$log( sprintf( 'Batch %d: rewriting links for %d posts.', $batch_index + 1, count( $batch ) ) );
-
-		// Step 1: rewrite internal links.
-		foreach ( $batch as $post_id ) {
-			$post_url = get_permalink( $post_id );
-			if ( ! $post_url ) {
-				continue;
+	// Build O(1) lookup map of URLs to strip.
+	$urls_to_strip = array();
+	$delete_map    = array_flip( array_map( 'intval', $post_ids ) );
+	foreach ( array_chunk( $post_ids, 500 ) as $id_chunk ) {
+		_prime_post_caches( $id_chunk, false, false );
+		foreach ( $id_chunk as $pid ) {
+			$url = get_permalink( $pid );
+			if ( $url ) {
+				$urls_to_strip[ $url ] = true;
 			}
+		}
+	}
 
-			$like    = '%' . $wpdb->esc_like( $post_url ) . '%';
-			$linked  = $wpdb->get_results(
+	// Step 1: single-pass internal link rewrite across surviving published posts.
+	if ( ! empty( $urls_to_strip ) ) {
+		$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+		$host_like = $site_host ? '%' . $wpdb->esc_like( $site_host ) . '%' : '%http%';
+		$last_id   = 0;
+		$scan_size = 500;
+
+		while ( true ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT ID, post_content FROM $wpdb->posts
-					 WHERE post_status = 'publish'
+					 WHERE ID > %d
+					 AND post_status = 'publish'
 					 AND post_type = 'post'
-					 AND post_content LIKE %s",
-					$like
+					 AND post_content LIKE %s
+					 ORDER BY ID ASC
+					 LIMIT %d",
+					$last_id,
+					$host_like,
+					$scan_size
 				)
 			);
 
-			foreach ( (array) $linked as $linked_post ) {
+			if ( empty( $rows ) ) {
+				break;
+			}
+
+			foreach ( $rows as $row ) {
+				$rid     = (int) $row->ID;
+				$last_id = $rid;
+				if ( isset( $delete_map[ $rid ] ) ) {
+					continue;
+				}
 				$new_content = preg_replace_callback(
-					'/<a\s+[^>]*href=[\"\']' . preg_quote( $post_url, '/' ) . '[\"\'][^>]*>(.*?)<\/a>/is',
-					static function ( $m ) {
-						return $m[1];
+					'/<a\s+[^>]*href=[\'"]([^\'"]+)[\'"][^>]*>(.*?)<\/a>/is',
+					static function ( $m ) use ( $urls_to_strip ) {
+						return isset( $urls_to_strip[ $m[1] ] ) ? $m[2] : $m[0];
 					},
-					$linked_post->post_content
+					$row->post_content
 				);
-				if ( $new_content !== $linked_post->post_content ) {
-					wp_update_post( array(
-						'ID'           => (int) $linked_post->ID,
-						'post_content' => $new_content,
-					) );
+				if ( is_string( $new_content ) && $new_content !== $row->post_content ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->update(
+						$wpdb->posts,
+						array( 'post_content' => $new_content ),
+						array( 'ID' => $rid ),
+						array( '%s' ),
+						array( '%d' )
+					);
+					clean_post_cache( $rid );
 					$stats['links_rewritten']++;
 				}
 			}
-		}
 
-		// Step 2: delete child attachments first, then the post itself.
-		// wp_delete_attachment() removes the post AND the physical files
-		// (original + all intermediate sizes registered via add_image_size).
-		// wp_delete_post() does NOT cascade to child attachments, so we must
-		// call wp_delete_attachment() on each child explicitly.
-		foreach ( $batch as $post_id ) {
-			$children = get_children( array(
-				'post_parent' => $post_id,
-				'post_type'   => 'attachment',
-			) );
-			foreach ( (array) $children as $child_id => $child ) {
-				$deleted_att = wp_delete_attachment( (int) $child_id, true );
-				if ( $deleted_att ) {
+			if ( count( $rows ) < $scan_size ) {
+				break;
+			}
+		}
+	}
+
+	$log( sprintf( 'Link rewrite pass complete (%d posts updated). Deleting attachments and posts...', $stats['links_rewritten'] ) );
+
+	// Step 2: delete child attachments and posts with deferred term/comment counting.
+	wp_defer_term_counting( true );
+	wp_defer_comment_counting( true );
+
+	try {
+		foreach ( array_chunk( $post_ids, (int) $args['batch_size'] ) as $batch_index => $batch ) {
+			$batch_csv = implode( ',', array_map( 'intval', $batch ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$att_ids = $wpdb->get_col(
+				"SELECT ID FROM $wpdb->posts
+				 WHERE post_type = 'attachment'
+				 AND post_parent IN ($batch_csv)"
+			);
+
+			foreach ( (array) $att_ids as $att_id ) {
+				if ( wp_delete_attachment( (int) $att_id, true ) ) {
 					$stats['attachments_deleted']++;
 				}
 			}
 
-			$deleted = wp_delete_post( (int) $post_id, true );
-			if ( $deleted ) {
-				$stats['posts_deleted']++;
+			foreach ( $batch as $post_id ) {
+				if ( wp_delete_post( (int) $post_id, true ) ) {
+					$stats['posts_deleted']++;
+				}
 			}
-		}
 
-		$log( sprintf( 'Batch %d complete. Cumulative: %d posts deleted, %d links rewritten.', $batch_index + 1, $stats['posts_deleted'], $stats['links_rewritten'] ) );
+			$log( sprintf( 'Batch %d complete. Cumulative: %d posts deleted, %d attachments deleted.', $batch_index + 1, $stats['posts_deleted'], $stats['attachments_deleted'] ) );
+		}
+	} finally {
+		wp_defer_term_counting( false );
+		wp_defer_comment_counting( false );
 	}
 
 	$log( sprintf( 'Done. Deleted %d posts, %d attachments, rewrote %d internal links.', $stats['posts_deleted'], $stats['attachments_deleted'], $stats['links_rewritten'] ) );
+	return $stats;
+}
+
+/**
+ * Finds and optionally deletes orphan media files in wp-content/uploads that do not
+ * belong to any attachment in wp_posts/wp_postmeta and are not referenced in
+ * wp_options (banners, theme mods, widgets) or wp_posts.post_content.
+ *
+ * @param array $args {
+ *     @type bool $dry_run Preview only when true (default true).
+ * }
+ * @return array Stats summary.
+ */
+function alminuto_theme_cleanup_orphan_uploads( $args = array() ) {
+	global $wpdb;
+
+	$dry_run = ! isset( $args['dry_run'] ) || (bool) $args['dry_run'];
+
+	if ( function_exists( 'set_time_limit' ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		@set_time_limit( 0 );
+	}
+	if ( function_exists( 'ignore_user_abort' ) ) {
+		ignore_user_abort( true );
+	}
+
+	$upload   = wp_upload_dir();
+	$base_dir = wp_normalize_path( untrailingslashit( (string) $upload['basedir'] ) );
+	$stats    = array(
+		'dry_run'         => $dry_run,
+		'protected_files' => 0,
+		'orphan_count'    => 0,
+		'orphan_bytes'    => 0,
+		'deleted_count'   => 0,
+		'freed_bytes'     => 0,
+		'sample_files'    => array(),
+	);
+
+	if ( ! is_dir( $base_dir ) ) {
+		return $stats;
+	}
+
+	// 1. Collect all valid relative paths from _wp_attached_file and _wp_attachment_metadata.
+	$valid_rel_paths = array();
+	$add_valid_path  = static function ( $rel ) use ( &$valid_rel_paths ) {
+		$rel = ltrim( wp_normalize_path( (string) $rel ), '/' );
+		if ( $rel === '' ) {
+			return;
+		}
+		$valid_rel_paths[ $rel ]           = true;
+		$valid_rel_paths[ $rel . '.webp' ] = true;
+	};
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$attached_rows = $wpdb->get_col(
+		"SELECT pm.meta_value
+		 FROM $wpdb->postmeta pm
+		 INNER JOIN $wpdb->posts p ON p.ID = pm.post_id
+		 WHERE p.post_type = 'attachment'
+		 AND pm.meta_key = '_wp_attached_file'"
+	);
+	foreach ( (array) $attached_rows as $rel ) {
+		$add_valid_path( $rel );
+	}
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$meta_rows = $wpdb->get_col(
+		"SELECT pm.meta_value
+		 FROM $wpdb->postmeta pm
+		 INNER JOIN $wpdb->posts p ON p.ID = pm.post_id
+		 WHERE p.post_type = 'attachment'
+		 AND pm.meta_key = '_wp_attachment_metadata'"
+	);
+	foreach ( (array) $meta_rows as $raw_meta ) {
+		$meta = maybe_unserialize( $raw_meta );
+		if ( ! is_array( $meta ) ) {
+			continue;
+		}
+		$dir_prefix = '';
+		if ( ! empty( $meta['file'] ) ) {
+			$add_valid_path( $meta['file'] );
+			$d = dirname( wp_normalize_path( (string) $meta['file'] ) );
+			if ( $d !== '.' && $d !== '' ) {
+				$dir_prefix = trailingslashit( $d );
+			}
+		}
+		if ( ! empty( $meta['original_image'] ) ) {
+			$add_valid_path( $dir_prefix . $meta['original_image'] );
+		}
+		if ( ! empty( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
+			foreach ( $meta['sizes'] as $size_info ) {
+				if ( ! empty( $size_info['file'] ) ) {
+					$add_valid_path( $dir_prefix . $size_info['file'] );
+				}
+			}
+		}
+	}
+
+	// 2. Protect any media filename referenced in wp_options (banners, logos, theme_mods, widgets)
+	// or in wp_posts.post_content (e.g. images uploaded via FTP without an attachment row).
+	$protected_basenames = array();
+	$media_ext_regex     = '/([A-Za-z0-9_.\-]+\.(?:jpe?g|png|gif|webp|avif|svg|pdf|mp4|mov|mp3))/i';
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$opt_values = $wpdb->get_col(
+		"SELECT option_value FROM $wpdb->options
+		 WHERE option_name NOT LIKE '\_transient\_%'
+		 AND option_name NOT LIKE '\_site\_transient\_%'
+		 AND option_value REGEXP '\\.(jpe?g|png|gif|webp|avif|svg|pdf|mp4|mov|mp3)'"
+	);
+	foreach ( (array) $opt_values as $val ) {
+		if ( preg_match_all( $media_ext_regex, (string) $val, $matches ) ) {
+			foreach ( $matches[1] as $fname ) {
+				$protected_basenames[ strtolower( $fname ) ]           = true;
+				$protected_basenames[ strtolower( $fname ) . '.webp' ] = true;
+			}
+		}
+	}
+
+	$last_id = 0;
+	while ( true ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$contents = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT ID, post_content FROM $wpdb->posts
+				 WHERE ID > %d
+				 AND post_status IN ('publish','draft','private','future')
+				 AND post_content LIKE %s
+				 ORDER BY ID ASC
+				 LIMIT 500",
+				$last_id,
+				'%uploads/%'
+			)
+		);
+		if ( empty( $contents ) ) {
+			break;
+		}
+		foreach ( $contents as $c ) {
+			$last_id = (int) $c->ID;
+			if ( preg_match_all( $media_ext_regex, (string) $c->post_content, $matches ) ) {
+				foreach ( $matches[1] as $fname ) {
+					$protected_basenames[ strtolower( $fname ) ]           = true;
+					$protected_basenames[ strtolower( $fname ) . '.webp' ] = true;
+				}
+			}
+		}
+		if ( count( $contents ) < 500 ) {
+			break;
+		}
+	}
+
+	$stats['protected_files'] = count( $valid_rel_paths );
+
+	// 3. Scan uploads/ for orphan media files.
+	$excluded_dirs = array( 'alminuto-backups', 'alminuto-csp-reports' );
+	$media_exts    = array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'pdf', 'mp4', 'mov', 'mp3' );
+	$base_len      = strlen( $base_dir ) + 1;
+
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $base_dir, FilesystemIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::CHILD_FIRST
+	);
+
+	foreach ( $iterator as $item ) {
+		$full_path = wp_normalize_path( $item->getPathname() );
+		$rel_path  = substr( $full_path, $base_len );
+		if ( $rel_path === false || $rel_path === '' ) {
+			continue;
+		}
+
+		$first_segment = strtok( $rel_path, '/' );
+		if ( in_array( $first_segment, $excluded_dirs, true ) ) {
+			continue;
+		}
+
+		if ( $item->isDir() ) {
+			if ( ! $dry_run && $first_segment === 'wpo-unused-images' ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+				@rmdir( $full_path );
+			}
+			continue;
+		}
+
+		if ( ! $item->isFile() ) {
+			continue;
+		}
+
+		$basename = $item->getFilename();
+		if ( $basename === '.htaccess' || $basename === 'index.html' || $basename === 'index.php' ) {
+			continue;
+		}
+
+		$ext       = strtolower( pathinfo( $basename, PATHINFO_EXTENSION ) );
+		$in_wpo    = ( $first_segment === 'wpo-unused-images' );
+		if ( ! $in_wpo && ! in_array( $ext, $media_exts, true ) ) {
+			continue;
+		}
+
+		if ( isset( $valid_rel_paths[ $rel_path ] ) || isset( $protected_basenames[ strtolower( $basename ) ] ) ) {
+			continue;
+		}
+
+		$size = (int) $item->getSize();
+		$stats['orphan_count']++;
+		$stats['orphan_bytes'] += $size;
+
+		if ( count( $stats['sample_files'] ) < 50 ) {
+			$stats['sample_files'][] = array(
+				'path' => $rel_path,
+				'size' => $size,
+			);
+		}
+
+		if ( ! $dry_run ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+			if ( @unlink( $full_path ) ) {
+				$stats['deleted_count']++;
+				$stats['freed_bytes'] += $size;
+			}
+		}
+	}
+
+	if ( ! $dry_run ) {
+		delete_transient( 'alminuto_cleanup_media_inventory' );
+	}
+
 	return $stats;
 }
 
@@ -1359,8 +1637,22 @@ function alminuto_theme_render_cleanup_page() {
 	$was_dry_run    = false;
 	$error_message  = null;
 	$log_file_path  = null;
+	$orphan_result  = null;
+	$orphan_dry_run = false;
+	$orphan_error   = null;
 
-	if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['alminuto_cleanup_nonce'] ) ) {
+	if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['alminuto_orphan_nonce'] ) ) {
+		if ( ! wp_verify_nonce( $_POST['alminuto_orphan_nonce'], 'alminuto_cleanup_orphans' ) ) {
+			wp_die( esc_html__( 'Nonce inválido. Recarga la página.', 'alminuto-theme' ) );
+		}
+		$o_dry = ! empty( $_POST['orphan_dry_run'] );
+		try {
+			$orphan_result  = alminuto_theme_cleanup_orphan_uploads( array( 'dry_run' => $o_dry ) );
+			$orphan_dry_run = $o_dry;
+		} catch ( Exception $e ) {
+			$orphan_error = $e->getMessage();
+		}
+	} elseif ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['alminuto_cleanup_nonce'] ) ) {
 		if ( ! wp_verify_nonce( $_POST['alminuto_cleanup_nonce'], 'alminuto_cleanup' ) ) {
 			wp_die( esc_html__( 'Nonce inválido. Recarga la página.', 'alminuto-theme' ) );
 		}
@@ -1406,6 +1698,9 @@ function alminuto_theme_render_cleanup_page() {
 	$cleanup_was_dry_run   = $was_dry_run;
 	$cleanup_error         = $error_message;
 	$cleanup_log_file_path = $log_file_path;
+	$orphan_cleanup_result = $orphan_result;
+	$orphan_was_dry_run    = $orphan_dry_run;
+	$orphan_cleanup_error  = $orphan_error;
 
 	include $template;
 }

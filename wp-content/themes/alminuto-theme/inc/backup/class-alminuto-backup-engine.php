@@ -1063,18 +1063,35 @@ class Alminuto_Backup_Engine {
 			throw new RuntimeException( __( 'La extensión zlib no está disponible para descomprimir la BBDD.', 'alminuto-theme' ) );
 		}
 
-		// Detect dump table prefix (e.g. from `DROP TABLE IF EXISTS `xyz_options`;`).
+		// Detect dump table prefix unambiguously by finding the WordPress options table
+		// (must end in `options` AND contain `option_name` + `autoload` columns).
 		$dump_prefix = '';
 		$probe       = $is_gz ? gzopen( $sql_path, 'rb' ) : fopen( $sql_path, 'rb' );
 		if ( $probe ) {
+			$candidate_prefix = '';
+			$in_create_opts   = false;
+			$create_buf       = '';
 			while ( ! ( $is_gz ? gzeof( $probe ) : feof( $probe ) ) ) {
 				$pline = $is_gz ? gzgets( $probe ) : fgets( $probe );
 				if ( $pline === false ) {
 					break;
 				}
-				if ( preg_match( '/^DROP TABLE IF EXISTS `([^`]+?)options`;/i', trim( $pline ), $pm ) ) {
-					$dump_prefix = (string) $pm[1];
-					break;
+				$ptrim = trim( $pline );
+				if ( ! $in_create_opts && preg_match( '/^CREATE TABLE `([^`]+?)options`\s*\(/i', $ptrim, $pm ) ) {
+					$candidate_prefix = (string) $pm[1];
+					$in_create_opts   = true;
+					$create_buf       = $ptrim;
+				} elseif ( $in_create_opts ) {
+					$create_buf .= "\n" . $ptrim;
+					if ( substr( $ptrim, -1 ) === ';' ) {
+						if ( stripos( $create_buf, '`option_name`' ) !== false && stripos( $create_buf, '`autoload`' ) !== false ) {
+							$dump_prefix = $candidate_prefix;
+							break;
+						}
+						$in_create_opts   = false;
+						$candidate_prefix = '';
+						$create_buf       = '';
+					}
 				}
 			}
 			if ( $is_gz ) {

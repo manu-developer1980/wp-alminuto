@@ -31,6 +31,65 @@ if ( ! defined( 'ABSPATH' ) ) {
 		); ?>
 	</p>
 
+	<?php
+	global $wpdb;
+	$post_counts      = wp_count_posts( 'post' );
+	$published_posts  = isset( $post_counts->publish ) ? (int) $post_counts->publish : 0;
+	$sticky_posts     = count( (array) get_option( 'sticky_posts', [] ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	$total_attachments = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment'" );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	$oldest_post_date = $wpdb->get_var( "SELECT MIN(post_date) FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'publish'" );
+
+	$force_refresh = ! empty( $_GET['refresh_inventory'] ) || ( $cleanup_result && ! $cleanup_was_dry_run );
+	$disk_inv      = $force_refresh ? false : get_transient( 'alminuto_cleanup_media_inventory' );
+	if ( ! is_array( $disk_inv ) && class_exists( 'Alminuto_Backup_Engine' ) ) {
+		$disk_inv = Alminuto_Backup_Engine::inventory_media();
+		set_transient( 'alminuto_cleanup_media_inventory', $disk_inv, 5 * MINUTE_IN_SECONDS );
+	}
+	?>
+	<div style="background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:12px 16px;margin:14px 0;max-width:720px;">
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+			<strong style="font-size:14px;"><?php esc_html_e( 'Inventario actual del sitio', 'alminuto-theme' ); ?></strong>
+			<a href="<?php echo esc_url( add_query_arg( 'refresh_inventory', '1', admin_url( 'admin.php?page=alminuto-cleanup' ) ) ); ?>" class="button button-small">
+				<?php esc_html_e( 'Actualizar inventario', 'alminuto-theme' ); ?>
+			</a>
+		</div>
+		<table class="widefat striped">
+			<tbody>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Artículos publicados', 'alminuto-theme' ); ?></th>
+					<td>
+						<strong><?php echo esc_html( number_format_i18n( $published_posts ) ); ?></strong>
+						<?php if ( $sticky_posts > 0 ) : ?>
+							<span class="description">
+								(<?php echo esc_html( sprintf( '%d sticky excluidos', $sticky_posts ) ); ?>)
+							</span>
+						<?php endif; ?>
+						<?php if ( $oldest_post_date ) : ?>
+							<span class="description">
+								— <?php echo esc_html( sprintf( 'más antiguo: %s', wp_date( 'd/m/Y', strtotime( $oldest_post_date ) ) ) ); ?>
+							</span>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Adjuntos en biblioteca (BBDD)', 'alminuto-theme' ); ?></th>
+					<td><strong><?php echo esc_html( number_format_i18n( $total_attachments ) ); ?></strong></td>
+				</tr>
+				<?php if ( is_array( $disk_inv ) ) : ?>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Archivos en uploads (originales + miniaturas)', 'alminuto-theme' ); ?></th>
+						<td>
+							<strong><?php echo esc_html( number_format_i18n( (int) $disk_inv['count'] ) ); ?></strong>
+							<span class="description">(<?php echo esc_html( size_format( (int) $disk_inv['bytes'] ) ); ?>)</span>
+						</td>
+					</tr>
+				<?php endif; ?>
+			</tbody>
+		</table>
+	</div>
+
 	<form method="post" id="alminuto-cleanup-form">
 		<?php wp_nonce_field( 'alminuto_cleanup', 'alminuto_cleanup_nonce' ); ?>
 
@@ -243,35 +302,144 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</ul>
 		<?php endif; ?>
 	<?php endif; ?>
+
+	<hr style="margin: 28px 0;" />
+
+	<h2><?php esc_html_e( 'Limpiar archivos huérfanos en uploads (disco)', 'alminuto-theme' ); ?></h2>
+	<p class="description">
+		<?php esc_html_e(
+			'Busca archivos físicos en wp-content/uploads/ que ya no pertenecen a ningún adjunto en la biblioteca de medios ni están referenciados en opciones del tema (banners, logos, widgets) o contenidos.',
+			'alminuto-theme'
+		); ?>
+	</p>
+
+	<form method="post" id="alminuto-orphan-form">
+		<?php wp_nonce_field( 'alminuto_cleanup_orphans', 'alminuto_orphan_nonce' ); ?>
+		<table class="form-table" role="presentation">
+			<tbody>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Modo', 'alminuto-theme' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" name="orphan_dry_run" value="1" checked />
+							<?php esc_html_e( 'Solo vista previa (dry-run, recomendado)', 'alminuto-theme' ); ?>
+						</label>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<p class="submit">
+			<button type="submit" class="button button-secondary" id="alminuto-orphan-submit">
+				<?php esc_html_e( 'Escanear huérfanos', 'alminuto-theme' ); ?>
+			</button>
+		</p>
+	</form>
+
+	<?php if ( ! empty( $orphan_cleanup_error ) ) : ?>
+		<div class="notice notice-error inline">
+			<p><strong><?php esc_html_e( 'Error:', 'alminuto-theme' ); ?></strong> <?php echo esc_html( $orphan_cleanup_error ); ?></p>
+		</div>
+	<?php endif; ?>
+
+	<?php if ( ! empty( $orphan_cleanup_result ) ) : ?>
+		<?php if ( ! $orphan_was_dry_run ) : ?>
+			<div class="notice notice-success inline">
+				<p>
+					<strong><?php esc_html_e( 'Limpieza de huérfanos completada.', 'alminuto-theme' ); ?></strong>
+					<?php
+					printf(
+						esc_html__( 'Eliminados %1$s archivos (%2$s liberados).', 'alminuto-theme' ),
+						esc_html( number_format_i18n( (int) $orphan_cleanup_result['deleted_count'] ) ),
+						esc_html( size_format( (int) $orphan_cleanup_result['freed_bytes'] ) )
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+
+		<table class="widefat striped" style="max-width: 720px;">
+			<tbody>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Archivos huérfanos detectados', 'alminuto-theme' ); ?></th>
+					<td>
+						<strong><?php echo esc_html( number_format_i18n( (int) $orphan_cleanup_result['orphan_count'] ) ); ?></strong>
+						<span class="description">(<?php echo esc_html( size_format( (int) $orphan_cleanup_result['orphan_bytes'] ) ); ?>)</span>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Archivos protegidos (adjuntos válidos en BBDD)', 'alminuto-theme' ); ?></th>
+					<td><?php echo esc_html( number_format_i18n( (int) $orphan_cleanup_result['protected_files'] ) ); ?></td>
+				</tr>
+			</tbody>
+		</table>
+
+		<?php if ( ! empty( $orphan_cleanup_result['sample_files'] ) ) : ?>
+			<h3><?php esc_html_e( 'Muestra de archivos huérfanos (primeros 50)', 'alminuto-theme' ); ?></h3>
+			<ul style="max-width: 720px; max-height: 240px; overflow: auto; background: #fff; border: 1px solid #ccd0d4; padding: 8px 8px 8px 24px;">
+				<?php foreach ( $orphan_cleanup_result['sample_files'] as $sf ) : ?>
+					<li><code><?php echo esc_html( (string) $sf['path'] ); ?></code> <span class="description">(<?php echo esc_html( size_format( (int) $sf['size'] ) ); ?>)</span></li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
+	<?php endif; ?>
 </div>
 
 <script>
 (function(){
 	var form    = document.getElementById('alminuto-cleanup-form');
-	if (!form) { return; }
-	var submit  = document.getElementById('alminuto-cleanup-submit');
-	var dryRun  = form.querySelector('input[name="dry_run"]');
+	if (form) {
+		var submit  = document.getElementById('alminuto-cleanup-submit');
+		var dryRun  = form.querySelector('input[name="dry_run"]');
 
-	function updateLabel(){
-		if (!dryRun) { return; }
-		if (dryRun.checked) {
-			submit.textContent = '<?php echo esc_js( __( 'Vista previa', 'alminuto-theme' ) ); ?>';
-			submit.className = 'button button-secondary';
-		} else {
-			submit.textContent = '<?php echo esc_js( __( 'Ejecutar borrado real', 'alminuto-theme' ) ); ?>';
-			submit.className = 'button button-primary';
+		function updateLabel(){
+			if (!dryRun) { return; }
+			if (dryRun.checked) {
+				submit.textContent = '<?php echo esc_js( __( 'Vista previa', 'alminuto-theme' ) ); ?>';
+				submit.className = 'button button-secondary';
+			} else {
+				submit.textContent = '<?php echo esc_js( __( 'Ejecutar borrado real', 'alminuto-theme' ) ); ?>';
+				submit.className = 'button button-primary';
+			}
 		}
-	}
-	if (dryRun) {
-		dryRun.addEventListener('change', updateLabel);
-		updateLabel();
+		if (dryRun) {
+			dryRun.addEventListener('change', updateLabel);
+			updateLabel();
+		}
+
+		form.addEventListener('submit', function(e){
+			if (dryRun && !dryRun.checked) {
+				var c = window.confirm('<?php echo esc_js( __( 'Esta acción eliminará permanentemente los artículos y sus adjuntos. ¿Continuar?', 'alminuto-theme' ) ); ?>');
+				if (!c) { e.preventDefault(); }
+			}
+		});
 	}
 
-	form.addEventListener('submit', function(e){
-		if (dryRun && !dryRun.checked) {
-			var c = window.confirm('<?php echo esc_js( __( 'Esta acción eliminará permanentemente los artículos y sus adjuntos. ¿Continuar?', 'alminuto-theme' ) ); ?>');
-			if (!c) { e.preventDefault(); }
+	var oForm = document.getElementById('alminuto-orphan-form');
+	if (oForm) {
+		var oSubmit = document.getElementById('alminuto-orphan-submit');
+		var oDry    = oForm.querySelector('input[name="orphan_dry_run"]');
+
+		function updateOrphanLabel(){
+			if (!oDry) { return; }
+			if (oDry.checked) {
+				oSubmit.textContent = '<?php echo esc_js( __( 'Escanear huérfanos (vista previa)', 'alminuto-theme' ) ); ?>';
+				oSubmit.className = 'button button-secondary';
+			} else {
+				oSubmit.textContent = '<?php echo esc_js( __( 'Eliminar huérfanos en disco', 'alminuto-theme' ) ); ?>';
+				oSubmit.className = 'button button-primary';
+			}
 		}
-	});
+		if (oDry) {
+			oDry.addEventListener('change', updateOrphanLabel);
+			updateOrphanLabel();
+		}
+
+		oForm.addEventListener('submit', function(e){
+			if (oDry && !oDry.checked) {
+				var c = window.confirm('<?php echo esc_js( __( 'Se eliminarán físicamente los archivos huérfanos en uploads. ¿Continuar?', 'alminuto-theme' ) ); ?>');
+				if (!c) { e.preventDefault(); }
+			}
+		});
+	}
 })();
 </script>
