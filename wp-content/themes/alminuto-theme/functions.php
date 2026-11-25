@@ -601,14 +601,12 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 					LIMIT 50';
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			$affected = $wpdb->get_results( $wpdb->prepare( $sql, $params ) );
-			$stats['affected_link_count'] = (int) $wpdb->get_var(
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-				"SELECT COUNT(*) FROM $wpdb->posts
-				 WHERE post_status = 'publish'
-				 AND post_type = 'post'
-				 AND (" . implode( ' OR ', $like_clauses ) . ')'
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			);
+			$count_sql = "SELECT COUNT(*) FROM $wpdb->posts
+						  WHERE post_status = 'publish'
+						  AND post_type = 'post'
+						  AND (" . implode( ' OR ', $like_clauses ) . ')';
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$stats['affected_link_count'] = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
 			foreach ( (array) $affected as $a ) {
 				$stats['affected_link_samples'][] = $a->post_title;
 			}
