@@ -337,6 +337,9 @@ $weekdays = [
 						esc_html__( 'Credenciales configuradas mediante constantes en wp-config.php. Carpeta por defecto en Drive: %s.', 'alminuto-theme' ),
 						'<code>' . esc_html( $default_folder_name ) . '</code>'
 					);
+					if ( ! empty( $gdrive['folder_id'] ) ) {
+						echo ' ' . esc_html__( 'Folder ID activo:', 'alminuto-theme' ) . ' <code>' . esc_html( (string) $gdrive['folder_id'] ) . '</code>';
+					}
 					?>
 				</p>
 			<?php endif; ?>

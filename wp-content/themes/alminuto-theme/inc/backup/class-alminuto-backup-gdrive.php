@@ -571,6 +571,99 @@ class Alminuto_Backup_GDrive {
 	}
 
 	/**
+	 * Downloads multiple files from Google Drive concurrently using curl_multi (fallback to sequential).
+	 *
+	 * @param array         $items  Array of [ 'id' => string, 'dest' => string, 'name' => string ].
+	 * @param callable|null $log_cb Optional logger callback.
+	 * @return true|WP_Error
+	 */
+	public static function download_files_parallel( array $items, $log_cb = null ) {
+		if ( empty( $items ) ) {
+			return true;
+		}
+
+		if ( count( $items ) === 1 || ! function_exists( 'curl_multi_init' ) ) {
+			foreach ( $items as $item ) {
+				$res = self::download_file( $item['id'], $item['dest'], $log_cb );
+				if ( is_wp_error( $res ) ) {
+					return $res;
+				}
+			}
+			return true;
+		}
+
+		$token = self::get_valid_access_token();
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		$mh      = curl_multi_init();
+		$handles = [];
+		$files   = [];
+
+		try {
+			foreach ( $items as $idx => $item ) {
+				$fp = fopen( $item['dest'], 'wb' );
+				if ( ! $fp ) {
+					return new WP_Error( 'fopen_failed', sprintf( 'No se pudo crear archivo temporal: %s', $item['name'] ) );
+				}
+				$ch = curl_init( 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( (string) $item['id'] ) . '?alt=media' );
+				curl_setopt_array(
+					$ch,
+					[
+						CURLOPT_FILE           => $fp,
+						CURLOPT_FOLLOWLOCATION => true,
+						CURLOPT_TIMEOUT        => 300,
+						CURLOPT_HTTPHEADER     => [ 'Authorization: Bearer ' . $token ],
+					]
+				);
+				curl_multi_add_handle( $mh, $ch );
+				$handles[ $idx ] = $ch;
+				$files[ $idx ]   = $fp;
+			}
+
+			$active = null;
+			do {
+				$status = curl_multi_exec( $mh, $active );
+				if ( $active ) {
+					curl_multi_select( $mh, 1.0 );
+				}
+			} while ( $active && $status === CURLM_OK );
+
+			foreach ( $handles as $idx => $ch ) {
+				$http_code = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+				$curl_err  = curl_error( $ch );
+				curl_multi_remove_handle( $mh, $ch );
+				curl_close( $ch );
+				fclose( $files[ $idx ] );
+				unset( $files[ $idx ] );
+
+				if ( $curl_err !== '' ) {
+					return new WP_Error( 'curl_download_error', sprintf( 'Error descargando %s: %s', $items[ $idx ]['name'], $curl_err ) );
+				}
+				if ( $http_code < 200 || $http_code >= 300 ) {
+					return new WP_Error( 'drive_download_failed', sprintf( 'Error descargando %s (HTTP %d).', $items[ $idx ]['name'], $http_code ) );
+				}
+				if ( ! file_exists( $items[ $idx ]['dest'] ) || filesize( $items[ $idx ]['dest'] ) <= 0 ) {
+					return new WP_Error( 'drive_download_empty', sprintf( 'Archivo descargado vacío: %s', $items[ $idx ]['name'] ) );
+				}
+				if ( is_callable( $log_cb ) ) {
+					call_user_func( $log_cb, sprintf( 'Descargado %s (%s).', $items[ $idx ]['name'], size_format( filesize( $items[ $idx ]['dest'] ) ) ) );
+				}
+			}
+		} finally {
+			foreach ( $files as $fp ) {
+				if ( is_resource( $fp ) ) {
+					fclose( $fp );
+				}
+			}
+			curl_multi_close( $mh );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Deletes older backup groups in Google Drive beyond the configured retention count.
 	 *
 	 * @param int           $keep_count Number of most recent backup runs to keep.

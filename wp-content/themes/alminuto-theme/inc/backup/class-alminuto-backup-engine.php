@@ -948,28 +948,45 @@ class Alminuto_Backup_Engine {
 			}
 
 			$total_parts = count( $media_files );
-			foreach ( $media_files as $idx => $media_file ) {
-				$part_num     = $idx + 1;
-				$media_local  = $temp_dir . '/restore-' . basename( (string) $media_file['name'] );
-				$temp_files[] = $media_local;
+			$batch_size  = 3;
+			$done_parts  = 0;
 
-				$live_phase = sprintf( 'Descargando Media (%d/%d) desde Google Drive...', $part_num, $total_parts );
-				$live_pct   = 10 + (int) round( ( $idx / max( 1, $total_parts ) ) * 45 );
-				$log_cb( sprintf( 'Descargando Media %d/%d (%s)...', $part_num, $total_parts, $media_file['name'] ) );
+			foreach ( array_chunk( $media_files, $batch_size ) as $chunk ) {
+				self::check_cancelled();
+				$dl_items = [];
+				foreach ( $chunk as $media_file ) {
+					$local_path   = $temp_dir . '/restore-' . basename( (string) $media_file['name'] );
+					$temp_files[] = $local_path;
+					$dl_items[]   = [
+						'id'   => (string) $media_file['id'],
+						'dest' => $local_path,
+						'name' => (string) $media_file['name'],
+					];
+				}
 
-				$dl = Alminuto_Backup_GDrive::download_file( $media_file['id'], $media_local, $log_cb );
+				$live_phase = sprintf( 'Descargando lote de Media (%d/%d partes)...', min( $done_parts + count( $chunk ), $total_parts ), $total_parts );
+				$live_pct   = 10 + (int) round( ( $done_parts / max( 1, $total_parts ) ) * 45 );
+				$log_cb( sprintf( 'Descargando %d partes en paralelo...', count( $dl_items ) ) );
+
+				$dl = Alminuto_Backup_GDrive::download_files_parallel( $dl_items, $log_cb );
 				if ( is_wp_error( $dl ) ) {
 					throw new RuntimeException( $dl->get_error_message() );
 				}
 
-				$live_phase = sprintf( 'Restaurando Media (%d/%d)...', $part_num, $total_parts );
-				$log_cb( sprintf( 'Extrayendo archivos de Media (%d/%d) en wp-content/uploads...', $part_num, $total_parts ) );
-				$extracted = self::restore_media( $media_local );
-				$log_cb( sprintf( 'Parte %d/%d restaurada (%d archivos).', $part_num, $total_parts, $extracted ) );
+				foreach ( $dl_items as $item ) {
+					self::check_cancelled();
+					$done_parts++;
+					$live_phase = sprintf( 'Extrayendo Media (%d/%d): %s...', $done_parts, $total_parts, $item['name'] );
+					$live_pct   = 10 + (int) round( ( $done_parts / max( 1, $total_parts ) ) * 45 );
+					$sync_live( true );
 
-				if ( file_exists( $media_local ) ) {
-					// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
-					@unlink( $media_local );
+					$extracted = self::restore_media( $item['dest'] );
+					$log_cb( sprintf( 'Parte %d/%d restaurada (%d archivos).', $done_parts, $total_parts, $extracted ) );
+
+					if ( file_exists( $item['dest'] ) ) {
+						// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+						@unlink( $item['dest'] );
+					}
 				}
 			}
 			$live_pct = 55;
