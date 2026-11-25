@@ -808,12 +808,64 @@ class Alminuto_Backup_Engine {
 	}
 
 	/**
+	 * Scans the Google Drive folder and merges discovered backups into local history.
+	 *
+	 * @return int|WP_Error Number of backups discovered in Drive, or WP_Error.
+	 */
+	public static function sync_from_drive() {
+		$remote = Alminuto_Backup_GDrive::list_backups();
+		if ( is_wp_error( $remote ) ) {
+			return $remote;
+		}
+
+		$local = self::get_history();
+		$by_id = [];
+		foreach ( $local as $entry ) {
+			if ( ! empty( $entry['backup_id'] ) ) {
+				$by_id[ (string) $entry['backup_id'] ] = $entry;
+			}
+		}
+
+		foreach ( $remote as $rem ) {
+			$bid = (string) $rem['backup_id'];
+			if ( ! isset( $by_id[ $bid ] ) ) {
+				$by_id[ $bid ] = $rem;
+			} elseif ( empty( $by_id[ $bid ]['files'] ) && ! empty( $rem['files'] ) ) {
+				$by_id[ $bid ]['files'] = $rem['files'];
+			}
+		}
+
+		$merged = array_values( $by_id );
+		usort(
+			$merged,
+			static function ( $a, $b ) {
+				return (int) ( $b['started_at'] ?? 0 ) <=> (int) ( $a['started_at'] ?? 0 );
+			}
+		);
+		$merged = array_slice( $merged, 0, self::MAX_HISTORY );
+		update_option( self::HISTORY_OPTION, $merged, false );
+
+		if ( ! empty( $merged ) ) {
+			$last = self::get_last_backup();
+			if ( ! $last || (int) ( $merged[0]['started_at'] ?? 0 ) > (int) ( $last['started_at'] ?? 0 ) ) {
+				update_option( self::LAST_OPTION, $merged[0], false );
+			}
+		}
+
+		return count( $remote );
+	}
+
+	/**
 	 * Restores a backup from Google Drive by its backup_id in history.
 	 *
 	 * @param string $backup_id Backup identifier from history.
+	 * @param string $scope     What to restore: 'all', 'db', or 'media'.
 	 * @return array Result summary.
 	 */
-	public static function restore( $backup_id ) {
+	public static function restore( $backup_id, $scope = 'all' ) {
+		if ( ! in_array( $scope, [ 'all', 'db', 'media' ], true ) ) {
+			$scope = 'all';
+		}
 		if ( get_transient( self::LOCK_TRANSIENT ) ) {
 			return [
 				'status'  => 'error',
@@ -884,15 +936,15 @@ class Alminuto_Backup_Engine {
 			$db_file     = null;
 			$media_files = [];
 			foreach ( $target['files'] as $f ) {
-				if ( ( $f['type'] ?? '' ) === 'db' && ! empty( $f['id'] ) ) {
+				if ( ( $f['type'] ?? '' ) === 'db' && ! empty( $f['id'] ) && ( $scope === 'all' || $scope === 'db' ) ) {
 					$db_file = $f;
-				} elseif ( ( $f['type'] ?? '' ) === 'media' && ! empty( $f['id'] ) ) {
+				} elseif ( ( $f['type'] ?? '' ) === 'media' && ! empty( $f['id'] ) && ( $scope === 'all' || $scope === 'media' ) ) {
 					$media_files[] = $f;
 				}
 			}
 
 			if ( ! $db_file && empty( $media_files ) ) {
-				throw new RuntimeException( __( 'La copia seleccionada no contiene IDs de Google Drive válidos.', 'alminuto-theme' ) );
+				throw new RuntimeException( __( 'La copia seleccionada no contiene archivos para el tipo de restauración elegido.', 'alminuto-theme' ) );
 			}
 
 			$total_parts = count( $media_files );

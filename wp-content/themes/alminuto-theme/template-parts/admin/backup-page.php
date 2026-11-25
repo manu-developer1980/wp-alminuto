@@ -415,7 +415,21 @@ $weekdays = [
 
 		<!-- Historial -->
 		<section class="am-backup-card am-backup-card--full">
-			<h2><?php esc_html_e( 'Historial reciente', 'alminuto-theme' ); ?></h2>
+			<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #f0f0f1;padding-bottom:10px;margin-bottom:12px;">
+				<h2 style="margin:0;border:0;padding:0;"><?php esc_html_e( 'Historial reciente', 'alminuto-theme' ); ?></h2>
+				<?php if ( $is_connected ) : ?>
+					<?php
+					$sync_url = wp_nonce_url(
+						admin_url( 'admin-post.php?action=alminuto_backup_sync' ),
+						'alminuto_backup_sync',
+						'nonce'
+					);
+					?>
+					<a href="<?php echo esc_url( $sync_url ); ?>" class="button button-secondary">
+						<?php esc_html_e( 'Sincronizar desde Google Drive', 'alminuto-theme' ); ?>
+					</a>
+				<?php endif; ?>
+			</div>
 			<?php if ( empty( $history ) ) : ?>
 				<p class="description"><?php esc_html_e( 'Todavía no hay copias registradas.', 'alminuto-theme' ); ?></p>
 			<?php else : ?>
@@ -467,21 +481,42 @@ $weekdays = [
 								</td>
 								<td>
 									<?php
-									$can_restore = $is_connected
-										&& $ok
-										&& ! empty( $item['backup_id'] )
-										&& ! empty( $item['files'] );
+									$has_db      = false;
+									$has_media   = false;
+									if ( ! empty( $item['files'] ) && is_array( $item['files'] ) ) {
+										foreach ( $item['files'] as $f ) {
+											if ( ( $f['type'] ?? '' ) === 'db' && ! empty( $f['id'] ) ) {
+												$has_db = true;
+											} elseif ( ( $f['type'] ?? '' ) === 'media' && ! empty( $f['id'] ) ) {
+												$has_media = true;
+											}
+										}
+									}
+									$can_restore = $is_connected && $ok && ! empty( $item['backup_id'] ) && ( $has_db || $has_media );
 									?>
 									<?php if ( $can_restore ) : ?>
-										<button
-											type="button"
-											class="button button-small am-restore-btn"
-											data-backup-id="<?php echo esc_attr( (string) $item['backup_id'] ); ?>"
-											data-label="<?php echo esc_attr( ( $ts ? wp_date( 'd/m/Y H:i', $ts ) : '' ) . ' (' . implode( ' + ', $parts ) . ')' ); ?>"
-											<?php disabled( ! empty( $live_status['running'] ) ); ?>
-										>
-											<?php esc_html_e( 'Restaurar', 'alminuto-theme' ); ?>
-										</button>
+										<div class="am-restore-controls" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+											<select class="am-restore-scope" <?php disabled( ! empty( $live_status['running'] ) ); ?>>
+												<?php if ( $has_db && $has_media ) : ?>
+													<option value="all"><?php esc_html_e( 'Todo', 'alminuto-theme' ); ?></option>
+												<?php endif; ?>
+												<?php if ( $has_db ) : ?>
+													<option value="db"><?php esc_html_e( 'Solo BBDD', 'alminuto-theme' ); ?></option>
+												<?php endif; ?>
+												<?php if ( $has_media ) : ?>
+													<option value="media"><?php esc_html_e( 'Solo Media', 'alminuto-theme' ); ?></option>
+												<?php endif; ?>
+											</select>
+											<button
+												type="button"
+												class="button button-small am-restore-btn"
+												data-backup-id="<?php echo esc_attr( (string) $item['backup_id'] ); ?>"
+												data-label="<?php echo esc_attr( ( $ts ? wp_date( 'd/m/Y H:i', $ts ) : '' ) . ' (' . implode( ' + ', $parts ) . ')' ); ?>"
+												<?php disabled( ! empty( $live_status['running'] ) ); ?>
+											>
+												<?php esc_html_e( 'Restaurar', 'alminuto-theme' ); ?>
+											</button>
+										</div>
 									<?php else : ?>
 										<span class="description">—</span>
 									<?php endif; ?>

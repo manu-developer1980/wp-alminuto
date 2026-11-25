@@ -674,4 +674,147 @@ class Alminuto_Backup_GDrive {
 
 		return $deleted;
 	}
+
+	/**
+	 * Lists and groups existing backup files in the Google Drive destination folder.
+	 *
+	 * @return array|WP_Error List of grouped backup entries (newest first).
+	 */
+	public static function list_backups() {
+		$token = self::get_valid_access_token();
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		$folder_id = self::ensure_folder( $token );
+		if ( is_wp_error( $folder_id ) ) {
+			return $folder_id;
+		}
+
+		$query = sprintf(
+			"'%s' in parents and trashed = false",
+			str_replace( "'", "\\'", $folder_id )
+		);
+
+		$url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(
+			[
+				'q'        => $query,
+				'orderBy'  => 'createdTime desc',
+				'fields'   => 'files(id,name,size,createdTime,webViewLink,appProperties)',
+				'pageSize' => 200,
+			],
+			'',
+			'&',
+			PHP_QUERY_RFC3986
+		);
+
+		$res = wp_remote_get(
+			$url,
+			[
+				'timeout' => 20,
+				'headers' => [
+					'Authorization' => 'Bearer ' . $token,
+				],
+			]
+		);
+
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+
+		$code = wp_remote_retrieve_response_code( $res );
+		if ( $code < 200 || $code >= 300 ) {
+			return new WP_Error( 'drive_list_failed', sprintf( 'Error listando archivos en Drive (HTTP %d).', $code ) );
+		}
+
+		$data  = json_decode( wp_remote_retrieve_body( $res ), true );
+		$files = isset( $data['files'] ) && is_array( $data['files'] ) ? $data['files'] : [];
+		$groups = [];
+
+		foreach ( $files as $file ) {
+			$name = (string) ( $file['name'] ?? '' );
+			$id   = (string) ( $file['id'] ?? '' );
+			if ( $name === '' || $id === '' ) {
+				continue;
+			}
+
+			$type = '';
+			if ( preg_match( '/-db\.sql(\.gz)?$/i', $name ) ) {
+				$type = 'db';
+			} elseif ( preg_match( '/-media(-part\d+)?\.(tar|zip)$/i', $name ) ) {
+				$type = 'media';
+			}
+
+			if ( $type === '' ) {
+				continue;
+			}
+
+			$bid = '';
+			if ( ! empty( $file['appProperties']['backup_id'] ) ) {
+				$bid = (string) $file['appProperties']['backup_id'];
+			} elseif ( preg_match( '/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/', $name, $m ) ) {
+				$bid = 'drive-' . $m[1];
+			} else {
+				$bid = 'drive-' . $id;
+			}
+
+			$created_ts = ! empty( $file['createdTime'] ) ? strtotime( (string) $file['createdTime'] ) : time();
+			$size       = (int) ( $file['size'] ?? 0 );
+
+			if ( ! isset( $groups[ $bid ] ) ) {
+				$groups[ $bid ] = [
+					'backup_id'     => $bid,
+					'status'        => 'success',
+					'trigger'       => 'drive',
+					'started_at'    => $created_ts ?: time(),
+					'finished_at'   => $created_ts ?: time(),
+					'duration'      => 0,
+					'include_db'    => false,
+					'include_media' => false,
+					'db_bytes'      => 0,
+					'media_bytes'   => 0,
+					'total_bytes'   => 0,
+					'files'         => [],
+					'message'       => __( 'Sincronizado desde Google Drive.', 'alminuto-theme' ),
+					'logs'          => [],
+				];
+			}
+
+			if ( $type === 'db' ) {
+				$groups[ $bid ]['include_db'] = true;
+				$groups[ $bid ]['db_bytes']  += $size;
+			} else {
+				$groups[ $bid ]['include_media'] = true;
+				$groups[ $bid ]['media_bytes']  += $size;
+			}
+			$groups[ $bid ]['total_bytes'] += $size;
+			$groups[ $bid ]['files'][]      = [
+				'type' => $type,
+				'name' => $name,
+				'id'   => $id,
+				'url'  => (string) ( $file['webViewLink'] ?? '' ),
+				'size' => $size,
+			];
+		}
+
+		foreach ( $groups as &$g ) {
+			usort(
+				$g['files'],
+				static function ( $a, $b ) {
+					return strcmp( (string) $a['name'], (string) $b['name'] );
+				}
+			);
+		}
+		unset( $g );
+
+		$list = array_values( $groups );
+		usort(
+			$list,
+			static function ( $a, $b ) {
+				return (int) $b['started_at'] <=> (int) $a['started_at'];
+			}
+		);
+
+		return $list;
+	}
 }

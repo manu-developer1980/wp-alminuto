@@ -130,21 +130,26 @@
 		var label = btn.getAttribute("data-label") || backupId;
 		if (!backupId || !payload.ajaxUrl || !payload.ajaxNonce || !window.fetch) return;
 
+		var wrap = btn.closest ? btn.closest(".am-restore-controls") : null;
+		var scopeSelect = wrap ? wrap.querySelector(".am-restore-scope") : null;
+		var scope = scopeSelect ? scopeSelect.value : "all";
+		var scopeText = scope === "db" ? "SOLO BBDD" : (scope === "media" ? "SOLO MEDIA" : "BBDD + MEDIA");
+
 		var ok = window.confirm(
-			"ATENCIÓN: Se va a restaurar la copia del " + label + ".\n\n" +
-			"Esto sobrescribirá la base de datos y/o los archivos de medios actuales. ¿Deseas continuar?"
+			"ATENCIÓN: Se va a restaurar (" + scopeText + ") de la copia del " + label + ".\n\n" +
+			"Esto sobrescribirá los datos actuales correspondientes. ¿Deseas continuar?"
 		);
 		if (!ok) return;
 
-		document.querySelectorAll(".am-restore-btn").forEach(function (el) {
+		document.querySelectorAll(".am-restore-btn, .am-restore-scope").forEach(function (el) {
 			el.disabled = true;
 		});
 		if (runBtn) runBtn.disabled = true;
 
 		updateLiveUI({
-			phase: "Iniciando restauración...",
+			phase: "Iniciando restauración (" + scopeText + ")...",
 			percent: 5,
-			logs: ["Iniciando restauración de la copia " + label + "..."],
+			logs: ["Iniciando restauración (" + scopeText + ") de la copia " + label + "..."],
 		});
 
 		if (livePanel && livePanel.scrollIntoView) {
@@ -155,6 +160,7 @@
 		body.append("action", "alminuto_backup_restore");
 		body.append("nonce", payload.ajaxNonce);
 		body.append("backup_id", backupId);
+		body.append("scope", scope);
 
 		fetch(payload.ajaxUrl, {
 			method: "POST",

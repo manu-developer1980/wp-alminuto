@@ -144,9 +144,38 @@ function alminuto_backup_action_oauth_callback() {
 		alminuto_backup_admin_redirect( 'error', $res->get_error_message() );
 	}
 
+	$synced = Alminuto_Backup_Engine::sync_from_drive();
+	if ( ! is_wp_error( $synced ) && $synced > 0 ) {
+		alminuto_backup_admin_redirect(
+			'success',
+			sprintf( __( 'Google Drive conectado correctamente. Detectadas %d copias en la carpeta.', 'alminuto-theme' ), (int) $synced )
+		);
+	}
+
 	alminuto_backup_admin_redirect( 'success', __( 'Google Drive conectado correctamente.', 'alminuto-theme' ) );
 }
 add_action( 'admin_post_alminuto_backup_oauth', 'alminuto_backup_action_oauth_callback' );
+
+/**
+ * Scans Google Drive folder and syncs existing backups into local history.
+ */
+function alminuto_backup_action_sync() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Permisos insuficientes.', 'alminuto-theme' ) );
+	}
+	check_admin_referer( 'alminuto_backup_sync', 'nonce' );
+
+	$synced = Alminuto_Backup_Engine::sync_from_drive();
+	if ( is_wp_error( $synced ) ) {
+		alminuto_backup_admin_redirect( 'error', $synced->get_error_message() );
+	}
+
+	alminuto_backup_admin_redirect(
+		'success',
+		sprintf( __( 'Sincronización completada: %d copias encontradas en Google Drive.', 'alminuto-theme' ), (int) $synced )
+	);
+}
+add_action( 'admin_post_alminuto_backup_sync', 'alminuto_backup_action_sync' );
 
 /**
  * Tests Google Drive connection.
@@ -261,7 +290,8 @@ function alminuto_backup_ajax_restore() {
 		wp_send_json_error( [ 'message' => __( 'ID de copia inválido.', 'alminuto-theme' ) ], 400 );
 	}
 
-	$result = Alminuto_Backup_Engine::restore( $backup_id );
+	$scope  = isset( $_POST['scope'] ) ? sanitize_text_field( wp_unslash( $_POST['scope'] ) ) : 'all';
+	$result = Alminuto_Backup_Engine::restore( $backup_id, $scope );
 	wp_send_json_success( $result );
 }
 add_action( 'wp_ajax_alminuto_backup_restore', 'alminuto_backup_ajax_restore' );
