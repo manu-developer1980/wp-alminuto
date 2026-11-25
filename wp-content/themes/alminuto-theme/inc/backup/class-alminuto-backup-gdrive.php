@@ -386,9 +386,10 @@ class Alminuto_Backup_GDrive {
 	 * @param string        $mime_type   MIME type.
 	 * @param string        $backup_id   Shared backup run identifier for retention grouping.
 	 * @param callable|null $log_cb      Optional logger callback.
+	 * @param callable|null $progress_cb Optional progress callback( int $sent_bytes, int $total_bytes ).
 	 * @return array|WP_Error File metadata (id, name, size, webViewLink).
 	 */
-	public static function upload_file( $local_path, $remote_name, $mime_type, $backup_id, $log_cb = null ) {
+	public static function upload_file( $local_path, $remote_name, $mime_type, $backup_id, $log_cb = null, $progress_cb = null ) {
 		if ( ! file_exists( $local_path ) || ! is_readable( $local_path ) ) {
 			return new WP_Error( 'file_missing', sprintf( 'Archivo local no encontrado: %s', $local_path ) );
 		}
@@ -483,10 +484,16 @@ class Alminuto_Backup_GDrive {
 				$code = wp_remote_retrieve_response_code( $put_res );
 				if ( $code === 308 ) {
 					$offset += $len;
+					if ( is_callable( $progress_cb ) ) {
+						call_user_func( $progress_cb, $offset, $file_size );
+					}
 					continue;
 				}
 
 				if ( $code >= 200 && $code < 300 ) {
+					if ( is_callable( $progress_cb ) ) {
+						call_user_func( $progress_cb, $file_size, $file_size );
+					}
 					$decoded  = json_decode( wp_remote_retrieve_body( $put_res ), true );
 					$uploaded = is_array( $decoded ) ? $decoded : [ 'id' => '', 'name' => $remote_name ];
 					break;

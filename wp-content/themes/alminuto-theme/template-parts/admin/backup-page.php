@@ -15,6 +15,7 @@ $redirect_uri    = Alminuto_Backup_GDrive::get_redirect_uri();
 $schedule        = Alminuto_Backup_Scheduler::get_settings();
 $next_run_ts     = Alminuto_Backup_Scheduler::get_next_scheduled();
 $last_backup     = Alminuto_Backup_Engine::get_last_backup();
+$live_status     = Alminuto_Backup_Engine::get_live_status();
 $history         = Alminuto_Backup_Engine::get_history();
 $upcoming_dates  = Alminuto_Backup_Scheduler::project_upcoming_dates( $schedule, 90 );
 $tz_string       = wp_timezone_string();
@@ -44,6 +45,9 @@ $calendar_payload = [
 	'today'     => wp_date( 'Y-m-d' ),
 	'scheduled' => $upcoming_dates,
 	'history'   => $history_by_date,
+	'live'      => $live_status,
+	'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
+	'ajaxNonce' => wp_create_nonce( 'alminuto_backup_ajax' ),
 ];
 
 $weekdays = [
@@ -93,6 +97,9 @@ $weekdays = [
 		.am-cal-legend { display: flex; gap: 14px; font-size: 12px; color: #50575e; margin-top: 10px; flex-wrap: wrap; }
 		.am-inline-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
 		.am-log-box { background: #1d2327; color: #dcdcde; padding: 10px; font-family: monospace; font-size: 12px; max-height: 180px; overflow: auto; border-radius: 3px; margin-top: 6px; white-space: pre-wrap; }
+		.am-live-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f1; }
+		.am-progress-track { width: 100%; height: 14px; background: #f0f0f1; border-radius: 7px; overflow: hidden; margin: 6px 0 8px; }
+		.am-progress-bar { height: 100%; background: #2271b1; transition: width 0.3s ease; width: 0%; }
 	</style>
 
 	<div class="am-backup-grid">
@@ -172,14 +179,25 @@ $weekdays = [
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="am-backup-run-now-form">
 						<input type="hidden" name="action" value="alminuto_backup_run_now" />
 						<?php wp_nonce_field( 'alminuto_backup_run_now', 'alminuto_backup_run_nonce' ); ?>
-						<button type="submit" class="button button-primary button-hero" <?php disabled( ! $is_connected ); ?>>
-							<?php esc_html_e( 'Ejecutar copia ahora', 'alminuto-theme' ); ?>
+						<button type="submit" class="button button-primary button-hero" id="am-backup-run-btn" <?php disabled( ! $is_connected || ! empty( $live_status['running'] ) ); ?>>
+							<?php echo ! empty( $live_status['running'] ) ? esc_html__( 'Copia en curso...', 'alminuto-theme' ) : esc_html__( 'Ejecutar copia ahora', 'alminuto-theme' ); ?>
 						</button>
 					</form>
 					<?php if ( ! $is_connected ) : ?>
 						<p class="description" style="margin-top:6px;"><?php esc_html_e( 'Conecta Google Drive para habilitar.', 'alminuto-theme' ); ?></p>
 					<?php endif; ?>
 				</div>
+			</div>
+
+			<div class="am-live-panel" id="am-live-panel" style="<?php echo ! empty( $live_status['running'] ) ? '' : 'display:none;'; ?>">
+				<div style="display:flex;justify-content:space-between;align-items:center;">
+					<strong id="am-live-phase"><?php echo esc_html( (string) ( $live_status['phase'] ?: __( 'Copia en curso...', 'alminuto-theme' ) ) ); ?></strong>
+					<span id="am-live-percent"><?php echo esc_html( (string) (int) $live_status['percent'] ); ?>%</span>
+				</div>
+				<div class="am-progress-track">
+					<div class="am-progress-bar" id="am-live-bar" style="width:<?php echo esc_attr( (string) (int) $live_status['percent'] ); ?>%;"></div>
+				</div>
+				<div class="am-log-box" id="am-live-logs"><?php echo esc_html( implode( "\n", $live_status['logs'] ) ); ?></div>
 			</div>
 		</section>
 

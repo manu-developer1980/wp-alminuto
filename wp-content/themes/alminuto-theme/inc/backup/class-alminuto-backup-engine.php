@@ -16,6 +16,7 @@ class Alminuto_Backup_Engine {
 
 	const LAST_OPTION    = 'alminuto_backup_last';
 	const HISTORY_OPTION = 'alminuto_backup_history';
+	const LIVE_OPTION    = 'alminuto_backup_live_status';
 	const LOCK_TRANSIENT = 'alminuto_backup_running_lock';
 	const MAX_HISTORY    = 20;
 
@@ -64,6 +65,38 @@ class Alminuto_Backup_Engine {
 	}
 
 	/**
+	 * Returns the live status of an in-progress (or just-finished) backup.
+	 *
+	 * @return array
+	 */
+	public static function get_live_status() {
+		$is_locked = (bool) get_transient( self::LOCK_TRANSIENT );
+		$live      = get_option( self::LIVE_OPTION, [] );
+		if ( ! is_array( $live ) ) {
+			$live = [];
+		}
+		return [
+			'running'    => $is_locked && ! empty( $live['running'] ),
+			'phase'      => (string) ( $live['phase'] ?? '' ),
+			'percent'    => (int) ( $live['percent'] ?? 0 ),
+			'started_at' => (int) ( $live['started_at'] ?? 0 ),
+			'status'     => (string) ( $live['status'] ?? '' ),
+			'message'    => (string) ( $live['message'] ?? '' ),
+			'logs'       => isset( $live['logs'] ) && is_array( $live['logs'] ) ? $live['logs'] : [],
+		];
+	}
+
+	/**
+	 * Persists live progress for real-time UI polling.
+	 *
+	 * @param array $data Live status fields.
+	 * @return void
+	 */
+	private static function update_live_status( array $data ) {
+		update_option( self::LIVE_OPTION, $data, false );
+	}
+
+	/**
 	 * Runs a full or partial backup and uploads to Google Drive.
 	 *
 	 * @param array $args {
@@ -89,6 +122,9 @@ class Alminuto_Backup_Engine {
 			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			@set_time_limit( 0 );
 		}
+		if ( function_exists( 'ignore_user_abort' ) ) {
+			ignore_user_abort( true );
+		}
 
 		$settings      = Alminuto_Backup_Scheduler::get_settings();
 		$include_db    = isset( $args['include_db'] ) ? (bool) $args['include_db'] : (bool) $settings['include_db'];
@@ -109,10 +145,29 @@ class Alminuto_Backup_Engine {
 		$total_bytes = 0;
 		$db_bytes    = 0;
 		$media_bytes = 0;
+		$live_phase  = __( 'Iniciando copia...', 'alminuto-theme' );
+		$live_pct    = 5;
 
-		$log_cb = static function ( $msg ) use ( &$logs ) {
-			$logs[] = '[' . wp_date( 'Y-m-d H:i:s' ) . '] ' . $msg;
+		$sync_live = static function ( $running = true, $status = '', $message = '' ) use ( &$logs, &$live_phase, &$live_pct, $started_at ) {
+			self::update_live_status(
+				[
+					'running'    => $running,
+					'phase'      => $live_phase,
+					'percent'    => $live_pct,
+					'started_at' => $started_at,
+					'status'     => $status,
+					'message'    => $message,
+					'logs'       => $logs,
+				]
+			);
 		};
+
+		$log_cb = static function ( $msg ) use ( &$logs, $sync_live ) {
+			$logs[] = '[' . wp_date( 'Y-m-d H:i:s' ) . '] ' . $msg;
+			$sync_live( true );
+		};
+
+		$sync_live( true );
 
 		try {
 			if ( ! $include_db && ! $include_media ) {
@@ -124,18 +179,29 @@ class Alminuto_Backup_Engine {
 			}
 
 			if ( $include_db ) {
-				$use_gz   = function_exists( 'gzopen' );
-				$ext      = $use_gz ? 'sql.gz' : 'sql';
-				$db_name  = sprintf( '%s-%s-db.%s', $site_slug, $stamp, $ext );
-				$db_path  = $temp_dir . '/' . $db_name;
+				$use_gz       = function_exists( 'gzopen' );
+				$ext          = $use_gz ? 'sql.gz' : 'sql';
+				$db_name      = sprintf( '%s-%s-db.%s', $site_slug, $stamp, $ext );
+				$db_path      = $temp_dir . '/' . $db_name;
 				$temp_files[] = $db_path;
 
+				$live_phase = __( 'Exportando base de datos...', 'alminuto-theme' );
+				$live_pct   = 15;
 				$log_cb( 'Exportando base de datos...' );
 				$db_bytes = self::export_database( $db_path, $use_gz );
+				$live_pct = 30;
 				$log_cb( sprintf( 'BBDD exportada (%s).', size_format( $db_bytes ) ) );
 
+				$live_phase  = __( 'Subiendo BBDD a Google Drive...', 'alminuto-theme' );
+				$progress_db = static function ( $sent, $total ) use ( &$live_phase, &$live_pct, $sync_live ) {
+					$ratio      = $total > 0 ? ( $sent / $total ) : 1;
+					$live_pct   = (int) round( 30 + ( $ratio * 15 ) );
+					$live_phase = sprintf( 'Subiendo BBDD a Google Drive (%d%%)...', (int) round( $ratio * 100 ) );
+					$sync_live( true );
+				};
+
 				$mime     = $use_gz ? 'application/gzip' : 'application/sql';
-				$uploaded = Alminuto_Backup_GDrive::upload_file( $db_path, $db_name, $mime, $backup_id, $log_cb );
+				$uploaded = Alminuto_Backup_GDrive::upload_file( $db_path, $db_name, $mime, $backup_id, $log_cb, $progress_db );
 				if ( is_wp_error( $uploaded ) ) {
 					throw new RuntimeException( $uploaded->get_error_message() );
 				}
@@ -150,15 +216,31 @@ class Alminuto_Backup_Engine {
 			}
 
 			if ( $include_media ) {
-				$media_name = sprintf( '%s-%s-media.zip', $site_slug, $stamp );
-				$media_path = $temp_dir . '/' . $media_name;
+				$media_name   = sprintf( '%s-%s-media.zip', $site_slug, $stamp );
+				$media_path   = $temp_dir . '/' . $media_name;
 				$temp_files[] = $media_path;
 
+				$live_phase = __( 'Empaquetando carpeta de medios (uploads)...', 'alminuto-theme' );
+				$live_pct   = 50;
 				$log_cb( 'Empaquetando carpeta de medios (uploads)...' );
 				$media_bytes = self::export_media( $media_path );
+				$live_pct    = 65;
 				$log_cb( sprintf( 'Media empaquetada (%s).', size_format( $media_bytes ) ) );
 
-				$uploaded = Alminuto_Backup_GDrive::upload_file( $media_path, $media_name, 'application/zip', $backup_id, $log_cb );
+				$live_phase     = __( 'Subiendo Media a Google Drive...', 'alminuto-theme' );
+				$progress_media = static function ( $sent, $total ) use ( &$live_phase, &$live_pct, $sync_live ) {
+					$ratio      = $total > 0 ? ( $sent / $total ) : 1;
+					$live_pct   = (int) round( 65 + ( $ratio * 30 ) );
+					$live_phase = sprintf(
+						'Subiendo Media a Google Drive (%d%% · %s / %s)...',
+						(int) round( $ratio * 100 ),
+						size_format( $sent ),
+						size_format( $total )
+					);
+					$sync_live( true );
+				};
+
+				$uploaded = Alminuto_Backup_GDrive::upload_file( $media_path, $media_name, 'application/zip', $backup_id, $log_cb, $progress_media );
 				if ( is_wp_error( $uploaded ) ) {
 					throw new RuntimeException( $uploaded->get_error_message() );
 				}
@@ -173,45 +255,53 @@ class Alminuto_Backup_Engine {
 			}
 
 			if ( $retention > 0 ) {
+				$live_phase = __( 'Aplicando retención en Google Drive...', 'alminuto-theme' );
+				$live_pct   = 96;
+				$sync_live( true );
 				Alminuto_Backup_GDrive::enforce_retention( $retention, $log_cb );
 			}
 
 			$finished_at = time();
+			$live_phase  = __( 'Copia completada', 'alminuto-theme' );
+			$live_pct    = 100;
 			$result      = [
-				'backup_id'   => $backup_id,
-				'status'      => 'success',
-				'trigger'     => $trigger,
-				'started_at'  => $started_at,
-				'finished_at' => $finished_at,
-				'duration'    => max( 1, $finished_at - $started_at ),
-				'include_db'  => $include_db,
+				'backup_id'     => $backup_id,
+				'status'        => 'success',
+				'trigger'       => $trigger,
+				'started_at'    => $started_at,
+				'finished_at'   => $finished_at,
+				'duration'      => max( 1, $finished_at - $started_at ),
+				'include_db'    => $include_db,
 				'include_media' => $include_media,
-				'db_bytes'    => $db_bytes,
-				'media_bytes' => $media_bytes,
-				'total_bytes' => $total_bytes,
-				'files'       => $drive_files,
-				'message'     => __( 'Copia completada y subida a Google Drive.', 'alminuto-theme' ),
-				'logs'        => $logs,
+				'db_bytes'      => $db_bytes,
+				'media_bytes'   => $media_bytes,
+				'total_bytes'   => $total_bytes,
+				'files'         => $drive_files,
+				'message'       => __( 'Copia completada y subida a Google Drive.', 'alminuto-theme' ),
+				'logs'          => $logs,
 			];
+			$sync_live( false, 'success', $result['message'] );
 		} catch ( Throwable $e ) {
 			$finished_at = time();
-			$log_cb( 'ERROR: ' . $e->getMessage() );
-			$result = [
-				'backup_id'   => $backup_id,
-				'status'      => 'error',
-				'trigger'     => $trigger,
-				'started_at'  => $started_at,
-				'finished_at' => $finished_at,
-				'duration'    => max( 1, $finished_at - $started_at ),
-				'include_db'  => $include_db,
+			$live_phase  = __( 'Error en la copia', 'alminuto-theme' );
+			$logs[]      = '[' . wp_date( 'Y-m-d H:i:s' ) . '] ERROR: ' . $e->getMessage();
+			$result      = [
+				'backup_id'     => $backup_id,
+				'status'        => 'error',
+				'trigger'       => $trigger,
+				'started_at'    => $started_at,
+				'finished_at'   => $finished_at,
+				'duration'      => max( 1, $finished_at - $started_at ),
+				'include_db'    => $include_db,
 				'include_media' => $include_media,
-				'db_bytes'    => $db_bytes,
-				'media_bytes' => $media_bytes,
-				'total_bytes' => $total_bytes,
-				'files'       => $drive_files,
-				'message'     => $e->getMessage(),
-				'logs'        => $logs,
+				'db_bytes'      => $db_bytes,
+				'media_bytes'   => $media_bytes,
+				'total_bytes'   => $total_bytes,
+				'files'         => $drive_files,
+				'message'       => $e->getMessage(),
+				'logs'          => $logs,
 			];
+			$sync_live( false, 'error', $e->getMessage() );
 		} finally {
 			foreach ( $temp_files as $file ) {
 				if ( file_exists( $file ) ) {

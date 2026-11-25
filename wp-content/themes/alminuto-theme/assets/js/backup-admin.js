@@ -29,6 +29,64 @@
 		});
 	}
 
+	var payload = window.alminutoBackupCalendar || { today: "", scheduled: {}, history: {}, live: {}, ajaxUrl: "", ajaxNonce: "" };
+	var livePanel = document.getElementById("am-live-panel");
+	var livePhase = document.getElementById("am-live-phase");
+	var livePercent = document.getElementById("am-live-percent");
+	var liveBar = document.getElementById("am-live-bar");
+	var liveLogs = document.getElementById("am-live-logs");
+	var runBtn = document.getElementById("am-backup-run-btn");
+	var pollTimer = null;
+
+	function updateLiveUI(data) {
+		if (!livePanel || !data) return;
+		livePanel.style.display = "";
+		if (livePhase) livePhase.textContent = data.phase || "Ejecutando copia...";
+		var pct = typeof data.percent === "number" ? data.percent : parseInt(data.percent || "0", 10);
+		if (isNaN(pct)) pct = 0;
+		if (livePercent) livePercent.textContent = pct + "%";
+		if (liveBar) liveBar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+		if (liveLogs && Array.isArray(data.logs)) {
+			liveLogs.textContent = data.logs.join("\n");
+			liveLogs.scrollTop = liveLogs.scrollHeight;
+		}
+	}
+
+	function stopPollingAndReload() {
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
+		setTimeout(function () {
+			window.location.reload();
+		}, 1200);
+	}
+
+	function pollStatus() {
+		if (!payload.ajaxUrl || !payload.ajaxNonce) return;
+		var url = payload.ajaxUrl + "?action=alminuto_backup_status&nonce=" + encodeURIComponent(payload.ajaxNonce);
+		fetch(url, { credentials: "same-origin" })
+			.then(function (res) { return res.json(); })
+			.then(function (json) {
+				if (!json || !json.success || !json.data) return;
+				updateLiveUI(json.data);
+				if (!json.data.running) {
+					stopPollingAndReload();
+				}
+			})
+			.catch(function () {});
+	}
+
+	function startPolling() {
+		if (pollTimer) return;
+		pollTimer = setInterval(pollStatus, 2000);
+		pollStatus();
+	}
+
+	if (payload.live && payload.live.running) {
+		startPolling();
+	}
+
 	var runForm = document.getElementById("am-backup-run-now-form");
 	if (runForm) {
 		runForm.addEventListener("submit", function (e) {
@@ -37,10 +95,28 @@
 				e.preventDefault();
 				return;
 			}
-			var btn = runForm.querySelector("button[type=submit]");
-			if (btn) {
-				btn.disabled = true;
-				btn.textContent = "Ejecutando copia...";
+			if (payload.ajaxUrl && payload.ajaxNonce && window.fetch) {
+				e.preventDefault();
+				if (runBtn) {
+					runBtn.disabled = true;
+					runBtn.textContent = "Copia en curso...";
+				}
+				updateLiveUI({ phase: "Iniciando copia...", percent: 5, logs: ["Iniciando copia de seguridad..."] });
+
+				var body = new FormData();
+				body.append("action", "alminuto_backup_start");
+				body.append("nonce", payload.ajaxNonce);
+
+				fetch(payload.ajaxUrl, {
+					method: "POST",
+					credentials: "same-origin",
+					body: body,
+				}).catch(function () {});
+
+				setTimeout(startPolling, 600);
+			} else if (runBtn) {
+				runBtn.disabled = true;
+				runBtn.textContent = "Ejecutando copia...";
 			}
 		});
 	}
@@ -50,7 +126,6 @@
 	var calTitle = document.getElementById("am-cal-title");
 	var prevBtn = document.getElementById("am-cal-prev");
 	var nextBtn = document.getElementById("am-cal-next");
-	var payload = window.alminutoBackupCalendar || { today: "", scheduled: {}, history: {} };
 
 	if (calGrid && calTitle) {
 		var monthNames = [

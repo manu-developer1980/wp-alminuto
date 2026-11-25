@@ -221,6 +221,33 @@ function alminuto_backup_action_run_now() {
 add_action( 'admin_post_alminuto_backup_run_now', 'alminuto_backup_action_run_now' );
 
 /**
+ * AJAX: Returns live status and logs of an active or recently finished backup.
+ */
+function alminuto_backup_ajax_status() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => __( 'Permisos insuficientes.', 'alminuto-theme' ) ], 403 );
+	}
+	check_ajax_referer( 'alminuto_backup_ajax', 'nonce' );
+
+	wp_send_json_success( Alminuto_Backup_Engine::get_live_status() );
+}
+add_action( 'wp_ajax_alminuto_backup_status', 'alminuto_backup_ajax_status' );
+
+/**
+ * AJAX: Starts a manual backup (runs with ignore_user_abort so polling can track it).
+ */
+function alminuto_backup_ajax_start() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => __( 'Permisos insuficientes.', 'alminuto-theme' ) ], 403 );
+	}
+	check_ajax_referer( 'alminuto_backup_ajax', 'nonce' );
+
+	$result = Alminuto_Backup_Engine::run( [ 'trigger' => 'manual' ] );
+	wp_send_json_success( $result );
+}
+add_action( 'wp_ajax_alminuto_backup_start', 'alminuto_backup_ajax_start' );
+
+/**
  * Renders the Copias de seguridad admin page.
  */
 function alminuto_theme_render_backups_page() {
