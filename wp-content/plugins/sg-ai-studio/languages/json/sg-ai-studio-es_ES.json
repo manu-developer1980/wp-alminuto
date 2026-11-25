@@ -1,1 +1,1531 @@
-{"":{"domain":"sg-ai-studio","plural_forms":"nplurals=2; plural=n != 1;","lang":"es_ES"}," and connect the plugin via a unique token. Websites hosted on SiteGround platform will be connected automatically.":[" y conecta el plugin mediante un token \u00fanico. Los sitios web alojados en la plataforma SiteGround se conectar\u00e1n autom\u00e1ticamente."]," or any other plugin using the Connectors framework. Enabling\/disabling this Connector will not impact the work of your SiteGround AI Agent which will remain operational as long as its own plugin is installed and active.":[" o cualquier otro complemento que utilice el marco de trabajo de Conectores. Habilitar o deshabilitar este Conector no afectar\u00e1 el funcionamiento de su Agente de IA de SiteGround, que seguir\u00e1 operativo siempre que su propio complemento est\u00e9 instalado y activo."],"%(fromItem)d-%(toItem)d of %(totalItems)d":["%(fromItem)d-%(toItem)d de %(totalItems)d"],"%d language pack(s) updated successfully.":["%d paquetes de idioma actualizados correctamente."],"%d Star":["%d Estrella"],"**Hi! I am your WordPress AI Assistant. How can I help you manage your site today?**":["**\u00a1Hola! Soy tu asistente de IA para WordPress. \u00bfEn qu\u00e9 puedo ayudarte a gestionar tu sitio hoy?**"],"**Hi! I am your WordPress AI Assistant. How can I help you manage your store today?**":["**\u00a1Hola! Soy tu asistente de IA para WordPress. \u00bfEn qu\u00e9 puedo ayudarte a gestionar tu tienda hoy?**"],"A category cannot be its own parent.":["Una categor\u00eda no puede ser su propia categor\u00eda padre."],"A WooCommerce category cannot be its own parent.":["Una categor\u00eda de WooCommerce no puede ser su propia categor\u00eda principal."],"Activity":["Actividad"],"Activity Log":["Registro de actividad"],"Add Token":["Agregar token"],"Add tokens":["Agregar tokens"],"AI Agent":["Agente de IA"],"AI Agent by SiteGround":["Agente de IA de SiteGround"],"AI Agent Plugin Activation":["Activaci\u00f3n del plugin del agente de IA"],"AI Agent Settings":["Configuraci\u00f3n del agente de IA"],"AI plugin":["complemento de IA"],"AI request failed: %s":["La solicitud de IA fall\u00f3: %s"],"AI service did not generate any images. Debug: %s":["El servicio de IA no gener\u00f3 ninguna imagen. Depuraci\u00f3n: %s"],"AI service returned an empty response.":["El servicio de IA devolvi\u00f3 una respuesta vac\u00eda."],"AI STUDIO":["ESTUDIO DE IA"],"AI Studio has been removed from WordPress AI features. Your AI Studio plugin connection and credentials remain intact.":["AI Studio se ha eliminado de las funciones de IA de WordPress. La conexi\u00f3n y las credenciales de su plugin AI Studio permanecen intactas."],"AI Studio is not connected. Please connect first.":["AI Studio no est\u00e1 conectado. Con\u00e9ctese primero."],"AI Studio is now available for WordPress AI features.":["AI Studio ya est\u00e1 disponible para las funciones de IA de WordPress."],"AI Studio Provider Disconnected":["Proveedor de AI Studio desconectado"],"AI Studio provider disconnected successfully. The plugin remains connected.":["El proveedor de AI Studio se desconect\u00f3 correctamente. El complemento permanece conectado."],"AI Studio Provider Reconnected":["Proveedor de estudios de IA reconectado"],"AI Studio provider reconnected successfully.":["El proveedor de AI Studio se ha reconectado correctamente."],"All Coupons":["Todos los cupones"],"All Customers":["Todos los clientes"],"All language packs are up to date.":["Todos los paquetes de idiomas est\u00e1n actualizados."],"All Reviews":["Todas las rese\u00f1as"],"Apply a 20% discount to all products in category (keeping Regular price unchanged)":["Aplica un 20% de descuento a todos los productos de la categor\u00eda (manteniendo el precio habitual sin cambios)."],"Are you sure you want to proceed?":["\u00bfEst\u00e1 seguro de que desea continuar?"],"Ask me anything WordPress related and I'll help.":["Preg\u00fantame cualquier cosa relacionada con WordPress y te ayudar\u00e9."],"Audit & Optimize":["Auditor\u00eda y optimizaci\u00f3n"],"Authentication error: ":["Error de autenticaci\u00f3n:"],"Authentication error: %s":["Error de autenticaci\u00f3n: %s"],"Authentication initialized successfully.":["Autenticaci\u00f3n inicializada correctamente."],"Authentication keys refreshed successfully.":["Las claves de autenticaci\u00f3n se actualizaron correctamente."],"Authorization header missing.":["Falta el encabezado de autorizaci\u00f3n."],"Batch Comment Creation: %1$d created, %2$d errors":["Creaci\u00f3n de comentarios por lotes: %1$d creados, %2$d errores"],"Batch Comment Deletion: %1$d deleted, %2$d errors":["Eliminaci\u00f3n de comentarios por lotes: %1$d eliminados, %2$d errores"],"Batch Comment Update: %1$d updated, %2$d errors":["Actualizaci\u00f3n de comentarios por lotes: %1$d actualizado, %2$d errores"],"Batch Media Moved to Trash: %1$d deleted, %2$d errors":["Archivos multimedia movidos a la papelera: %1$d eliminados, %2$d errores"],"Batch Media Permanently Deleted: %1$d deleted, %2$d errors":["Archivos multimedia eliminados permanentemente: %1$d eliminados, %2$d errores"],"Batch Media Update: %1$d updated, %2$d errors":["Actualizaci\u00f3n de medios por lotes: %1$d actualizados, %2$d errores"],"Bulk Actions":["Acciones en masa"],"Cache cleared successfully.":["Cach\u00e9 borrada correctamente."],"Cache Cleared: All caches have been cleared":["Cach\u00e9 borrada: Se han borrado todas las cach\u00e9s."],"cancel":["Cancelar"],"Cannot delete an active plugin. Please deactivate it first.":["No se puede eliminar un plugin activo. Desact\u00edvelo primero."],"Cannot delete the active theme.":["No se puede eliminar el tema activo."],"Cannot delete the parent of the active theme.":["No se puede eliminar el tema principal del tema activo."],"Category Created: %1$s (ID: %2$d)":["Categor\u00eda creada: %1$s (ID: %2$d)"],"Category Deleted: %1$s (ID: %2$d)":["Categor\u00eda eliminada: %1$s (ID: %2$d)"],"Category Updated: %1$s (ID: %2$d)":["Categor\u00eda actualizada: %1$s (ID: %2$d)"],"Check if my site, plugins and themes are up-to-date":["Comprueba si mi sitio, plugins y temas est\u00e1n actualizados."],"Circular parent relationship detected. A category cannot be a descendant of itself.":["Se ha detectado una relaci\u00f3n jer\u00e1rquica circular. Una categor\u00eda no puede ser descendiente de s\u00ed misma."],"Circular parent relationship detected. A WooCommerce category cannot be a descendant of itself.":["Se ha detectado una relaci\u00f3n de parentesco circular. Una categor\u00eda de WooCommerce no puede ser descendiente de s\u00ed misma."],"Comment Created on: %1$s (Comment ID: %2$d)":["Comentario creado el: %1$s (ID del comentario: %2$d)"],"Comment creation failed.":["Error al crear el comentario."],"Comment ID is required for updating comments.":["Se requiere el ID del comentario para actualizar los comentarios."],"Comment moderation failed.":["La moderaci\u00f3n de comentarios fall\u00f3."],"Comment Moved to Trash from: %1$s (Comment ID: %2$d)":["Comentario movido a la papelera desde: %1$s (ID del comentario: %2$d)"],"Comment Permanently Deleted from: %1$s (Comment ID: %2$d)":["Comentario eliminado permanentemente de: %1$s (ID del comentario: %2$d)"],"Comment Status Changed to %1$s on: %2$s (Comment ID: %3$d)":["El estado del comentario cambi\u00f3 a %1$s el: %2$s (ID del comentario: %3$d)"],"Comment status changed to %s.":["El estado del comentario cambi\u00f3 a %s."],"Comment update failed.":["Error al actualizar el comentario."],"Comment Updated on: %1$s (Comment ID: %2$d)":["Comentario actualizado el: %1$s (ID del comentario: %2$d)"],"Comments are closed for this post.":["Los comentarios est\u00e1n cerrados para esta publicaci\u00f3n."],"Confirm":["Confirmar"],"Connect":["Conectar"],"Connected":["Conectado"],"Connected status has been updated successfully.":["El estado de conexi\u00f3n se ha actualizado correctamente."],"Connector Settings":["Configuraci\u00f3n del conector"],"Core Update Failed: %s":["Error en la actualizaci\u00f3n del n\u00facleo: %s"],"Core Updated: WordPress updated to version %s":["N\u00facleo actualizado: WordPress actualizado a la versi\u00f3n %s"],"Could not determine file type.":["No se pudo determinar el tipo de archivo."],"Could not download file from URL.":["No se pudo descargar el archivo desde la URL."],"Couldn't process the request. Please try again.":["No se pudo procesar la solicitud. Int\u00e9ntelo de nuevo."],"Coupon Created: %1$s (Coupon ID: %2$d)":["Cup\u00f3n creado: %1$s (ID del cup\u00f3n: %2$d)"],"Coupon Deleted: %1$s (Coupon ID: %2$d)":["Cup\u00f3n eliminado: %1$s (ID del cup\u00f3n: %2$d)"],"Coupon ID is required for updating coupons.":["Se requiere el ID del cup\u00f3n para actualizar los cupones."],"Coupon Updated: %1$s (Coupon ID: %2$d)":["Cup\u00f3n actualizado: %1$s (ID del cup\u00f3n: %2$d)"],"Create & Generate":["Crear y generar"],"Create 10 blog post title ideas":["Crea 10 ideas para t\u00edtulos de entradas de blog."],"Create 3 new parent post categories with 5 sub-categories for each":["Crea 3 nuevas categor\u00edas de publicaciones principales con 5 subcategor\u00edas para cada una."],"Create 5 blog post drafts at once":["Crea 5 borradores de entradas de blog a la vez."],"Create a new page from scratch (with Gutenberg building blocks)":["Crea una p\u00e1gina nueva desde cero (con los bloques de construcci\u00f3n de Gutenberg)."],"Data parameter is required.":["Se requiere un par\u00e1metro de datos."],"Date":["Fecha"],"Delete all spam comments":["Eliminar todos los comentarios de spam"],"Description is required.":["Se requiere descripci\u00f3n."],"Details":["Detalles"],"Disconnect":["Desconectar"],"Disconnect completed with some errors during local cleanup.":["La desconexi\u00f3n se complet\u00f3 con algunos errores durante la limpieza local."],"Disconnect completed with some errors.":["La desconexi\u00f3n se complet\u00f3 con algunos errores."],"Disconnect from AI Studio":["Descon\u00e9ctate de AI Studio"],"Do site maintenance":["Realizar el mantenimiento del sitio"],"Domain updated successfully.":["Dominio actualizado correctamente."],"Draft":["Borrador"],"Drop Your Files Here To Upload":["Arrastra tus archivos aqu\u00ed para subirlos"],"Dynamic-keys API returned an error.":["La API de claves din\u00e1micas devolvi\u00f3 un error."],"Email address already exists.":["La direcci\u00f3n de correo electr\u00f3nico ya existe."],"Enable":["Permitir"],"Enable Power Mode to continue. Note: Power Mode may modify your site's content or settings. Tap Learn more for details before enabling.":["Activa el Modo Acelerado para continuar. Nota: El Modo Acelerado puede modificar el contenido o la configuraci\u00f3n de tu sitio. Pulsa M\u00e1s informaci\u00f3n para ver los detalles antes de activarlo."],"Enable the connection to AI Studio by pasting your secret connection token.":["Habilita la conexi\u00f3n con AI Studio pegando tu token de conexi\u00f3n secreto."],"Every 29 Days":["Cada 29 d\u00edas"],"Every WordPress task.":["Todas las tareas de WordPress."],"Failed to connect to AI Studio API.":["No se pudo conectar con la API de AI Studio."],"Failed to connect to dynamic-keys API.":["No se pudo conectar con la API de claves din\u00e1micas."],"Failed to delete the image.":["No se pudo eliminar la imagen."],"Failed to disconnect provider.":["No se pudo desconectar al proveedor."],"Failed to fetch ACL data.":["No se pudieron obtener los datos de la ACL."],"Failed to fetch usage data.":["No se pudieron obtener los datos de uso."],"Failed to generate authentication token for dynamic-keys API.":["No se pudo generar el token de autenticaci\u00f3n para la API de claves din\u00e1micas."],"Failed to generate authentication token.":["No se pudo generar el token de autenticaci\u00f3n."],"Failed to update connected status.":["No se pudo actualizar el estado de conexi\u00f3n."],"Failed to update domain.":["No se pudo actualizar el dominio."],"Failed to update powermode setting.":["No se pudo actualizar la configuraci\u00f3n del modo de energ\u00eda."],"Failed to update provider connected status.":["No se pudo actualizar el estado de conexi\u00f3n del proveedor."],"Failed to update setting \"%s\".":["No se pudo actualizar la configuraci\u00f3n \"%s\"."],"File claims to be an image but is not a valid image format.":["El archivo afirma ser una imagen, pero no tiene un formato de imagen v\u00e1lido."],"File contains forbidden extension \"%s\" in the filename. Executable files cannot be uploaded.":["El archivo contiene la extensi\u00f3n prohibida \"%s\" en el nombre. No se pueden subir archivos ejecutables."],"File content mismatch. File with extension \"%1$s\" has content type \"%2$s\" but expected one of: %3$s":["Discrepancia en el contenido del archivo. El archivo con extensi\u00f3n \"%1$s\" tiene un tipo de contenido \"%2$s\", pero se esperaba uno de los siguientes: %3$s"],"File extension \"%s\" is not allowed.":["La extensi\u00f3n de archivo \"%s\" no est\u00e1 permitida."],"File has been deleted":["El archivo ha sido eliminado"],"File has no extension.":["El archivo no tiene extensi\u00f3n."],"File Size up to: 20MB":["Tama\u00f1o m\u00e1ximo del archivo: 20 MB"],"File type \"%s\" is not allowed by WordPress.":["WordPress no permite el tipo de archivo \"%s\"."],"File type \"%s\" is not allowed for security reasons. Executable files cannot be uploaded.":["El tipo de archivo \"%s\" no est\u00e1 permitido por motivos de seguridad. No se pueden subir archivos ejecutables."],"Generate content & images":["Generar contenido e im\u00e1genes"],"Generate product descriptions (for WooCommerce)":["Generar descripciones de productos (para WooCommerce)"],"Generate sales report for last week including best selling products":["Generar informe de ventas de la semana pasada, incluyendo los productos m\u00e1s vendidos."],"Generated by %(model)s":["Generado por %(modelo)s"],"GET STARTED":["COMIENCE"],"Go to first page":["Ir a la primera p\u00e1gina"],"Go to last page":["Ir a la \u00faltima p\u00e1gina"],"Go to next page":["Ir a la p\u00e1gina siguiente"],"Go to previous page":["Ir a la p\u00e1gina anterior"],"Groups":["Grupos"],"Hello! How can I help you today?":["\u00a1Hola! \u00bfEn qu\u00e9 puedo ayudarle hoy?"],"History":["Historia"],"https:\/\/siteground.com":["https:\/\/siteground.com"],"https:\/\/www.siteground.com":["https:\/\/www.siteground.com"],"Image deleted successfully.":["Imagen eliminada correctamente."],"Image had been deleted":["La imagen hab\u00eda sido eliminada."],"Image ID is required.":["Se requiere el ID de la imagen."],"Install, update & audit plugins":["Instalar, actualizar y auditar complementos"],"Insufficient AI tokens. Please upgrade your plan to continue.":["No tienes suficientes tokens de IA. Actualiza tu plan para continuar."],"Insufficient tokens. Please go to {{a}}SiteGround AI Studio{{\/a}} to upgrade or add more tokens.":["No hay suficientes tokens. Dir\u00edjase a {{a}}SiteGround AI Studio{{\/a}} para actualizar o agregar m\u00e1s tokens."],"Invalid authorization header format.":["Formato de encabezado de autorizaci\u00f3n no v\u00e1lido."],"Invalid category ID.":["ID de categor\u00eda no v\u00e1lido."],"Invalid comment ID.":["ID de comentario no v\u00e1lido."],"Invalid comment status.":["Estado del comentario no v\u00e1lido."],"Invalid coupon ID.":["ID de cup\u00f3n no v\u00e1lido."],"Invalid file data.":["Datos de archivo no v\u00e1lidos."],"Invalid image ID.":["ID de imagen no v\u00e1lido."],"Invalid media ID.":["ID de medio no v\u00e1lido."],"Invalid order ID.":["ID de pedido no v\u00e1lido."],"Invalid page ID.":["ID de p\u00e1gina no v\u00e1lido."],"Invalid parent category ID.":["ID de categor\u00eda principal no v\u00e1lido."],"Invalid parent WooCommerce category ID.":["ID de categor\u00eda principal de WooCommerce no v\u00e1lido."],"Invalid per_page parameter. Must be at least 1.":["Par\u00e1metro per_page no v\u00e1lido. Debe ser al menos 1."],"Invalid post ID.":["ID de publicaci\u00f3n no v\u00e1lido."],"Invalid product ID.":["ID de producto no v\u00e1lido."],"Invalid security token":["Token de seguridad no v\u00e1lido"],"Invalid security token.":["Token de seguridad no v\u00e1lido."],"Invalid tag ID.":["ID de etiqueta no v\u00e1lido."],"Invalid token.":["Token no v\u00e1lido."],"Invalid user ID.":["ID de usuario no v\u00e1lido."],"Invalid WooCommerce category ID.":["ID de categor\u00eda de WooCommerce no v\u00e1lido."],"Language Pack Update Failed: %s":["Error al actualizar el paquete de idioma: %s"],"Language Packs Updated: %d language pack(s) updated successfully":["Paquetes de idioma actualizados: %d paquetes de idioma actualizados correctamente"],"Last 30 Days":["\u00daltimos 30 d\u00edas"],"Last 7 Days":["\u00daltimos 7 d\u00edas"],"Learn more":["M\u00e1s informaci\u00f3n"],"Learn More.":["M\u00e1s informaci\u00f3n."],"Leave Anyway":["Vete de todos modos"],"Leaving now will stop the response from finishing. You may lose the rest of the answer.":["Si abandonas la p\u00e1gina ahora, la respuesta no se completar\u00e1. Podr\u00edas perder el resto de la respuesta."],"Manage products and prices":["Gestionar productos y precios"],"Manage your WordPress site with AI - create content, install plugins, and perform site management tasks effortlessly.":["Gestiona tu sitio WordPress con IA: crea contenido, instala plugins y realiza tareas de gesti\u00f3n del sitio sin esfuerzo."],"Media ID is required for updating media items.":["Se requiere el ID del medio para actualizar los elementos multimedia."],"Media Moved to Trash: %1$s (Media ID: %2$d)":["Archivo multimedia movido a la papelera: %1$s (ID del archivo multimedia: %2$d)"],"Media Permanently Deleted: %1$s (Media ID: %2$d)":["Archivo multimedia eliminado permanentemente: %1$s (ID del archivo multimedia: %2$d)"],"Media Updated: %1$s (Media ID: %2$d)":["Medio actualizado: %1$s (ID del medio: %2$d)"],"Media Uploaded: %1$s (Media ID: %2$d)":["Archivo multimedia subido: %1$s (ID del archivo multimedia: %2$d)"],"Minimize":["Minimizar"],"Most Popular":["M\u00e1s populares"],"Multi-model AI service for text, image, translation, research & more.":["Servicio de IA multimodal para texto, imagen, traducci\u00f3n, investigaci\u00f3n y m\u00e1s."],"New chat":["Nuevo chat"],"new_domain parameter is required.":["El par\u00e1metro new_domain es obligatorio."],"No conversations yet":["A\u00fan no hay conversaciones."],"No core updates available.":["No hay actualizaciones principales disponibles."],"No results found.":["No se encontraron resultados."],"Not allowed":["No est\u00e1 permitido"],"Not Connected":["No conectado"],"Off":["Apagado"],"Older":["M\u00e1s viejo"],"On":["En"],"One AI Agent.":["Un agente de IA."],"Open chat":["Abrir chat"],"Optimize for SEO":["Optimizar para SEO"],"Order Created (Order ID: %d)":["Pedido creado (ID del pedido: %d)"],"Order ID is required for updating orders.":["Se requiere el ID del pedido para actualizar los pedidos."],"Order Moved to Trash (Order ID: %d)":["Pedido movido a la papelera (ID del pedido: %d)"],"Order Permanently Deleted (Order ID: %d)":["Pedido eliminado permanentemente (ID del pedido: %d)"],"Order Updated (Order ID: %d)":["Pedido actualizado (ID del pedido: %d)"],"Page Created: %1$s (ID: %2$d)":["P\u00e1gina creada: %1$s (ID: %2$d)"],"Page ID is required for updating pages.":["Se requiere el ID de la p\u00e1gina para actualizar las p\u00e1ginas."],"Page Updated: %1$s (ID: %2$d)":["P\u00e1gina actualizada: %1$s (ID: %2$d)"],"Parent theme not found: %s":["Tema principal no encontrado: %s"],"Paying Customers":["Clientes que pagan"],"Pending":["Pendiente"],"Please provide either a plugin slug.":["Por favor, proporcione un slug del plugin."],"Please provide either a theme slug.":["Por favor, proporcione un slug de tema."],"Please provide either file data or a file URL.":["Por favor, proporcione los datos del archivo o la URL del archivo."],"Plugin activated successfully.":["Plugin activado correctamente."],"Plugin Activated: %s":["Plugin activado: %s"],"Plugin Activation":["Activaci\u00f3n del plugin"],"Plugin deactivated successfully.":["Plugin desactivado correctamente."],"Plugin Deactivated: %s":["Plugin desactivado: %s"],"Plugin deleted successfully.":["Plugin eliminado correctamente."],"Plugin Deleted: %s":["Plugin eliminado: %s"],"Plugin deletion failed.":["Error al eliminar el plugin."],"Plugin installation failed.":["La instalaci\u00f3n del complemento fall\u00f3."],"Plugin installed successfully.":["Plugin instalado correctamente."],"Plugin Installed: %s":["Plugin instalado: %s"],"Plugin Installed: %s (Activated)":["Plugin instalado: %s (Activado)"],"Plugin is already active.":["El plugin ya est\u00e1 activo."],"Plugin is already inactive.":["El plugin ya est\u00e1 inactivo."],"Plugin is already up to date.":["El plugin ya est\u00e1 actualizado."],"Plugin not found.":["Complemento no encontrado."],"Plugin status not changed.":["El estado del plugin no ha cambiado."],"Plugin update failed.":["La actualizaci\u00f3n del plugin fall\u00f3."],"Plugin updated successfully.":["Plugin actualizado correctamente."],"Plugin Updated: %1$s (from version %2$s to %3$s)":["Plugin actualizado: %1$s (de la versi\u00f3n %2$s a %3$s)"],"Post Created: %1$s (ID: %2$d)":["Publicaci\u00f3n creada: %1$s (ID: %2$d)"],"Post ID is required for updating posts.":["Se requiere el ID de la publicaci\u00f3n para actualizar las publicaciones."],"Post moved to trash: %1$s (ID: %2$d)":["Mensaje movido a la papelera: %1$s (ID: %2$d)"],"Post permanently deleted: %1$s (ID: %2$d)":["Mensaje eliminado permanentemente: %1$s (ID: %2$d)"],"Post type not found.":["No se encontr\u00f3 el tipo de publicaci\u00f3n."],"Post Updated: %1$s (ID: %2$d)":["Publicaci\u00f3n actualizada: %1$s (ID: %2$d)"],"Power Mode":["Modo de potencia"],"Power Mode is disabled":["El modo de energ\u00eda est\u00e1 desactivado."],"Power Mode is enabled":["El modo de energ\u00eda est\u00e1 habilitado."],"Power Mode is on. Note: Power Mode may modify your site's content or settings. Tap Learn more for details before proceeding.":["El modo de ahorro de energ\u00eda est\u00e1 activado. Nota: El modo de ahorro de energ\u00eda puede modificar el contenido o la configuraci\u00f3n del sitio. Pulsa \u00abM\u00e1s informaci\u00f3n\u00bb para ver los detalles antes de continuar."],"Powermode is disabled. This operation is not allowed.":["El modo de ahorro de energ\u00eda est\u00e1 desactivado. Esta operaci\u00f3n no est\u00e1 permitida."],"Private":["Privado"],"Product Created: %1$s (Product ID: %2$d)":["Producto creado: %1$s (ID del producto: %2$d)"],"Product ID is required for updating products.":["Se requiere el ID del producto para actualizar los productos."],"Product Moved to Trash: %1$s (Product ID: %2$d)":["Producto movido a la papelera: %1$s (ID del producto: %2$d)"],"Product Permanently Deleted: %1$s (Product ID: %2$d)":["Producto eliminado permanentemente: %1$s (ID del producto: %2$d)"],"Product Updated: %1$s (Product ID: %2$d)":["Producto actualizado: %1$s (ID del producto: %2$d)"],"Prompt cannot be empty":["El campo de solicitud no puede estar vac\u00edo."],"Prompt is required.":["Se requiere prontitud."],"Provider connected status has been updated successfully.":["El estado de conexi\u00f3n con el proveedor se ha actualizado correctamente."],"Published":["Publicado"],"Response still in progress":["La respuesta a\u00fan est\u00e1 en curso."],"Retry":["Rever"],"Run bulk actions with one prompt":["Ejecuta acciones masivas con una sola solicitud."],"Run full SEO audit of my site":["Realizar una auditor\u00eda SEO completa de mi sitio web."],"save":["ahorrar"],"Search...":["Buscar..."],"Secret Connection Token":["Token de conexi\u00f3n secreta"],"Security - Check site security status (via Security Optimizer)":["Seguridad: compruebe el estado de seguridad del sitio (a trav\u00e9s del Optimizador de seguridad)."],"Select or search groups":["Seleccione o busque grupos"],"Selected Groups":["Grupos seleccionados"],"Server error: ":["Error del servidor:"],"Setting \"%s\" has been updated successfully.":["La configuraci\u00f3n \"%s\" se ha actualizado correctamente."],"Setting \"%s\" is not allowed to be updated via this endpoint.":["No se permite actualizar la configuraci\u00f3n \"%s\" a trav\u00e9s de este punto final."],"Setting name cannot be empty.":["El nombre del ajuste no puede estar vac\u00edo."],"Setting Updated: %1$s (from \"%2$s\" to \"%3$s\")":["Configuraci\u00f3n actualizada: %1$s (de \"%2$s\" a \"%3$s\")"],"SiteGround":["Terreno del sitio"],"SiteGround AI Connector":["Conector de IA de SiteGround"],"SiteGround AI Studio":["Estudio de IA de SiteGround"],"SiteGround AI Studio Connector is disabled":["El conector SiteGround AI Studio est\u00e1 deshabilitado."],"SiteGround AI Studio Connector is enabled":["El conector SiteGround AI Studio est\u00e1 habilitado."],"SiteGround AI Studio service":["Servicio SiteGround AI Studio"],"Something went wrong. Please try again later.":["Algo sali\u00f3 mal. Int\u00e9ntalo de nuevo m\u00e1s tarde."],"Something went wrong. Please try again.":["Algo sali\u00f3 mal. Por favor, int\u00e9ntalo de nuevo."],"Sorry, you are not allowed to access activity logs.":["Lo sentimos, no tiene permiso para acceder a los registros de actividad."],"Speed - Optimize site performance (caching, images, CSS via SiteGround Speed Optimizer)":["Velocidad: Optimiza el rendimiento del sitio (cach\u00e9, im\u00e1genes, CSS mediante SiteGround Speed \u200b\u200bOptimizer)."],"Speed up my site automatically (with SiteGround Speed Optimizer)":["Acelera tu sitio web autom\u00e1ticamente (con SiteGround Speed \u200b\u200bOptimizer)"],"Start chat":["Iniciar chat"],"Start chatting to build your history!":["\u00a1Empieza a chatear para construir tu historial!"],"Successfully disconnected and cleaned up all SG AI Studio data.":["Se ha desconectado y limpiado correctamente todos los datos de SG AI Studio."],"Suggested actions":["Acciones sugeridas"],"Supported Formats: ":["Formatos compatibles:"],"The category could not be deleted.":["No se pudo eliminar la categor\u00eda."],"The category has been permanently deleted.":["La categor\u00eda ha sido eliminada permanentemente."],"The comment could not be deleted.":["El comentario no pudo ser eliminado."],"The comment has been moved to the trash.":["El comentario ha sido movido a la papelera."],"The comment has been permanently deleted.":["El comentario ha sido eliminado permanentemente."],"The coupon could not be deleted.":["No se pudo eliminar el cup\u00f3n."],"The coupon has been permanently deleted.":["El cup\u00f3n ha sido eliminado permanentemente."],"The default category cannot be deleted. Please set a different default category first.":["La categor\u00eda predeterminada no se puede eliminar. Por favor, establezca primero una categor\u00eda predeterminada diferente."],"The media item could not be deleted.":["No se pudo eliminar el elemento multimedia."],"The media item has been moved to the trash.":["El archivo multimedia se ha movido a la papelera."],"The media item has been permanently deleted.":["El archivo multimedia ha sido eliminado permanentemente."],"The order could not be deleted.":["No se pudo eliminar el pedido."],"The order has been moved to the trash.":["El pedido ha sido movido a la papelera."],"The order has been permanently deleted.":["El pedido ha sido eliminado permanentemente."],"The page could not be deleted.":["No se pudo eliminar la p\u00e1gina."],"The page has been moved to the trash.":["La p\u00e1gina ha sido movida a la papelera."],"The page has been permanently deleted.":["La p\u00e1gina ha sido eliminada permanentemente."],"The post could not be deleted.":["No se pudo eliminar la publicaci\u00f3n."],"The post has been moved to the trash.":["La publicaci\u00f3n ha sido movida a la papelera."],"The post has been permanently deleted.":["La publicaci\u00f3n ha sido eliminada permanentemente."],"The product could not be deleted.":["No se pudo eliminar el producto."],"The product has been moved to the trash.":["El producto ha sido trasladado a la basura."],"The product has been permanently deleted.":["El producto ha sido eliminado permanentemente."],"The requested theme does not exist.":["El tema solicitado no existe."],"The tag could not be deleted.":["No se pudo eliminar la etiqueta."],"The tag has been permanently deleted.":["La etiqueta ha sido eliminada permanentemente."],"The user could not be deleted.":["No se pudo eliminar al usuario."],"The user has been deleted.":["El usuario ha sido eliminado."],"The WooCommerce category could not be deleted.":["No se pudo eliminar la categor\u00eda de WooCommerce."],"The WooCommerce category has been permanently deleted.":["La categor\u00eda de WooCommerce ha sido eliminada permanentemente."],"Theme activated successfully.":["Tema activado correctamente."],"Theme Activated: %s":["Tema activado: %s"],"Theme activation failed. The theme may have fatal errors.":["La activaci\u00f3n del tema fall\u00f3. El tema podr\u00eda contener errores graves."],"Theme activation failed: %s":["Fall\u00f3 la activaci\u00f3n del tema: %s"],"Theme deleted successfully.":["Tema eliminado correctamente."],"Theme Deleted: %s":["Tema eliminado: %s"],"Theme deletion failed.":["Error al eliminar el tema."],"Theme has errors: %s":["El tema tiene errores: %s"],"Theme installation completed, but theme information could not be retrieved.":["La instalaci\u00f3n del tema se ha completado, pero no se ha podido recuperar la informaci\u00f3n del mismo."],"Theme installation failed.":["La instalaci\u00f3n del tema fall\u00f3."],"Theme installed successfully.":["Tema instalado correctamente."],"Theme Installed: %s":["Tema instalado: %s"],"Theme Installed: %s (Activated)":["Tema instalado: %s (activado)"],"Theme is already active.":["El tema ya est\u00e1 activo."],"Theme is already up to date.":["El tema ya est\u00e1 actualizado."],"Theme not found.":["Tema no encontrado."],"Theme requirements not met: %s":["Requisitos del tema no cumplidos: %s"],"Theme update failed.":["La actualizaci\u00f3n del tema fall\u00f3."],"Theme updated successfully but reactivation failed: %s":["El tema se actualiz\u00f3 correctamente, pero la reactivaci\u00f3n fall\u00f3: %s"],"Theme updated successfully.":["Tema actualizado correctamente."],"Theme Updated: %1$s (from version %2$s to %3$s)":["Tema actualizado: %1$s (de la versi\u00f3n %2$s a %3$s)"],"This conversation has grown too long. To continue, please start a new chat.":["Esta conversaci\u00f3n se ha alargado demasiado. Para continuar, por favor, inicia un nuevo chat."],"This plugin enables an AI agent that will assist you managing your WordPress and WooCommerce sites via chat. By activating the plugin you also activate the SiteGround AI connector, which will power up AI features in the WordPress admin, enabled by the ":["Este plugin habilita un agente de IA que le ayudar\u00e1 a administrar sus sitios de WordPress y WooCommerce a trav\u00e9s del chat. Al activar el plugin, tambi\u00e9n activa el conector de IA de SiteGround, que potenciar\u00e1 las funciones de IA en el administrador de WordPress, habilitadas por el "],"To activate the plugin, you need to sign up for ":["Para activar el complemento, debe registrarse en"],"To protect your website from accidental or harmful changes, the AI Agent for WordPress includes a built-in safety option called \"Power Mode.\" Power Mode is disabled by default to ensure that high-impact actions cannot be executed accidentally. Actions that require you to enable Power Mode include deletions (users, posts, pages, files, etc.), bulk operations, global settings modifications, product, order, and price updates.":["Para proteger tu sitio web de cambios accidentales o perjudiciales, el Agente de IA para WordPress incluye una opci\u00f3n de seguridad integrada llamada \"Modo Avanzado\". El Modo Avanzado est\u00e1 desactivado por defecto para evitar que se ejecuten acciones de alto impacto por accidente. Las acciones que requieren la activaci\u00f3n del Modo Avanzado incluyen eliminaciones (usuarios, entradas, p\u00e1ginas, archivos, etc.), operaciones masivas, modificaciones de la configuraci\u00f3n global y actualizaciones de productos, pedidos y precios."],"Today":["Hoy"],"Token can not be empty.":["El token no puede estar vac\u00edo."],"Token validation failed: %s":["Fall\u00f3 la validaci\u00f3n del token: %s"],"Try different keywords, check spelling, or broaden your filters.":["Pruebe con palabras clave diferentes, revise la ortograf\u00eda o ampl\u00ede sus filtros."],"Turn hours of admin work into minutes of conversation.":["Convierte horas de trabajo administrativo en minutos de conversaci\u00f3n."],"Unexpected error: ":["Error inesperado:"],"Upgrade to Plus":["Actualiza a Plus"],"Use your SiteGround AI Studio tokens to run every AI functionality powered by the WordPress":["Utiliza tus tokens de SiteGround AI Studio para ejecutar todas las funciones de IA basadas en WordPress."],"User Created: %1$s (ID: %2$d)":["Creado por el usuario: %1$s (ID: %2$d)"],"User Deleted: %1$s (ID: %2$d)":["Usuario eliminado: %1$s (ID: %2$d)"],"User ID is required for updating users.":["Se requiere el ID de usuario para actualizar los usuarios."],"User Updated: %1$s (ID: %2$d)":["Usuario actualizado: %1$s (ID: %2$d)"],"User uploaded image":["Imagen subida por el usuario"],"Username already exists.":["El nombre de usuario ya existe."],"WooCommerce Category Created: %1$s (ID: %2$d)":["Categor\u00eda de WooCommerce creada: %1$s (ID: %2$d)"],"WooCommerce Category Deleted: %1$s (ID: %2$d)":["Categor\u00eda de WooCommerce eliminada: %1$s (ID: %2$d)"],"WooCommerce Category Updated: %1$s (ID: %2$d)":["Categor\u00eda de WooCommerce actualizada: %1$s (ID: %2$d)"],"WordPress core is already up to date.":["El n\u00facleo de WordPress ya est\u00e1 actualizado."],"WordPress core updated successfully.":["El n\u00facleo de WordPress se actualiz\u00f3 correctamente."],"Write a blog post with images and SEO":["Escribe una entrada de blog con im\u00e1genes y SEO."],"Write a SEO-friendly blog post with AI images and headings":["Escribe una entrada de blog optimizada para SEO con im\u00e1genes y encabezados generados por IA."],"You do not have permission to edit content.":["No tienes permiso para editar el contenido."],"You're almost out of tokens.":["Te est\u00e1s quedando sin fichas."],"You're running low on tokens.":["Te est\u00e1s quedando sin fichas."],"You've run out of tokens.":["Te has quedado sin fichas."],"Your plugin is active and connected to SiteGround AI Studio.":["Tu plugin est\u00e1 activo y conectado a SiteGround AI Studio."],"Your site is not connected.":["Tu sitio no est\u00e1 conectado."]}
+{
+    "": {
+        "domain": "sg-ai-studio",
+        "lang": "es_ES",
+        "plural_forms": "nplurals=2; plural=n != 1;"
+    },
+    "%(current)d of %(total)d": [
+        "%(current)d de %(total)d"
+    ],
+    "%(fromItem)d-%(toItem)d of %(totalItems)d": [
+        "%(fromItem)d-%(toItem)d de %(totalItems)d"
+    ],
+    "%d language pack(s) updated successfully.": [
+        "%d paquetes de idioma actualizados correctamente."
+    ],
+    "%d Star": [
+        "%d Estrella"
+    ],
+    "**Hi! I am your WordPress AI Assistant. How can I help you manage your site today?**": [
+        "**¡Hola! Soy tu asistente de IA para WordPress. ¿En qué puedo ayudarte a gestionar tu sitio hoy?**"
+    ],
+    "**Hi! I am your WordPress AI Assistant. How can I help you manage your store today?**": [
+        "**¡Hola! Soy tu asistente de IA para WordPress. ¿En qué puedo ayudarte a gestionar tu tienda hoy?**"
+    ],
+    "A category cannot be its own parent.": [
+        "Una categoría no puede ser su propia categoría padre."
+    ],
+    "A WooCommerce category cannot be its own parent.": [
+        "Una categoría de WooCommerce no puede ser su propia categoría principal."
+    ],
+    "Active": [
+        "Activo"
+    ],
+    "Activity": [
+        "Actividad"
+    ],
+    "Activity & Usage": [
+        "Actividad y uso"
+    ],
+    "Activity Log": [
+        "Registro de actividad"
+    ],
+    "Add Token": [
+        "Agregar token"
+    ],
+    "Add tokens": [
+        "Agregar tokens"
+    ],
+    "Admin chat bubble is hidden": [
+        "La burbuja de chat del administrador está oculta"
+    ],
+    "Admin chat bubble is visible": [
+        "La burbuja de chat del administrador está visible"
+    ],
+    "Agent Appearance": [
+        "Apariencia del agente"
+    ],
+    "AI Agent": [
+        "Agente de IA"
+    ],
+    "AI Agent by SiteGround": [
+        "Agente de IA de SiteGround"
+    ],
+    "AI Agent by SiteGround - Activity & Usage": [
+        "AI Agent by SiteGround - Actividad y uso"
+    ],
+    "AI Agent by SiteGround - Settings": [
+        "AI Agent by SiteGround - Ajustes"
+    ],
+    "AI Agent Plugin": [
+        "Plugin AI Agent"
+    ],
+    "AI Editing in Gutenberg": [
+        "Edición con IA en Gutenberg"
+    ],
+    "AI Editing in Gutenberg Blocks": [
+        "Edición con IA en bloques de Gutenberg"
+    ],
+    "AI Editing in Gutenberg Blocks is disabled": [
+        "Edición con IA en bloques de Gutenberg está deshabilitado"
+    ],
+    "AI Editing in Gutenberg Blocks is enabled": [
+        "Edición con IA en bloques de Gutenberg está habilitado"
+    ],
+    "AI plugin": [
+        "complemento de IA"
+    ],
+    "AI request failed: %s": [
+        "La solicitud de IA falló: %s"
+    ],
+    "AI service did not generate any images. Debug: %s": [
+        "El servicio de IA no generó ninguna imagen. Depuración: %s"
+    ],
+    "AI service returned an empty response.": [
+        "El servicio de IA devolvió una respuesta vacía."
+    ],
+    "AI STUDIO": [
+        "ESTUDIO DE IA"
+    ],
+    "AI Studio has been removed from WordPress AI features. Your AI Studio plugin connection and credentials remain intact.": [
+        "AI Studio se ha eliminado de las funciones de IA de WordPress. La conexión y las credenciales de su plugin AI Studio permanecen intactas."
+    ],
+    "AI Studio is not connected. Please connect first.": [
+        "AI Studio no está conectado. Conéctese primero."
+    ],
+    "AI Studio is now available for WordPress AI features.": [
+        "AI Studio ya está disponible para las funciones de IA de WordPress."
+    ],
+    "AI Studio Provider Disconnected": [
+        "Proveedor de AI Studio desconectado"
+    ],
+    "AI Studio provider disconnected successfully. The plugin remains connected.": [
+        "El proveedor de AI Studio se desconectó correctamente. El complemento permanece conectado."
+    ],
+    "AI Studio Provider Reconnected": [
+        "Proveedor de estudios de IA reconectado"
+    ],
+    "AI Studio provider reconnected successfully.": [
+        "El proveedor de AI Studio se ha reconectado correctamente."
+    ],
+    "AI Studio uses SiteGround AI Tokens. You currently have %(budget)s monthly tokens that reset on %(resetDate)s. %(childBudget)s To see details or add more tokens click the Manage button.": [
+        "AI Studio utiliza SiteGround AI Tokens. Actualmente tienes %(budget)s tokens mensuales que se restablecen el %(resetDate)s. %(childBudget)s Para ver los detalles o añadir más tokens, haz clic en el botón Gestionar."
+    ],
+    "AI Studio uses SiteGround Al Tokens. You currently have no active subscription. %(childBudget)s To subscribe or add more tokens click the Manage button.": [
+        "AI Studio utiliza SiteGround AI Tokens. Actualmente no tienes ninguna suscripción activa. %(childBudget)s Para suscribirte o añadir más tokens, haz clic en el botón Gestionar."
+    ],
+    "AI Tokens": [
+        "Tokens de IA"
+    ],
+    "All": [
+        "Todos"
+    ],
+    "All Coupons": [
+        "Todos los cupones"
+    ],
+    "All Customers": [
+        "Todos los clientes"
+    ],
+    "All language packs are up to date.": [
+        "Todos los paquetes de idiomas están actualizados."
+    ],
+    "All Reviews": [
+        "Todas las reseñas"
+    ],
+    "Are you sure you want to proceed?": [
+        "¿Está seguro de que desea continuar?"
+    ],
+    "Ask me anything WordPress related and I'll help.": [
+        "Pregúntame cualquier cosa relacionada con WordPress y te ayudaré."
+    ],
+    "Authentication error: ": [
+        "Error de autenticación:"
+    ],
+    "Authentication error: %s": [
+        "Error de autenticación: %s"
+    ],
+    "Authentication initialized successfully.": [
+        "Autenticación inicializada correctamente."
+    ],
+    "Authentication keys refreshed successfully.": [
+        "Las claves de autenticación se actualizaron correctamente."
+    ],
+    "Authorization header missing.": [
+        "Falta el encabezado de autorización."
+    ],
+    "Batch Comment Creation: %1$d created, %2$d errors": [
+        "Creación de comentarios por lotes: %1$d creados, %2$d errores"
+    ],
+    "Batch Comment Deletion: %1$d deleted, %2$d errors": [
+        "Eliminación de comentarios por lotes: %1$d eliminados, %2$d errores"
+    ],
+    "Batch Comment Update: %1$d updated, %2$d errors": [
+        "Actualización de comentarios por lotes: %1$d actualizado, %2$d errores"
+    ],
+    "Batch Media Moved to Trash: %1$d deleted, %2$d errors": [
+        "Archivos multimedia movidos a la papelera: %1$d eliminados, %2$d errores"
+    ],
+    "Batch Media Permanently Deleted: %1$d deleted, %2$d errors": [
+        "Archivos multimedia eliminados permanentemente: %1$d eliminados, %2$d errores"
+    ],
+    "Batch Media Update: %1$d updated, %2$d errors": [
+        "Actualización de medios por lotes: %1$d actualizados, %2$d errores"
+    ],
+    "Blocks • Texts • Images": [
+        "Bloques • Textos • Imágenes"
+    ],
+    "Bulk actions • Global changes • Deletions": [
+        "Acciones masivas • Cambios globales • Eliminaciones"
+    ],
+    "Cache cleared successfully.": [
+        "Caché borrada correctamente."
+    ],
+    "Cache Cleared: All caches have been cleared": [
+        "Caché borrada: Se han borrado todas las cachés."
+    ],
+    "Calculating": [
+        "Calculando"
+    ],
+    "cancel": [
+        "Cancelar"
+    ],
+    "Cannot delete an active plugin. Please deactivate it first.": [
+        "No se puede eliminar un plugin activo. Desactívelo primero."
+    ],
+    "Cannot delete the active theme.": [
+        "No se puede eliminar el tema activo."
+    ],
+    "Cannot delete the parent of the active theme.": [
+        "No se puede eliminar el tema principal del tema activo."
+    ],
+    "Category Created: %1$s (ID: %2$d)": [
+        "Categoría creada: %1$s (ID: %2$d)"
+    ],
+    "Category Deleted: %1$s (ID: %2$d)": [
+        "Categoría eliminada: %1$s (ID: %2$d)"
+    ],
+    "Category Updated: %1$s (ID: %2$d)": [
+        "Categoría actualizada: %1$s (ID: %2$d)"
+    ],
+    "Chat Bubble in WordPress Admin": [
+        "Burbuja de chat en el área de administración de WordPress"
+    ],
+    "Chat Bubble on Your Website (Front-End)": [
+        "Burbuja de chat en tu sitio web (front-end)"
+    ],
+    "Chat bubble • Admin & Front-end": [
+        "Burbuja de chat • Administrador y front-end"
+    ],
+    "Circular parent relationship detected. A category cannot be a descendant of itself.": [
+        "Se ha detectado una relación jerárquica circular. Una categoría no puede ser descendiente de sí misma."
+    ],
+    "Circular parent relationship detected. A WooCommerce category cannot be a descendant of itself.": [
+        "Se ha detectado una relación de parentesco circular. Una categoría de WooCommerce no puede ser descendiente de sí misma."
+    ],
+    "Clean up my site - remove sample pages and spam comments": [
+        "Limpia mi sitio: elimina páginas de ejemplo y comentarios de spam"
+    ],
+    "Close": [
+        "Cerrar"
+    ],
+    "Collapse to popover": [
+        "Contraer a ventana emergente"
+    ],
+    "Comment Created on: %1$s (Comment ID: %2$d)": [
+        "Comentario creado el: %1$s (ID del comentario: %2$d)"
+    ],
+    "Comment creation failed.": [
+        "Error al crear el comentario."
+    ],
+    "Comment ID is required for updating comments.": [
+        "Se requiere el ID del comentario para actualizar los comentarios."
+    ],
+    "Comment moderation failed.": [
+        "La moderación de comentarios falló."
+    ],
+    "Comment Moved to Trash from: %1$s (Comment ID: %2$d)": [
+        "Comentario movido a la papelera desde: %1$s (ID del comentario: %2$d)"
+    ],
+    "Comment Permanently Deleted from: %1$s (Comment ID: %2$d)": [
+        "Comentario eliminado permanentemente de: %1$s (ID del comentario: %2$d)"
+    ],
+    "Comment Status Changed to %1$s on: %2$s (Comment ID: %3$d)": [
+        "El estado del comentario cambió a %1$s el: %2$s (ID del comentario: %3$d)"
+    ],
+    "Comment status changed to %s.": [
+        "El estado del comentario cambió a %s."
+    ],
+    "Comment update failed.": [
+        "Error al actualizar el comentario."
+    ],
+    "Comment Updated on: %1$s (Comment ID: %2$d)": [
+        "Comentario actualizado el: %1$s (ID del comentario: %2$d)"
+    ],
+    "Comments are closed for this post.": [
+        "Los comentarios están cerrados para esta publicación."
+    ],
+    "Confirm": [
+        "Confirmar"
+    ],
+    "Connect": [
+        "Conectar"
+    ],
+    "Connected": [
+        "Conectado"
+    ],
+    "Connected status has been updated successfully.": [
+        "El estado de conexión se ha actualizado correctamente."
+    ],
+    "Connector Settings": [
+        "Configuración del conector"
+    ],
+    "Core Update Failed: %s": [
+        "Error en la actualización del núcleo: %s"
+    ],
+    "Core Updated: WordPress updated to version %s": [
+        "Núcleo actualizado: WordPress actualizado a la versión %s"
+    ],
+    "Could not determine file type.": [
+        "No se pudo determinar el tipo de archivo."
+    ],
+    "Could not download file from URL.": [
+        "No se pudo descargar el archivo desde la URL."
+    ],
+    "Couldn't process the request. Please try again.": [
+        "No se pudo procesar la solicitud. Inténtelo de nuevo."
+    ],
+    "Coupon Created: %1$s (Coupon ID: %2$d)": [
+        "Cupón creado: %1$s (ID del cupón: %2$d)"
+    ],
+    "Coupon Deleted: %1$s (Coupon ID: %2$d)": [
+        "Cupón eliminado: %1$s (ID del cupón: %2$d)"
+    ],
+    "Coupon ID is required for updating coupons.": [
+        "Se requiere el ID del cupón para actualizar los cupones."
+    ],
+    "Coupon Updated: %1$s (Coupon ID: %2$d)": [
+        "Cupón actualizado: %1$s (ID del cupón: %2$d)"
+    ],
+    "Create & Manage Content": [
+        "Crear y gestionar contenido"
+    ],
+    "Create 10 blog post title ideas": [
+        "Crea 10 ideas para títulos de entradas de blog."
+    ],
+    "Create a discount coupon": [
+        "Crea un cupón de descuento"
+    ],
+    "Create a new page from scratch (with Gutenberg building blocks)": [
+        "Crea una página nueva desde cero (con los bloques de construcción de Gutenberg)."
+    ],
+    "Creating image": [
+        "Creando imagen"
+    ],
+    "Dashboard": [
+        "Panel"
+    ],
+    "Dashboard banner": [
+        "Banner del panel"
+    ],
+    "Data parameter is required.": [
+        "Se requiere un parámetro de datos."
+    ],
+    "Date": [
+        "Fecha"
+    ],
+    "Delegate entire processes to AI - build site architecture with menus, restructure taxonomies, run seasonal promotions, and other complex tasks. Power up AI features in the WordPress admin, enabled by the": [
+        "Delega procesos completos en la IA: crea la arquitectura del sitio con menús, reestructura las taxonomías, lanza promociones de temporada y realiza otras tareas complejas. Potencia las funciones de IA en el panel de WordPress, habilitadas por el"
+    ],
+    "Description is required.": [
+        "Se requiere descripción."
+    ],
+    "Details": [
+        "Detalles"
+    ],
+    "Disconnect": [
+        "Desconectar"
+    ],
+    "Disconnect completed with some errors during local cleanup.": [
+        "La desconexión se completó con algunos errores durante la limpieza local."
+    ],
+    "Disconnect completed with some errors.": [
+        "La desconexión se completó con algunos errores."
+    ],
+    "Disconnect from AI Studio": [
+        "Desconéctate de AI Studio"
+    ],
+    "Do site maintenance": [
+        "Realizar el mantenimiento del sitio"
+    ],
+    "Dock to side": [
+        "Anclar al lateral"
+    ],
+    "Domain updated successfully.": [
+        "Dominio actualizado correctamente."
+    ],
+    "Don't show again": [
+        "No volver a mostrarlo"
+    ],
+    "Done: %(label)s": [
+        "Listo: %(label)s"
+    ],
+    "Draft": [
+        "Borrador"
+    ],
+    "Drop Your Files Here To Upload": [
+        "Arrastra tus archivos aquí para subirlos"
+    ],
+    "Dynamic-keys API returned an error.": [
+        "La API de claves dinámicas devolvió un error."
+    ],
+    "Email address already exists.": [
+        "La dirección de correo electrónico ya existe."
+    ],
+    "Enable": [
+        "Permitir"
+    ],
+    "Enable Power Mode to continue. Note: Power Mode may modify your site’s content or settings. Tap Learn more for details before enabling.": [
+        "Activa Power Mode para continuar. Nota: Power Mode puede modificar el contenido o la configuración de tu sitio. Toca Más información para ver los detalles antes de activarlo."
+    ],
+    "Enable the connection to AI Studio by pasting your secret connection token.": [
+        "Habilita la conexión con AI Studio pegando tu token de conexión secreto."
+    ],
+    "Every 29 Days": [
+        "Cada 29 días"
+    ],
+    "Every WordPress task.": [
+        "Todas las tareas de WordPress."
+    ],
+    "Exit full screen": [
+        "Salir de pantalla completa"
+    ],
+    "Failed to connect to AI Studio API.": [
+        "No se pudo conectar con la API de AI Studio."
+    ],
+    "Failed to connect to dynamic-keys API.": [
+        "No se pudo conectar con la API de claves dinámicas."
+    ],
+    "Failed to delete menu item.": [
+        "Error al eliminar el elemento del menú."
+    ],
+    "Failed to delete navigation.": [
+        "Error al eliminar la navegación."
+    ],
+    "Failed to delete the image.": [
+        "No se pudo eliminar la imagen."
+    ],
+    "Failed to disconnect provider.": [
+        "No se pudo desconectar al proveedor."
+    ],
+    "Failed to fetch ACL data.": [
+        "No se pudieron obtener los datos de la ACL."
+    ],
+    "Failed to fetch usage data.": [
+        "No se pudieron obtener los datos de uso."
+    ],
+    "Failed to generate authentication token for dynamic-keys API.": [
+        "No se pudo generar el token de autenticación para la API de claves dinámicas."
+    ],
+    "Failed to generate authentication token.": [
+        "No se pudo generar el token de autenticación."
+    ],
+    "Failed to retrieve created menu.": [
+        "Error al recuperar el menú creado."
+    ],
+    "Failed to retrieve created navigation.": [
+        "Error al recuperar la navegación creada."
+    ],
+    "Failed to update connected status.": [
+        "No se pudo actualizar el estado de conexión."
+    ],
+    "Failed to update domain.": [
+        "No se pudo actualizar el dominio."
+    ],
+    "Failed to update powermode setting.": [
+        "No se pudo actualizar la configuración del modo de energía."
+    ],
+    "Failed to update provider connected status.": [
+        "No se pudo actualizar el estado de conexión del proveedor."
+    ],
+    "Failed to update setting \"%s\".": [
+        "No se pudo actualizar la configuración \"%s\"."
+    ],
+    "Features": [
+        "Funciones"
+    ],
+    "File claims to be an image but is not a valid image format.": [
+        "El archivo afirma ser una imagen, pero no tiene un formato de imagen válido."
+    ],
+    "File contains forbidden extension \"%s\" in the filename. Executable files cannot be uploaded.": [
+        "El archivo contiene la extensión prohibida \"%s\" en el nombre. No se pueden subir archivos ejecutables."
+    ],
+    "File content mismatch. File with extension \"%1$s\" has content type \"%2$s\" but expected one of: %3$s": [
+        "Discrepancia en el contenido del archivo. El archivo con extensión \"%1$s\" tiene un tipo de contenido \"%2$s\", pero se esperaba uno de los siguientes: %3$s"
+    ],
+    "File extension \"%s\" is not allowed.": [
+        "La extensión de archivo \"%s\" no está permitida."
+    ],
+    "File has been deleted": [
+        "El archivo ha sido eliminado"
+    ],
+    "File has no extension.": [
+        "El archivo no tiene extensión."
+    ],
+    "File Size up to: 20MB": [
+        "Tamaño máximo del archivo: 20 MB"
+    ],
+    "File type \"%s\" is not allowed by WordPress.": [
+        "WordPress no permite el tipo de archivo \"%s\"."
+    ],
+    "File type \"%s\" is not allowed for security reasons. Executable files cannot be uploaded.": [
+        "El tipo de archivo \"%s\" no está permitido por motivos de seguridad. No se pueden subir archivos ejecutables."
+    ],
+    "Forbidden.": [
+        "Prohibido."
+    ],
+    "Front-end chat bubble is hidden": [
+        "La burbuja de chat del front-end está oculta"
+    ],
+    "Front-end chat bubble is visible": [
+        "La burbuja de chat del front-end está visible"
+    ],
+    "FSE Navigation Created: %1$s (ID: %2$d)": [
+        "Navegación FSE creada: %1$s (ID: %2$d)"
+    ],
+    "FSE Navigation Deleted: %1$s (ID: %2$d)": [
+        "Navegación FSE eliminada: %1$s (ID: %2$d)"
+    ],
+    "Generate content & images": [
+        "Generar contenido e imágenes"
+    ],
+    "Generate product descriptions (for WooCommerce)": [
+        "Generar descripciones de productos (para WooCommerce)"
+    ],
+    "Generate sales report for last week including best selling products": [
+        "Generar informe de ventas de la semana pasada, incluyendo los productos más vendidos."
+    ],
+    "Generated by %(model)s": [
+        "Generado por %(modelo)s"
+    ],
+    "GET STARTED": [
+        "COMIENCE"
+    ],
+    "Go to first page": [
+        "Ir a la primera página"
+    ],
+    "Go to last page": [
+        "Ir a la última página"
+    ],
+    "Go to next page": [
+        "Ir a la página siguiente"
+    ],
+    "Go to previous page": [
+        "Ir a la página anterior"
+    ],
+    "Go to settings": [
+        "Ve a Ajustes"
+    ],
+    "Hello! How can I help you today?": [
+        "¡Hola! ¿En qué puedo ayudarle hoy?"
+    ],
+    "High impact": [
+        "Alto impacto"
+    ],
+    "History": [
+        "Historia"
+    ],
+    "How can I help you today?": [
+        "¿En qué puedo ayudarte hoy?"
+    ],
+    "How can we improve?": [
+        "¿Cómo podemos mejorar?"
+    ],
+    "How satisfied are you with AI Agent for WordPress?": [
+        "¿Qué tan satisfecho está con AI Agent para WordPress?"
+    ],
+    "https://siteground.com": [
+        "https://siteground.com"
+    ],
+    "https://www.siteground.com": [
+        "https://www.siteground.com"
+    ],
+    "If the AI Agent was useful to you, please consider submitting a review on {{link}}wordpress.org{{/link}}. Sharing your experience helps other users decide if it's right for them.": [
+        "Si el Agente de IA te fue útil, considera enviar una reseña en {{link}}wordpress.org{{/link}}. Compartir tu experiencia ayuda a otros usuarios a decidir si es adecuado para ellos."
+    ],
+    "Thank you for the rating! Leave a review on {{link}}wordpress.org{{/link}} to share your experience with other website owners.": [
+        "¡Gracias por la valoración! Deja una reseña en {{link}}wordpress.org{{/link}} para compartir tu experiencia con otros propietarios de sitios web."
+    ],
+    "Image deleted successfully.": [
+        "Imagen eliminada correctamente."
+    ],
+    "Image had been deleted": [
+        "La imagen había sido eliminada."
+    ],
+    "Image ID is required.": [
+        "Se requiere el ID de la imagen."
+    ],
+    "Improve an existing post - rewrite for SEO and readability": [
+        "Mejora una entrada existente: reescríbela para SEO y legibilidad"
+    ],
+    "Inactive": [
+        "Inactivo"
+    ],
+    "Install, update & audit plugins": [
+        "Instalar, actualizar y auditar complementos"
+    ],
+    "Insufficient AI tokens. Please upgrade your plan to continue.": [
+        "No tienes suficientes tokens de IA. Actualiza tu plan para continuar."
+    ],
+    "Insufficient tokens. Please go to {{a}}SiteGround AI Studio{{/a}} to upgrade or add more tokens.": [
+        "No hay suficientes tokens. Ve a {{a}}SiteGround AI Studio{{/a}} para actualizar tu plan o agregar más tokens."
+    ],
+    "Invalid authorization header format.": [
+        "Formato de encabezado de autorización no válido."
+    ],
+    "Invalid block type.": [
+        "Tipo de bloque no válido."
+    ],
+    "Invalid category ID.": [
+        "ID de categoría no válido."
+    ],
+    "Invalid comment ID.": [
+        "ID de comentario no válido."
+    ],
+    "Invalid comment status.": [
+        "Estado del comentario no válido."
+    ],
+    "Invalid coupon ID.": [
+        "ID de cupón no válido."
+    ],
+    "Invalid file data.": [
+        "Datos de archivo no válidos."
+    ],
+    "Invalid image ID.": [
+        "ID de imagen no válido."
+    ],
+    "Invalid media ID.": [
+        "ID de medio no válido."
+    ],
+    "Invalid menu ID.": [
+        "ID de menú no válido."
+    ],
+    "Invalid menu item ID.": [
+        "ID de elemento de menú no válido."
+    ],
+    "Invalid menu location.": [
+        "Ubicación de menú no válida."
+    ],
+    "Invalid navigation ID.": [
+        "ID de navegación no válido."
+    ],
+    "Invalid object_id.": [
+        "object_id no válido."
+    ],
+    "Invalid order ID.": [
+        "ID de pedido no válido."
+    ],
+    "Invalid page ID.": [
+        "ID de página no válido."
+    ],
+    "Invalid parent category ID.": [
+        "ID de categoría principal no válido."
+    ],
+    "Invalid parent WooCommerce category ID.": [
+        "ID de categoría principal de WooCommerce no válido."
+    ],
+    "Invalid per_page parameter. Must be at least 1.": [
+        "Parámetro per_page no válido. Debe ser al menos 1."
+    ],
+    "Invalid post ID.": [
+        "ID de publicación no válido."
+    ],
+    "Invalid product ID.": [
+        "ID de producto no válido."
+    ],
+    "Invalid revision ID.": [
+        "ID de revisión no válido."
+    ],
+    "Invalid security token": [
+        "Token de seguridad no válido"
+    ],
+    "Invalid security token.": [
+        "Token de seguridad no válido."
+    ],
+    "Invalid tag ID.": [
+        "ID de etiqueta no válido."
+    ],
+    "Invalid token.": [
+        "Token no válido."
+    ],
+    "Invalid type. Must be \"custom\" or \"post_type\".": [
+        "Tipo no válido. Debe ser \"custom\" o \"post_type\"."
+    ],
+    "Invalid user ID.": [
+        "ID de usuario no válido."
+    ],
+    "Invalid WooCommerce category ID.": [
+        "ID de categoría de WooCommerce no válido."
+    ],
+    "Language Pack Update Failed: %s": [
+        "Error al actualizar el paquete de idioma: %s"
+    ],
+    "Language Packs Updated: %d language pack(s) updated successfully": [
+        "Paquetes de idioma actualizados: %d paquetes de idioma actualizados correctamente"
+    ],
+    "Last 30 Days": [
+        "Últimos 30 días"
+    ],
+    "Last 7 Days": [
+        "Últimos 7 días"
+    ],
+    "Learn more": [
+        "Más información"
+    ],
+    "Learn More.": [
+        "Más información."
+    ],
+    "Leave Anyway": [
+        "Vete de todos modos"
+    ],
+    "Leaving now will stop the response from finishing. You may lose the rest of the answer.": [
+        "Si abandonas la página ahora, la respuesta no se completará. Podrías perder el resto de la respuesta."
+    ],
+    "Manage": [
+        "Gestionar"
+    ],
+    "Manage products and prices": [
+        "Gestionar productos y precios"
+    ],
+    "Manage your WordPress site with AI - create content, install plugins, and perform site management tasks effortlessly.": [
+        "Gestiona tu sitio WordPress con IA: crea contenido, instala plugins y realiza tareas de gestión del sitio sin esfuerzo."
+    ],
+    "Media ID is required for updating media items.": [
+        "Se requiere el ID del medio para actualizar los elementos multimedia."
+    ],
+    "Media Moved to Trash: %1$s (Media ID: %2$d)": [
+        "Archivo multimedia movido a la papelera: %1$s (ID del archivo multimedia: %2$d)"
+    ],
+    "Media Permanently Deleted: %1$s (Media ID: %2$d)": [
+        "Archivo multimedia eliminado permanentemente: %1$s (ID del archivo multimedia: %2$d)"
+    ],
+    "Media Updated: %1$s (Media ID: %2$d)": [
+        "Medio actualizado: %1$s (ID del medio: %2$d)"
+    ],
+    "Media Uploaded: %1$s (Media ID: %2$d)": [
+        "Archivo multimedia subido: %1$s (ID del archivo multimedia: %2$d)"
+    ],
+    "Menu assigned to location successfully.": [
+        "Menú asignado a la ubicación correctamente."
+    ],
+    "Menu Assigned: %1$s to location %2$s": [
+        "Menú asignado: %1$s a la ubicación %2$s"
+    ],
+    "Menu Created: %1$s (ID: %2$d)": [
+        "Menú creado: %1$s (ID: %2$d)"
+    ],
+    "Menu deleted successfully.": [
+        "Menú eliminado correctamente."
+    ],
+    "Menu Deleted: %1$s (ID: %2$d)": [
+        "Menú eliminado: %1$s (ID: %2$d)"
+    ],
+    "Menu Item Added: %1$s to menu %2$s": [
+        "Elemento de menú añadido: %1$s al menú %2$s"
+    ],
+    "Menu item deleted successfully.": [
+        "Elemento de menú eliminado correctamente."
+    ],
+    "Menu Item Deleted: %s": [
+        "Elemento de menú eliminado: %s"
+    ],
+    "Menu item is not associated with any menu.": [
+        "El elemento del menú no está asociado a ningún menú."
+    ],
+    "Menu item not found.": [
+        "Elemento de menú no encontrado."
+    ],
+    "Menu item updated successfully.": [
+        "Elemento de menú actualizado correctamente."
+    ],
+    "Menu Item Updated: %s": [
+        "Elemento de menú actualizado: %s"
+    ],
+    "Menu name is required.": [
+        "Se requiere el nombre del menú."
+    ],
+    "menu_id is required for FSE themes.": [
+        "Se requiere menu_id para temas FSE."
+    ],
+    "Minimize": [
+        "Minimizar"
+    ],
+    "Most Popular": [
+        "Más populares"
+    ],
+    "Multi-model AI service for text, image, translation, research & more.": [
+        "Servicio de IA multimodal para texto, imagen, traducción, investigación y más."
+    ],
+    "Navigation deleted successfully.": [
+        "Navegación eliminada correctamente."
+    ],
+    "Navigation Item Added: %1$s to %2$s": [
+        "Elemento de navegación añadido: %1$s a %2$s"
+    ],
+    "Navigation Item Deleted: %s": [
+        "Elemento de navegación eliminado: %s"
+    ],
+    "Navigation Item Updated: %s": [
+        "Elemento de navegación actualizado: %s"
+    ],
+    "New chat": [
+        "Nuevo chat"
+    ],
+    "new_domain parameter is required.": [
+        "El parámetro new_domain es obligatorio."
+    ],
+    "Next": [
+        "Próximo"
+    ],
+    "No conversations yet": [
+        "Aún no hay conversaciones."
+    ],
+    "No core updates available.": [
+        "No hay actualizaciones principales disponibles."
+    ],
+    "No results found.": [
+        "No se encontraron resultados."
+    ],
+    "No valid fields provided.": [
+        "No se proporcionaron campos válidos."
+    ],
+    "Not allowed": [
+        "No está permitido"
+    ],
+    "object_id and object are required for post_type items.": [
+        "Se requieren object_id y object para elementos de post_type."
+    ],
+    "Older": [
+        "Más viejo"
+    ],
+    "One AI Agent.": [
+        "Un agente de IA."
+    ],
+    "Only AI-generated images can be deleted through this endpoint.": [
+        "Solo las imágenes generadas por IA se pueden eliminar a través de este endpoint.Solo las imágenes generadas por IA se pueden eliminar a través de este endpoint."
+    ],
+    "Open chat": [
+        "Abrir chat"
+    ],
+    "Open conversation": [
+        "Abrir conversación"
+    ],
+    "Optimize & Protect": [
+        "Optimizar y proteger"
+    ],
+    "Optimize for SEO": [
+        "Optimizar para SEO"
+    ],
+    "or any other plugin using the Connectors framework.": [
+        "o cualquier otro plugin que utilice el framework Connectors."
+    ],
+    "Order Created (Order ID: %d)": [
+        "Pedido creado (ID del pedido: %d)"
+    ],
+    "Order ID is required for updating orders.": [
+        "Se requiere el ID del pedido para actualizar los pedidos."
+    ],
+    "Order Moved to Trash (Order ID: %d)": [
+        "Pedido movido a la papelera (ID del pedido: %d)"
+    ],
+    "Order Permanently Deleted (Order ID: %d)": [
+        "Pedido eliminado permanentemente (ID del pedido: %d)"
+    ],
+    "Order Updated (Order ID: %d)": [
+        "Pedido actualizado (ID del pedido: %d)"
+    ],
+    "Page Created: %1$s (ID: %2$d)": [
+        "Página creada: %1$s (ID: %2$d)"
+    ],
+    "Page ID is required for updating pages.": [
+        "Se requiere el ID de la página para actualizar las páginas."
+    ],
+    "Page Updated: %1$s (ID: %2$d)": [
+        "Página actualizada: %1$s (ID: %2$d)"
+    ],
+    "Parent theme not found: %s": [
+        "Tema principal no encontrado: %s"
+    ],
+    "Pause video": [
+        "Pausar vídeo"
+    ],
+    "Paying Customers": [
+        "Clientes que pagan"
+    ],
+    "Pending": [
+        "Pendiente"
+    ],
+    "Play video": [
+        "Reproducir vídeo"
+    ],
+    "Please provide either a plugin slug.": [
+        "Por favor, proporcione un slug del plugin."
+    ],
+    "Please provide either a theme slug.": [
+        "Por favor, proporcione un slug de tema."
+    ],
+    "Please provide either file data or a file URL.": [
+        "Por favor, proporcione los datos del archivo o la URL del archivo."
+    ],
+    "Plugin activated successfully.": [
+        "Plugin activado correctamente."
+    ],
+    "Plugin Activated: %s": [
+        "Plugin activado: %s"
+    ],
+    "Plugin Activation": [
+        "Activación del plugin"
+    ],
+    "Plugin deactivated successfully.": [
+        "Plugin desactivado correctamente."
+    ],
+    "Plugin Deactivated: %s": [
+        "Plugin desactivado: %s"
+    ],
+    "Plugin deleted successfully.": [
+        "Plugin eliminado correctamente."
+    ],
+    "Plugin Deleted: %s": [
+        "Plugin eliminado: %s"
+    ],
+    "Plugin deletion failed.": [
+        "Error al eliminar el plugin."
+    ],
+    "Plugin installation failed.": [
+        "La instalación del complemento falló."
+    ],
+    "Plugin installed successfully.": [
+        "Plugin instalado correctamente."
+    ],
+    "Plugin Installed: %s": [
+        "Plugin instalado: %s"
+    ],
+    "Plugin Installed: %s (Activated)": [
+        "Plugin instalado: %s (Activado)"
+    ],
+    "Plugin is already active.": [
+        "El plugin ya está activo."
+    ],
+    "Plugin is already inactive.": [
+        "El plugin ya está inactivo."
+    ],
+    "Plugin is already up to date.": [
+        "El plugin ya está actualizado."
+    ],
+    "Plugin not found.": [
+        "Complemento no encontrado."
+    ],
+    "Plugin status not changed.": [
+        "El estado del plugin no ha cambiado."
+    ],
+    "Plugin update failed.": [
+        "La actualización del plugin falló."
+    ],
+    "Plugin updated successfully.": [
+        "Plugin actualizado correctamente."
+    ],
+    "Plugin Updated: %1$s (from version %2$s to %3$s)": [
+        "Plugin actualizado: %1$s (de la versión %2$s a %3$s)"
+    ],
+    "Post Created: %1$s (ID: %2$d)": [
+        "Publicación creada: %1$s (ID: %2$d)"
+    ],
+    "Post ID is required for updating posts.": [
+        "Se requiere el ID de la publicación para actualizar las publicaciones."
+    ],
+    "Post moved to trash: %1$s (ID: %2$d)": [
+        "Mensaje movido a la papelera: %1$s (ID: %2$d)"
+    ],
+    "Post permanently deleted: %1$s (ID: %2$d)": [
+        "Mensaje eliminado permanentemente: %1$s (ID: %2$d)"
+    ],
+    "Post type not found.": [
+        "No se encontró el tipo de publicación."
+    ],
+    "Post Updated: %1$s (ID: %2$d)": [
+        "Publicación actualizada: %1$s (ID: %2$d)"
+    ],
+    "Power Mode": [
+        "Modo de potencia"
+    ],
+    "Power mode": [
+        "Power Mode"
+    ],
+    "Power Mode is disabled": [
+        "El modo de energía está desactivado."
+    ],
+    "Power Mode is enabled": [
+        "El modo de energía está habilitado."
+    ],
+    "Power Mode is on. Note: Power Mode may modify your site’s content or settings. Tap Learn more for details before proceeding.": [
+        "Power Mode está activado. Nota: Power Mode puede modificar el contenido o la configuración de tu sitio. Toca Más información para ver los detalles antes de continuar."
+    ],
+    "Powermode is disabled. This operation is not allowed.": [
+        "El modo de ahorro de energía está desactivado. Esta operación no está permitida."
+    ],
+    "Private": [
+        "Privado"
+    ],
+    "Product Created: %1$s (Product ID: %2$d)": [
+        "Producto creado: %1$s (ID del producto: %2$d)"
+    ],
+    "Product ID is required for updating products.": [
+        "Se requiere el ID del producto para actualizar los productos."
+    ],
+    "Product Moved to Trash: %1$s (Product ID: %2$d)": [
+        "Producto movido a la papelera: %1$s (ID del producto: %2$d)"
+    ],
+    "Product Permanently Deleted: %1$s (Product ID: %2$d)": [
+        "Producto eliminado permanentemente: %1$s (ID del producto: %2$d)"
+    ],
+    "Product Updated: %1$s (Product ID: %2$d)": [
+        "Producto actualizado: %1$s (ID del producto: %2$d)"
+    ],
+    "Prompt cannot be empty": [
+        "El campo de solicitud no puede estar vacío."
+    ],
+    "Prompt is required.": [
+        "Se requiere prontitud."
+    ],
+    "Provider connected status has been updated successfully.": [
+        "El estado de conexión con el proveedor se ha actualizado correctamente."
+    ],
+    "Published": [
+        "Publicado"
+    ],
+    "Read this post": [
+        "Leer esta entrada"
+    ],
+    "Reading": [
+        "Leyendo"
+    ],
+    "Recent Activity": [
+        "Actividad reciente"
+    ],
+    "Recommended": [
+        "Recomendado"
+    ],
+    "Recommended reads": [
+        "Lecturas recomendadas"
+    ],
+    "remaining": [
+        "restantes"
+    ],
+    "Response still in progress": [
+        "La respuesta aún está en curso."
+    ],
+    "Retry": [
+        "Rever"
+    ],
+    "Revision Deleted: %1$s (ID: %2$d, Revision: %3$d)": [
+        "Revisión eliminada: %1$s (ID: %2$d, revisión: %3$d)"
+    ],
+    "Revision Restored: %1$s (ID: %2$d, Revision: %3$d)": [
+        "Revisión restaurada: %1$s (ID: %2$d, revisión: %3$d)"
+    ],
+    "Run a full SEO audit of my site": [
+        "Realiza una auditoría SEO completa de mi sitio"
+    ],
+    "Run bulk actions with one prompt": [
+        "Ejecuta acciones masivas con una sola solicitud."
+    ],
+    "save": [
+        "ahorrar"
+    ],
+    "Search...": [
+        "Buscar..."
+    ],
+    "Searching the web": [
+        "Buscando en la web"
+    ],
+    "Secret Connection Token": [
+        "Token de conexión secreta"
+    ],
+    "Secure my site - Apply recommended security hardening (via Security Optimizer)": [
+        "Protege mi sitio: aplica el refuerzo de seguridad recomendado (a través de Security Optimizer)"
+    ],
+    "Server error: ": [
+        "Error del servidor:"
+    ],
+    "Setting \"%s\" has been updated successfully.": [
+        "La configuración \"%s\" se ha actualizado correctamente."
+    ],
+    "Setting \"%s\" is not allowed to be updated via this endpoint.": [
+        "No se permite actualizar la configuración \"%s\" a través de este punto final."
+    ],
+    "Setting name cannot be empty.": [
+        "El nombre del ajuste no puede estar vacío."
+    ],
+    "Setting Updated: %1$s (from \"%2$s\" to \"%3$s\")": [
+        "Configuración actualizada: %1$s (de \"%2$s\" a \"%3$s\")"
+    ],
+    "Settings": [
+        "Ajustes"
+    ],
+    "Share your experience": [
+        "Comparte tu experiencia"
+    ],
+    "Share your thoughts...": [
+        "Comparte tus opiniones..."
+    ],
+    "Show pending orders and help me process them": [
+        "Muestra los pedidos pendientes y ayúdame a procesarlos"
+    ],
+    "Show the AI Agent chat bubble inside the WordPress admin area. Turn this off to hide the floating bubble.": [
+        "Muestra la burbuja de chat del AI Agent dentro del área de administración de WordPress. Desactiva esta opción para ocultar la burbuja flotante."
+    ],
+    "Show the AI Agent chat bubble on the logged-in front-end of your website. On by default for adminstrators only.": [
+        "Muestra la burbuja de chat del AI Agent en el front-end de tu sitio web para usuarios con sesión iniciada. Activada de forma predeterminada solo para administradores."
+    ],
+    "SiteGround": [
+        "Terreno del sitio"
+    ],
+    "SiteGround AI Connector": [
+        "Conector de IA de SiteGround"
+    ],
+    "SiteGround AI Studio Connector is disabled": [
+        "El conector SiteGround AI Studio está deshabilitado."
+    ],
+    "SiteGround AI Studio Connector is enabled": [
+        "El conector SiteGround AI Studio está habilitado."
+    ],
+    "Something went wrong. Please try again later.": [
+        "Algo salió mal. Inténtalo de nuevo más tarde."
+    ],
+    "Something went wrong. Please try again.": [
+        "Algo salió mal. Por favor, inténtalo de nuevo."
+    ],
+    "Sorry, you are not allowed to access activity logs.": [
+        "Lo sentimos, no tiene permiso para acceder a los registros de actividad."
+    ],
+    "Speed - Optimize site performance (caching, images, CSS via SiteGround Speed Optimizer)": [
+        "Velocidad: Optimiza el rendimiento del sitio (caché, imágenes, CSS mediante SiteGround Speed ​​Optimizer)."
+    ],
+    "Speed up my site automatically (with SiteGround Speed Optimizer)": [
+        "Acelera tu sitio web automáticamente (con SiteGround Speed ​​Optimizer)"
+    ],
+    "Start chat": [
+        "Iniciar chat"
+    ],
+    "Start chatting to build your history!": [
+        "¡Empieza a chatear para construir tu historial!"
+    ],
+    "Store": [
+        "Tienda"
+    ],
+    "Submit": [
+        "Entregar"
+    ],
+    "Submit review": [
+        "Enviar reseña"
+    ],
+    "Successfully disconnected and cleaned up all SG AI Studio data.": [
+        "Se ha desconectado y limpiado correctamente todos los datos de SG AI Studio."
+    ],
+    "Suggested actions": [
+        "Acciones sugeridas"
+    ],
+    "Supported Formats: ": [
+        "Formatos compatibles:"
+    ],
+    "Thank you for your feedback": [
+        "Gracias por sus comentarios."
+    ],
+    "The category could not be deleted.": [
+        "No se pudo eliminar la categoría."
+    ],
+    "The category has been permanently deleted.": [
+        "La categoría ha sido eliminada permanentemente."
+    ],
+    "The comment could not be deleted.": [
+        "El comentario no pudo ser eliminado."
+    ],
+    "The coupon could not be deleted.": [
+        "No se pudo eliminar el cupón."
+    ],
+    "The coupon has been permanently deleted.": [
+        "El cupón ha sido eliminado permanentemente."
+    ],
+    "The default category cannot be deleted. Please set a different default category first.": [
+        "La categoría predeterminada no se puede eliminar. Por favor, establezca primero una categoría predeterminada diferente."
+    ],
+    "The media item could not be deleted.": [
+        "No se pudo eliminar el elemento multimedia."
+    ],
+    "The order could not be deleted.": [
+        "No se pudo eliminar el pedido."
+    ],
+    "The page could not be deleted.": [
+        "No se pudo eliminar la página."
+    ],
+    "The post could not be deleted.": [
+        "No se pudo eliminar la publicación."
+    ],
+    "The product could not be deleted.": [
+        "No se pudo eliminar el producto."
+    ],
+    "The provided file URL is not allowed.": [
+        "La URL de archivo proporcionada no está permitida."
+    ],
+    "The requested theme does not exist.": [
+        "El tema solicitado no existe."
+    ],
+    "The revision could not be deleted.": [
+        "No se pudo eliminar la revisión."
+    ],
+    "The revision could not be restored.": [
+        "No se pudo restaurar la revisión."
+    ],
+    "The tag could not be deleted.": [
+        "No se pudo eliminar la etiqueta."
+    ],
+    "The tag has been permanently deleted.": [
+        "La etiqueta ha sido eliminada permanentemente."
+    ],
+    "The user could not be deleted.": [
+        "No se pudo eliminar al usuario."
+    ],
+    "The user has been deleted.": [
+        "El usuario ha sido eliminado."
+    ],
+    "The WooCommerce category could not be deleted.": [
+        "No se pudo eliminar la categoría de WooCommerce."
+    ],
+    "The WooCommerce category has been permanently deleted.": [
+        "La categoría de WooCommerce ha sido eliminada permanentemente."
+    ],
+    "Theme activated successfully.": [
+        "Tema activado correctamente."
+    ],
+    "Theme Activated: %s": [
+        "Tema activado: %s"
+    ],
+    "Theme activation failed. The theme may have fatal errors.": [
+        "La activación del tema falló. El tema podría contener errores graves."
+    ],
+    "Theme activation failed: %s": [
+        "Falló la activación del tema: %s"
+    ],
+    "Theme deleted successfully.": [
+        "Tema eliminado correctamente."
+    ],
+    "Theme Deleted: %s": [
+        "Tema eliminado: %s"
+    ],
+    "Theme deletion failed.": [
+        "Error al eliminar el tema."
+    ],
+    "Theme has errors: %s": [
+        "El tema tiene errores: %s"
+    ],
+    "Theme installation completed, but theme information could not be retrieved.": [
+        "La instalación del tema se ha completado, pero no se ha podido recuperar la información del mismo."
+    ],
+    "Theme installation failed.": [
+        "La instalación del tema falló."
+    ],
+    "Theme installed successfully.": [
+        "Tema instalado correctamente."
+    ],
+    "Theme Installed: %s": [
+        "Tema instalado: %s"
+    ],
+    "Theme Installed: %s (Activated)": [
+        "Tema instalado: %s (activado)"
+    ],
+    "Theme is already active.": [
+        "El tema ya está activo."
+    ],
+    "Theme is already up to date.": [
+        "El tema ya está actualizado."
+    ],
+    "Theme not found.": [
+        "Tema no encontrado."
+    ],
+    "Theme requirements not met: %s": [
+        "Requisitos del tema no cumplidos: %s"
+    ],
+    "Theme update failed.": [
+        "La actualización del tema falló."
+    ],
+    "Theme updated successfully but reactivation failed: %s": [
+        "El tema se actualizó correctamente, pero la reactivación falló: %s"
+    ],
+    "Theme updated successfully.": [
+        "Tema actualizado correctamente."
+    ],
+    "Theme Updated: %1$s (from version %2$s to %3$s)": [
+        "Tema actualizado: %1$s (de la versión %2$s a %3$s)"
+    ],
+    "Thinking": [
+        "Pensando"
+    ],
+    "This conversation has grown too long. To continue, please start a new chat.": [
+        "Esta conversación se ha alargado demasiado. Para continuar, por favor, inicia un nuevo chat."
+    ],
+    "To protect your website from accidental or harmful changes, the AI Agent for WordPress includes a built-in safety option called \"Power Mode.\" Power Mode is disabled by default to ensure that high-impact actions cannot be executed accidentally. Actions that require you to enable Power Mode include deletions (users, posts, pages, files, etc.), bulk operations, global settings modifications, product, order, and price updates.": [
+        "Para proteger tu sitio web de cambios accidentales o dañinos, el AI Agent para WordPress incluye una opción de seguridad integrada llamada \"Power Mode\". Power Mode está desactivado de forma predeterminada para evitar que se ejecuten acciones de alto impacto por accidente. Entre las acciones que requieren que actives Power Mode se incluyen las eliminaciones (usuarios, entradas, páginas, archivos, etc.), las operaciones masivas, las modificaciones de la configuración global y las actualizaciones de productos, pedidos y precios."
+    ],
+    "Today": [
+        "Hoy"
+    ],
+    "Token can not be empty.": [
+        "El token no puede estar vacío."
+    ],
+    "Token validation failed: %s": [
+        "Falló la validación del token: %s"
+    ],
+    "Tokens usage": [
+        "Uso de tokens"
+    ],
+    "Try different keywords, check spelling, or broaden your filters.": [
+        "Pruebe con palabras clave diferentes, revise la ortografía o amplíe sus filtros."
+    ],
+    "Turn hours of admin work into minutes of conversation.": [
+        "Convierte horas de trabajo administrativo en minutos de conversación."
+    ],
+    "Unexpected error: ": [
+        "Error inesperado:"
+    ],
+    "Update my site, plugins and themes": [
+        "Actualiza mi sitio, plugins y temas"
+    ],
+    "Upgrade to Plus": [
+        "Actualiza a Plus"
+    ],
+    "URL is required for custom navigation links.": [
+        "Se requiere URL para enlaces de navegación personalizados."
+    ],
+    "Use AI Agent across all WordPress AI functionalities": [
+        "Usa AI Agent en todas las funciones de IA de WordPress"
+    ],
+    "Use SiteGround AI for AI Agent functionalities only": [
+        "Usa SiteGround AI solo para las funciones del AI Agent"
+    ],
+    "Use your SiteGround AI Studio tokens to run every AI functionality powered by the WordPress": [
+        "Utiliza tus tokens de SiteGround AI Studio para ejecutar todas las funciones de IA basadas en WordPress."
+    ],
+    "User Created: %1$s (ID: %2$d)": [
+        "Creado por el usuario: %1$s (ID: %2$d)"
+    ],
+    "User Deleted: %1$s (ID: %2$d)": [
+        "Usuario eliminado: %1$s (ID: %2$d)"
+    ],
+    "User ID is required for updating users.": [
+        "Se requiere el ID de usuario para actualizar los usuarios."
+    ],
+    "User Updated: %1$s (ID: %2$d)": [
+        "Usuario actualizado: %1$s (ID: %2$d)"
+    ],
+    "User uploaded image": [
+        "Imagen subida por el usuario"
+    ],
+    "Username already exists.": [
+        "El nombre de usuario ya existe."
+    ],
+    "Video preview": [
+        "Vista previa del vídeo"
+    ],
+    "View All": [
+        "Ver todo"
+    ],
+    "We read every submission and use it to improve our product.": [
+        "Leemos todas las sugerencias y las utilizamos para mejorar nuestro producto."
+    ],
+    "When this option is on, you will see the AI Agent listed in the editing options of some of the standard blocks of the Gutenberg Block Editor. This allows you to easily use AI for creating and editing text and images in your posts. If the option is turned off, you will not see the AI editing option in the blocks, but you can still use the general AI Agent chat and the custom AI Content Generator block.": [
+        "Cuando esta opción está activada, verás el Agente de IA en las opciones de edición de algunos de los bloques estándar del Editor de bloques de Gutenberg. Esto te permite usar fácilmente la IA para crear y editar texto e imágenes en tus publicaciones. Si la opción está desactivada, no verás la opción de edición con IA en los bloques, pero aún podrás usar el chat general del Agente IA y el bloque  Generador de contenido personalizado con IA."
+    ],
+    "WooCommerce Category Created: %1$s (ID: %2$d)": [
+        "Categoría de WooCommerce creada: %1$s (ID: %2$d)"
+    ],
+    "WooCommerce Category Deleted: %1$s (ID: %2$d)": [
+        "Categoría de WooCommerce eliminada: %1$s (ID: %2$d)"
+    ],
+    "WooCommerce Category Updated: %1$s (ID: %2$d)": [
+        "Categoría de WooCommerce actualizada: %1$s (ID: %2$d)"
+    ],
+    "WordPress core is already up to date.": [
+        "El núcleo de WordPress ya está actualizado."
+    ],
+    "WordPress core updated successfully.": [
+        "El núcleo de WordPress se actualizó correctamente."
+    ],
+    "WordPress Expert": [
+        "Experto en WordPress"
+    ],
+    "Working on your site": [
+        "Trabajando en tu sitio"
+    ],
+    "Write an SEO-friendly blog post with AI images and headings": [
+        "Escribe una entrada de blog optimizada para SEO con imágenes y encabezados generados por IA"
+    ],
+    "You also have active one-time token top-up(s).": [
+        "También tienes recargas de tokens únicas activas."
+    ],
+    "You do not have permission to edit content.": [
+        "No tienes permiso para editar el contenido."
+    ],
+    "You do not have permission to edit this post.": [
+        "No tienes permiso para editar esta entrada."
+    ],
+    "You do not have permission to upload files.": [
+        "No tienes permiso para subir archivos."
+    ],
+    "You're almost out of tokens.": [
+        "Te estás quedando sin fichas."
+    ],
+    "You've run out of tokens.": [
+        "Te has quedado sin fichas."
+    ],
+    "Your plugin is active and connected to Siteground AI. Two directional bridge between SiteGround AI studio and Wordpress.": [
+        "Tu plugin está activo y conectado a SiteGround AI. Puente bidireccional entre SiteGround AI Studio y WordPress."
+    ],
+    "Your site is not connected.": [
+        "Tu sitio no está conectado."
+    ],
+    "Your WordPress AI Assistant. Ask about content, your store, speed, or security.": [
+        "Tu asistente de IA para WordPress. Pregunta sobre contenido, tu tienda, velocidad o seguridad."
+    ],
+    "You’re running low on tokens.": [
+        "Te estás quedando sin tokens."
+    ],
+    "Delegate entire processes to AI - build site architecture with menus, restructure taxonomies, run seasonal promotions, and other complex tasks. Manage your WordPress and WooCommerce sites through a simple chat with AI Agent by SiteGround.": [
+        "Delega procesos completos a la IA: crea la arquitectura del sitio con menús, reestructura taxonomías, gestiona promociones de temporada y otras tareas complejas. Administra tus sitios de WordPress y WooCommerce mediante un sencillo chat con AI Agent by SiteGround."
+    ],
+    "Your plugin is active and connected - a two-way bridge between your WordPress site and SiteGround AI Studio.": [
+        "Tu plugin está activo y conectado: un puente bidireccional entre tu sitio WordPress y SiteGround AI Studio."
+    ],
+    "Use SiteGround AI for all WordPress AI features": [
+        "Utiliza SiteGround AI para todas las funciones de IA de WordPress"
+    ],
+    "Add more tokens": [
+        "Añadir más tokens"
+    ],
+    "AI Agent uses SiteGround AI Tokens. To see AI Tokens reset date(s) or add more tokens click the MANAGE button.": [
+        "AI Agent utiliza SiteGround AI Tokens. Para ver las fechas de restablecimiento de los AI Tokens o añadir más tokens, haz clic en el botón Gestionar."
+    ],
+    "Full Screen": [
+        "Pantalla completa"
+    ],
+    "Manage AI Tokens": [
+        "Gestionar AI Tokens"
+    ],
+    "Nothing here yet": [
+        "Aún no hay nada aquí"
+    ],
+    "Popover": [
+        "Ventana emergente"
+    ],
+    "Sidebar": [
+        "Barra lateral"
+    ],
+    "View mode": [
+        "Modo de vista"
+    ],
+    "AI Agent uses SiteGround AI Tokens. To see AI Tokens reset date(s) or add more tokens click the Add More Tokens button.": [
+        "AI Agent utiliza SiteGround AI Tokens. Para ver las fechas de restablecimiento de los AI Tokens o añadir más tokens, haz clic en el botón Añadir más tokens."
+    ],
+    "AI Agent uses SiteGround AI Tokens. To see AI Tokens reset date(s) or add more tokens click the Manage AI Tokens button.": [
+        "AI Agent utiliza SiteGround AI Tokens. Para ver las fechas de restablecimiento de los AI Tokens o añadir más tokens, haz clic en el botón Gestionar AI Tokens."
+    ],
+    "and connect the plugin via a unique token. Websites hosted on SiteGround platform will be connected automatically.": [
+        "y conectar el plugin mediante un token único. Los sitios web alojados en la plataforma de SiteGround se conectarán automáticamente."
+    ],
+    "SiteGround AI Studio service": [
+        "el servicio SiteGround AI Studio"
+    ],
+    "To activate the plugin, you need to sign up for": [
+        "Para activar el plugin, tienes que registrarte en"
+    ],
+    "This feature needs Connector Approval. Approve the AI Agent by SiteGround and the AI plugins on the %s page.": [
+        "Esta función requiere la aprobación del conector. Aprueba el agente de IA de SiteGround y los plugins de IA en la página %s."
+    ],
+    "Tools/Connector Approvals": [
+        "Herramientas/Aprobación de conectores"
+    ],
+    "AI Agent Access for Editors": [
+        "Acceso de editores al AI Agent"
+    ],
+    "AI Agent Access for Editors is disabled": [
+        "El acceso de editores al AI Agent está deshabilitado"
+    ],
+    "AI Agent Access for Editors is enabled": [
+        "El acceso de editores al AI Agent está habilitado"
+    ],
+    "The AI Agent by SiteGround needs Connector Approval before it can run. Grant it on the {{a}}Tools/Connector Approvals{{/a}} page in WP Admin, then try again.": [
+        "El AI Agent de SiteGround necesita la aprobación del conector antes de poder ejecutarse. Concédela en la página {{a}}Herramientas/Aprobación de conectores{{/a}} del administrador de WP y vuelve a intentarlo."
+    ],
+    "When this option is on, users with the Editor role can use the AI Agent chat on this site. The AI Agent acts as the person asking, so it can never do more than they could do themselves in wp-admin. Editors can work with posts, pages, media, comments and categories, but not plugins, themes, settings or the store. If the option is turned off, only Administrators can use the AI Agent.": [
+        "Cuando esta opción está activada, los usuarios con el rol de Editor pueden usar el chat del AI Agent en este sitio. El AI Agent actúa en nombre de la persona que lo solicita, por lo que nunca puede hacer más de lo que esa persona podría hacer por sí misma en wp-admin. Los editores pueden trabajar con entradas, páginas, medios, comentarios y categorías, pero no con plugins, temas, ajustes ni la tienda. Si desactivas la opción, solo los administradores podrán usar el AI Agent."
+    ],
+    "Insufficient tokens. Contact your administrator.": [
+        "No hay suficientes tokens. Contacta con tu administrador."
+    ],
+    "User": [
+        "Usuario"
+    ],
+    "Asking for your input": [
+        "Esperando tu respuesta"
+    ],
+    "Back": [
+        "Atrás"
+    ],
+    "Collapse steps": [
+        "Ocultar pasos"
+    ],
+    "Contains errors": [
+        "Contiene errores"
+    ],
+    "Decide for me": [
+        "Decide por mí"
+    ],
+    "Done": [
+        "Listo"
+    ],
+    "Download %(name)s": [
+        "Descargar %(name)s"
+    ],
+    "Expand steps": [
+        "Mostrar pasos"
+    ],
+    "Finished %(count)d tasks": [
+        "%(count)d tareas finalizadas"
+    ],
+    "Finished 1 task": [
+        "1 tarea finalizada"
+    ],
+    "No preference, you decide": [
+        "Sin preferencia, decide tú"
+    ],
+    "Open %(name)s": [
+        "Abrir %(name)s"
+    ],
+    "Sharing a file": [
+        "Compartiendo un archivo"
+    ],
+    "Type your own answer": [
+        "Escribe tu propia respuesta"
+    ],
+    "Working": [
+        "Trabajando"
+    ]
+}

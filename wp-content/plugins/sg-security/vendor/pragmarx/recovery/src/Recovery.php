@@ -25,7 +25,7 @@ class Recovery
      *
      * @param Random $random
      */
-    public function __construct(Random $random = null)
+    public function __construct(?Random $random = null)
     {
         if (is_null($random)) {
             $random = new Random();

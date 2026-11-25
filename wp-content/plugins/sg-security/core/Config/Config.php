@@ -24,17 +24,18 @@ class Config {
 	 * @var array $config_options List of all options.
 	 */
 	public $config_options = array(
-		'version'              => 'sg_security_current_version',
-		'lock_system_folders'  => 'sg_security_lock_system_folders',
-		'wp_remove_version'    => 'sg_security_wp_remove_version',
-		'disable_file_edit'    => 'sg_security_disable_file_edit',
-		'disable_xml_rpc'      => 'sg_security_disable_xml_rpc',
-		'disable_feed'         => 'sg_security_disable_feed',
-		'xss_protection'       => 'sg_security_xss_protection',
-		'delete_readme'        => 'sg_security_delete_readme',
-		'sg2fa'                => 'sg_security_sg2fa',
-		'disable_usernames'    => 'sg_security_disable_usernames',
-		'disable_activity_log' => 'sg_security_disable_activity_log',
+		'version'               => 'sg_security_current_version',
+		'lock_system_folders'   => 'sg_security_lock_system_folders',
+		'wp_remove_version'     => 'sg_security_wp_remove_version',
+		'disable_file_edit'     => 'sg_security_disable_file_edit',
+		'disable_xml_rpc'       => 'sg_security_disable_xml_rpc',
+		'disable_feed'          => 'sg_security_disable_feed',
+		'xss_protection'        => 'sg_security_xss_protection',
+		'delete_readme'         => 'sg_security_delete_readme',
+		'sg2fa'                 => 'sg_security_sg2fa',
+		'disable_usernames'     => 'sg_security_disable_usernames',
+		'disable_activity_log'  => 'sg_security_disable_activity_log',
+		'rest_user_enumeration' => 'sg_security_rest_user_enumeration',
 	);
 
 	/**

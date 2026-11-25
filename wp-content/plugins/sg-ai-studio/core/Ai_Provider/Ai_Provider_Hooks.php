@@ -85,6 +85,69 @@ class Ai_Provider_Hooks {
 	}
 
 	/**
+	 * Attach this plugin's file to the auto-registered AI Studio connector.
+	 *
+	 * @param \WP_Connector_Registry $registry The connector registry.
+	 * @return void
+	 */
+	public function add_connector_plugin_file( $registry ) {
+		$connector_id = Ai_Studio_Provider::metadata()->getId();
+		$connector    = $registry->get_registered( $connector_id );
+
+		if ( null === $connector || ! empty( $connector['plugin']['file'] ) ) {
+			return;
+		}
+
+		$connector['plugin']['file'] = plugin_basename( \SG_AI_Studio\DIR . '/sg-ai-studio.php' );
+
+		$registry->unregister( $connector_id );
+		$registry->register( $connector_id, $connector );
+	}
+
+	/**
+	 * Map the AI Studio API host to our provider in AI request logs.
+	 *
+	 * @param array<string, string[]> $patterns Provider ID => host substrings.
+	 * @return array<string, string[]> The patterns.
+	 */
+	public function filter_request_log_providers( $patterns ) {
+		$patterns[ Ai_Studio_Provider::metadata()->getId() ] = array( 'studio.siteground.ai' );
+
+		return $patterns;
+	}
+
+	/**
+	 * Classify AI Studio requests as text or image in AI request logs.
+	 *
+	 * @param string      $kind     The detected request kind.
+	 * @param string|null $provider The detected provider ID.
+	 * @param string      $path     The request path.
+	 * @return string The request kind.
+	 */
+	public function filter_request_log_kind( $kind, $provider, $path ) {
+		if ( Ai_Studio_Provider::metadata()->getId() !== $provider ) {
+			return $kind;
+		}
+
+		return false !== strpos( (string) $path, '/image/' ) ? 'image' : 'text';
+	}
+
+	/**
+	 * Extract token usage from AI Studio responses for AI request logs.
+	 *
+	 * @param array{input: int|null, output: int|null} $tokens   The detected token counts.
+	 * @param array                                    $response The decoded response body.
+	 * @return array{input: int|null, output: int|null} The token counts.
+	 */
+	public function filter_request_log_tokens( $tokens, $response ) {
+		if ( null !== $tokens['input'] || null !== $tokens['output'] || ! is_array( $response ) ) {
+			return $tokens;
+		}
+
+		return Ai_Studio_Provider::tokenCountsFromResponse( $response );
+	}
+
+	/**
 	 * Return synthetic API key when provider is connected.
 	 *
 	 * Makes the Connectors page show "Connected" status by returning
@@ -239,6 +302,7 @@ class Ai_Provider_Hooks {
 			$current_screen->id === 'options-connectors' ||
 			( isset( $_GET['page'] ) && $_GET['page'] === 'options-connectors' )
 		);
+		$sg_ai_studio_url = get_option('sg_ai_studio_connected', false ) ? admin_url( 'admin.php?page=sg-ai-studio-settings' ) : admin_url( 'admin.php?page=sg-ai-studio' );
 
 		if ( ! $is_connectors_page ) {
 			return;
@@ -257,7 +321,7 @@ class Ai_Provider_Hooks {
 			'sg_ai_studio_connected',
 			array(
 				'connected' => get_option( 'sg_ai_studio_provider_connected', false ),
-				'admin_url' => admin_url( 'admin.php?page=sg-ai-studio' ),
+				'admin_url' => $sg_ai_studio_url,
 			)
 		);
 

@@ -26,6 +26,8 @@ use WordPress\AiClient\Results\Enums\FinishReasonEnum;
  */
 class Ai_Studio_Image_Generation_Model extends AbstractApiBasedModel implements ImageGenerationModelInterface {
 
+	use Ai_Studio_Api_Request_Trait;
+
 	/**
 	 * Generates an image result from the given prompt.
 	 *
@@ -36,6 +38,15 @@ class Ai_Studio_Image_Generation_Model extends AbstractApiBasedModel implements 
 		$token = Helper::generate_ai_studio_token();
 
 		if ( false === $token || empty( $token ) ) {
+			// When the AI plugin's Connector Approval feature blocked the token
+			// request, throw so the AI Client surfaces an actionable error
+			// notice instead of silently treating the failure text as content.
+			if ( 'connector_not_approved' === Helper::last_token_error() ) {
+				throw new \WordPress\AiClient\Common\Exception\RuntimeException(
+					Helper::connector_approval_error_message()
+				);
+			}
+
 			return $this->buildErrorResult( 'Failed to generate authentication token.' );
 		}
 
@@ -55,17 +66,19 @@ class Ai_Studio_Image_Generation_Model extends AbstractApiBasedModel implements 
 		if ( $has_images ) {
 			$chat_source    = $this->determine_chat_source( true );
 			$question_parts = $this->buildImageQuestionParts( $prompt, $description );
-			$response       = Helper::send_to_text_generation_api( $question_parts, $token, $model_config, false, $chat_source, true );
+			$api_request    = Helper::build_generation_api_request( $question_parts, $model_config, false, $chat_source, true );
 		} else {
 			$chat_source = $this->determine_chat_source( false );
-			$response    = Helper::send_to_text_generation_api( $description, $token, $model_config, true, $chat_source );
+			$api_request = Helper::build_generation_api_request( $description, $model_config, true, $chat_source );
 		}
 
-		if ( is_wp_error( $response ) ) {
-			return $this->buildErrorResult( $response->get_error_message() );
+		try {
+			$response = $this->sendApiRequest( $api_request['url'], $api_request['body'], $token );
+		} catch ( \Exception $e ) {
+			return $this->buildErrorResult( $e->getMessage() );
 		}
 
-		$response_code = wp_remote_retrieve_response_code( $response );
+		$response_code = $response->getStatusCode();
 
 		// Detect token depletion (402 Payment Required).
 		if ( 402 === $response_code ) {
@@ -80,7 +93,7 @@ class Ai_Studio_Image_Generation_Model extends AbstractApiBasedModel implements 
 			);
 		}
 
-		$raw_body   = wp_remote_retrieve_body( $response );
+		$raw_body   = (string) $response->getBody();
 		$image_urls = $this->parseNdjsonForImages( $raw_body );
 
 		if ( empty( $image_urls ) ) {

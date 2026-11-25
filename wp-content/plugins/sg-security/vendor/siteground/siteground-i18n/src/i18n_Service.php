@@ -28,6 +28,11 @@ class i18n_Service {
 	public $folder;
 
 	/**
+	 * WordPress.org plugin update-check API endpoint.
+	 */
+	const API_URL = 'https://api.wordpress.org/plugins/update-check/1.1/';
+
+	/**
 	 * Class construct.
 	 *
 	 * @since 1.0.0
@@ -91,7 +96,7 @@ class i18n_Service {
 
 		foreach ( $keys as $key ) {
 			// Convert a PO file to Jed-compatible JSON.
-			$json = $po_to_json
+			$json = @$po_to_json
 						->withPoFile( WP_CONTENT_DIR . '/languages/plugins/' . $this->folder . '-' . $extra['translations'][ $key ]['language'] . '.po' )
 						->toJedJson( false, $this->sg_textdomain );
 
@@ -155,5 +160,110 @@ class i18n_Service {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Download the plugin translations when the site language changes.
+	 *
+	 * @param string $old_lang Previous WPLANG value.
+	 * @param string $new_lang New WPLANG value.
+	 */
+	public function download_translations_on_lang_change( $old_lang, $new_lang ) {
+		// Bail, if the current user cannot install language packs.
+		if ( ! is_admin() || ! current_user_can( 'install_languages' ) ) {
+			return;
+		}
+
+		$plugin_file = WP_PLUGIN_DIR . '/' . $this->sg_textdomain . '/' . $this->sg_textdomain . '.php';
+		$plugin_data = get_plugin_data( $plugin_file );
+
+		$request = wp_remote_post(
+			self::API_URL,
+			array(
+				'body' => array(
+					'plugins' => wp_json_encode(
+						array(
+							'plugins' => array(
+								$this->sg_textdomain . '/' . $this->sg_textdomain . '.php' => $plugin_data,
+							),
+							'active'  => array(),
+						)
+					),
+					'locale'  => wp_json_encode( array( $new_lang ) ),
+				),
+			)
+		);
+
+		$code = wp_remote_retrieve_response_code( $request );
+		$body = wp_remote_retrieve_body( $request );
+
+		if ( 200 !== $code || 'error' === $body || is_wp_error( $body ) ) {
+			return array();
+		}
+
+		$body = json_decode( $body, true );
+
+		if ( empty( $body['translations'] ) ) {
+			return;
+		}
+
+		// Load the WordPress upgrader classes.
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+		$skin     = new \Automatic_Upgrader_Skin();
+		$upgrader = new \Language_Pack_Upgrader( $skin );
+
+		foreach ( $body['translations'] as $language ) {
+			$this->download_package( (object) $language, $upgrader, $skin );
+		}
+	}
+
+	/**
+	 * Download translation for the language.
+	 *
+	 * @param object                  $language Language package.
+	 * @param Language_Pack_Upgrader  $upgrader The instance of the core class used for updating/installing language packs (translations).
+	 * @param Automatic_Upgrader_Skin $skin     Upgrader Skin for Automatic WordPress Upgrades.
+	 */
+	public function download_package( $language, \Language_Pack_Upgrader $upgrader, \Automatic_Upgrader_Skin $skin ) {
+		// Bail, if there is no translation package URL to download.
+		if ( ! property_exists( $language, 'package' ) || empty( $language->package ) ) {
+			return;
+		}
+
+		$skin->language_update = $language;
+
+		$result = $upgrader->run(
+			array(
+				'package'                     => $language->package,
+				'destination'                 => WP_LANG_DIR . '/plugins',
+				'abort_if_destination_exists' => false,
+				'is_multi'                    => true,
+				'hook_extra'                  => array(
+					'language_update_type' => $language->type,
+					'language_update'      => $language,
+				),
+			)
+		);
+
+		// Build the data array that 'update_json_translations()' expects.
+		$extra = array(
+			'action'       => 'update',
+			'type'         => 'translation',
+			'bulk'         => 1,
+			'translations' => array(
+				array(
+					'language' => $language->language,
+					'type'     => $language->type,
+					'slug'     => $language->slug,
+					'version'  => $language->version,
+				),
+			),
+		);
+
+		// If the translation files are downloaded successfully, update the JSON translations.
+		if ( ! empty( $result ) && ! is_wp_error( $result ) ) {
+			$this->update_json_translations( $upgrader, $extra );
+		}
 	}
 }

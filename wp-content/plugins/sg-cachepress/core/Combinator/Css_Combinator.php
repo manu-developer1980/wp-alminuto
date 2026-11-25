@@ -158,7 +158,7 @@ class Css_Combinator extends Abstract_Combinator {
 		global $wp_styles;
 
 		$excluded_handles = apply_filters(
-			'sgo_css_combine_exclude',
+			'sgo_css_combine_exclude', // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 			array_merge(
 				$this->combined_styles_exclude_list,
 				get_option( 'siteground_optimizer_combine_css_exclude', array() )
@@ -240,23 +240,64 @@ class Css_Combinator extends Abstract_Combinator {
 	 * @return string               Modified HTML.
 	 */
 	public function get_new_html( $html, $styles_data ) {
+		$new_content = array();
+
 		// Remove style tags.
 		foreach ( $styles_data as $url => $tag ) {
+			// Try to get the content of the URL.
+			$content = $this->get_content( $url );
+
+			// Preserve the original tag if reading fails or returns no CSS.
+			if ( empty( $content ) ) {
+				continue;
+			}
+
+			$new_content[ $url ] = $content;
 			$html = str_replace( $tag, '', $html );
-			$new_content[ $url ] = $this->get_content( $url );
 		}
 
+		// Bail, if there is no CSS data to combine.
+		if ( empty( $new_content ) ) {
+			return $html;
+		}
+
+		// Allows the combined CSS tag, to be added after the closing title or before the closing head tag.
+		$tag_position = apply_filters( 'sgo_css_combine_position', 'title' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
+
+		$allowed_values = array(
+			'head',
+			'title',
+		);
+
+		// Check for allowed values.
+		if ( ! in_array( $tag_position, $allowed_values, true ) ) {
+			$tag_position = 'title';
+		}
+
+		//  Generate the combined CSS file and get its handle + URL.
 		$tag_data = $this->create_temp_file_and_get_url( $new_content, 'combined-css', 'css' );
 
-		$replace = '</title><link rel="stylesheet" id="' . $tag_data['handle'] . '" href="' . $tag_data['url'] . '" media="all" />'; //phpcs:ignore
+		// Build the combined CSS stylesheet tag.
+		$stylesheet_tag = '<link rel="stylesheet" id="' . $tag_data['handle'] . '" href="' . $tag_data['url'] . '" media="all" />'; // phpcs:ignore
 
+		$preload_tag = '';
 		if ( Options::is_enabled( 'siteground_optimizer_preload_combined_css' ) ) {
-			$replace .= ' <link rel="preload" href="' . $tag_data['url'] . '" as="style">';
+			$preload_tag = ' <link rel="preload" href="' . $tag_data['url'] . '" as="style">';
+		}
+
+		// Add the stylesheet after closing title tag by default.
+		$replacement_tag = '~<\/title>~';
+		$replace = '</title>' . $stylesheet_tag . $preload_tag;
+
+		// Check if the tag position has been changed.
+		if ( 'head' === $tag_position ) {
+			// Before closing head tag.
+			$replacement_tag = '~<\/head>~';
+			$replace = $stylesheet_tag . $preload_tag . '</head>';
 		}
 
 		// Add combined style tag.
-		// phpcs:ignore 
-		return preg_replace( '~<\/title>~', $replace, $html, 1 );
+		return preg_replace( $replacement_tag, $replace, $html, 1 );
 	}
 
 	/**

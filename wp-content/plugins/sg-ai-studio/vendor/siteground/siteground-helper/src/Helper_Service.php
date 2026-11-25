@@ -3,7 +3,7 @@
  * SiteGround Helper Service.
  */
 
-namespace SiteGround_Helper;
+namespace SG_AI_Studio\Vendor\SiteGround_Helper;
 
 /**
  * SiteGround_Helper_Service class.
@@ -265,5 +265,25 @@ class Helper_Service {
 
 		// Return the data.
 		return $data;
+	}
+
+	/**
+	 * Returns the assets URL.
+	 *
+	 * @return string The URL to the uploads assets.
+	 */
+	public static function get_assets_url() {
+		// Get the uploads data.
+		$uploads = wp_upload_dir();
+
+		// Get the baseurl.
+		$baseurl = rtrim( $uploads['baseurl'], '/' );
+
+		// Add the necessary protocol.
+		if ( is_ssl() && 0 === strpos( $baseurl, 'http://' ) ) {
+			return str_replace( 'http://', 'https://', $baseurl );
+		}
+
+		return $baseurl;
 	}
 }

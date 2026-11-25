@@ -3,7 +3,6 @@ namespace SG_Security\Loader;
 
 use SG_Security;
 use SG_Security\Options_Service\Options_Service;
-use SiteGround_Data\Settings;
 use SiteGround_Helper\Helper_Service;
 
 /**
@@ -15,8 +14,6 @@ class Loader {
 	 *
 	 * @var mixed
 	 */
-	public $settings_page;
-	public $settings;
 	public $helper_service;
 	public $i18n_service;
 	public $admin;
@@ -70,14 +67,6 @@ class Loader {
 	 * @var array
 	 */
 	public $external_dependencies = array(
-		'Settings_Page' => array(
-			'namespace' => 'Data',
-			'hook'      => 'settings_page',
-		),
-		'Settings'      => array(
-			'namespace' => 'Data',
-			'hook'      => 'settings',
-		),
 		'Helper_Service' => array(
 			'namespace' => 'Helper',
 		),
@@ -95,53 +84,6 @@ class Loader {
 		$this->load_external_dependencies();
 		$this->load_dependencies();
 		$this->add_hooks();
-	}
-
-	/**
-	 * Add our custom settings page hooks.
-	 *
-	 * @since 1.2.1
-	 */
-	public function add_settings_page_hooks() {
-		add_action( 'admin_menu', array( $this->settings_page, 'register_settings_page' ) );
-
-		add_action( 'admin_init', array( $this->settings_page, 'add_setting_fields' ) );
-
-		add_filter( 'allowed_options', array( $this->settings_page, 'change_allowed_options' ) );
-
-		// Register rest route.
-		add_action( 'rest_api_init', array( $this->settings_page, 'register_rest_routes' ) );
-	}
-
-	/**
-	 * Add the data collector hooks.
-	 *
-	 * @since 1.3.0
-	 */
-	public function add_settings_hooks() {
-		// Bail if we do not have users consent.
-		if ( 0 === intval( get_option( 'siteground_data_consent', 0 ) ) ) {
-			return;
-		}
-
-		$settings = ! method_exists( 'Siteground_Data\\Settings', 'get_instance' ) ? new Settings() : Settings::get_instance();
-
-		// Schedule Cron Job for sending the data.
-		$settings->schedule_cron_job();
-
-		add_action( 'admin_init', array( $settings, 'handle_settings_update' ) );
-
-		// Hook on wp login to send data, when the cron is disabled.
-		if ( defined( 'DISABLE_WP_CRON' ) && 1 === intval( DISABLE_WP_CRON ) ) {
-			add_action( 'wp_login', array( $settings, 'send_data_on_login' ) );
-		}
-
-		// Check if there is old data to be sent over.
-		add_action( 'siteground_data_collector_cron', array( $settings, 'check_for_old_data' ), 9 );
-		// Sent the data.
-		add_action( 'siteground_data_collector_cron', array( $settings, 'send_data' ), 10 );
-		// Add the custom cron interval.
-		add_action( 'cron_schedules', array( $settings, 'add_siteground_data_interval' ) );
 	}
 
 	/**
@@ -244,7 +186,6 @@ class Loader {
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_scripts' ) );
 		add_action( 'admin_print_styles', array( $this->admin, 'admin_print_styles' ) );
 		add_action( 'admin_init', array( $this->admin, 'hide_errors_and_notices' ), PHP_INT_MAX );
-		add_filter( 'admin_footer_text', array( $this->admin, 'show_privacy_policy' ) );
 	}
 
 	/**
@@ -294,6 +235,9 @@ class Loader {
 		add_action( 'login_init', array( $this->custom_login_url, 'add_sgs_token_to_language_switcher' ) );
 		add_filter( 'um_custom_authenticate_error_codes', array( $this->custom_login_url, 'add_um_form_error_code' ) );
 		add_filter( 'um_submit_form_error', array( $this->custom_login_url, 'set_um_form_flag' ), 100, 2 );
+		add_action( 'admin_print_footer_scripts', array( $this->custom_login_url, 'add_flag_auth_check_modal_rendering' ), 4 );
+		add_action( 'admin_print_footer_scripts', array( $this->custom_login_url, 'remove_flag_auth_check_modal_rendering' ), 6 );
+		add_filter( 'login_url', array( $this->custom_login_url, 'custom_interim_login_url' ), 10, 3 );
 	}
 
 	/**
@@ -303,11 +247,14 @@ class Loader {
 	 */
 	public function add_usernames_service_hooks() {
 		// Bail if the option is not enabled.
-		if ( ! Options_Service::is_enabled( 'disable_usernames' ) ) {
-			return;
+		if ( Options_Service::is_enabled( 'disable_usernames' ) ) {
+			add_action( 'illegal_user_logins', array( $this->usernames_service, 'get_illegal_usernames' ) );
 		}
 
-		add_action( 'illegal_user_logins', array( $this->usernames_service, 'get_illegal_usernames' ) );
+		// REST API user enumeration protection.
+		if ( Options_Service::is_enabled( 'rest_user_enumeration' ) ) {
+			add_filter( 'rest_pre_dispatch', array( $this->usernames_service, 'restrict_rest_api_users_endpoint' ), 10, 3 );
+		}
 	}
 
 	/**
@@ -396,8 +343,11 @@ class Loader {
 			return;
 		}
 
+		add_action( 'set_auth_cookie', array( $this->sg_2fa, 'capture_login_session_token' ), 10, 6 );
+		add_action( 'set_logged_in_cookie', array( $this->sg_2fa, 'capture_login_session_token' ), 10, 6 );
 		add_action( 'wp_login', array( $this->sg_2fa, 'move_encryption_file' ), 9, 2 );
 		add_action( 'wp_login', array( $this->sg_2fa, 'init_2fa' ), 10, 2 );
+		add_filter( 'authenticate', array( $this->sg_2fa, 'block_xmlrpc_for_2fa_users' ), 99, 1 );
 		add_action( 'login_form_sgs2fa', array( $this->sg_2fa, 'validate_2fa_login' ) );
 		add_action( 'login_form_sgs2fabc', array( $this->sg_2fa, 'validate_2fabc_login' ) );
 		add_action( 'login_form_load_sgs2fabc', array( $this->sg_2fa, 'load_backup_codes_form' ) );
@@ -429,10 +379,14 @@ class Loader {
 
 		// Check the login attempts for an IP and block the access to the login page.
 		add_action( 'login_head', array( $this->login_service, 'maybe_block_login_access' ), PHP_INT_MAX );
+		// Enforce the same restriction before validating a 2FA code.
+		add_action( 'sg_security_before_2fa_login', array( $this->login_service, 'maybe_block_login_access' ) );
 		// Add login attempts for ip.
 		add_filter( 'login_errors', array( $this->login_service, 'log_login_attempt' ) );
+		add_action( 'sg_security_2fa_login_failed', array( $this->login_service, 'log_failed_login_attempt' ) );
 		// Reset login attempts for an ip on successful login.
 		add_filter( 'wp_login', array( $this->login_service, 'reset_login_attempts' ) );
+		add_action( 'sg_security_2fa_login_success', array( $this->login_service, 'reset_login_attempts' ) );
 	}
 
 	/**
@@ -555,6 +509,8 @@ class Loader {
 		add_action( 'after_setup_theme', array( $this->i18n_service, 'load_textdomain' ), 9999 );
 		// Generate JSON translations.
 		add_action( 'upgrader_process_complete', array( $this->i18n_service, 'update_json_translations' ), 10, 2 );
+		// Download and update translations on language change.
+		add_action( 'update_option_WPLANG', array( $this->i18n_service, 'download_translations_on_lang_change' ), 10, 2 );
 	}
 
 	/**

@@ -32,10 +32,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</a>
 				</div>
 				<div class="am-footer-col am-footer-col--links" aria-label="<?php esc_attr_e( 'Enlaces legales', 'alminuto-theme' ); ?>">
+					<?php
+					$am_cookies_settings = function_exists( 'alminuto_cookies_get_settings' ) ? alminuto_cookies_get_settings() : [];
+					$am_legal_url        = ! empty( $am_cookies_settings['legal_url'] ) ? alminuto_cookies_resolve_url( $am_cookies_settings['legal_url'] ) : home_url( '/aviso-legal/' );
+					$am_privacy_url      = ! empty( $am_cookies_settings['privacy_url'] ) ? alminuto_cookies_resolve_url( $am_cookies_settings['privacy_url'] ) : home_url( '/politica-de-privacidad/' );
+					$am_cookies_url      = ! empty( $am_cookies_settings['cookies_url'] ) ? alminuto_cookies_resolve_url( $am_cookies_settings['cookies_url'] ) : home_url( '/politica-de-cookies/' );
+					?>
 					<ul class="am-footer-links">
-						<li><a href="<?php echo esc_url( home_url( '/aviso-legal/' ) ); ?>">Aviso Legal</a></li>
-						<li><a href="<?php echo esc_url( home_url( '/politica-de-privacidad/' ) ); ?>" rel="privacy-policy">Política de Privacidad</a></li>
-						<li><a href="<?php echo esc_url( home_url( '/politica-de-cookies/' ) ); ?>">Política de Cookies</a></li>
+						<li><a href="<?php echo esc_url( $am_legal_url ); ?>">Aviso Legal</a></li>
+						<li><a href="<?php echo esc_url( $am_privacy_url ); ?>" rel="privacy-policy">Política de Privacidad</a></li>
+						<li><a href="<?php echo esc_url( $am_cookies_url ); ?>">Política de Cookies</a></li>
+						<?php if ( ! empty( $am_cookies_settings['enabled'] ) && ! empty( $am_cookies_settings['show_footer_link'] ) ) : ?>
+							<li><button type="button" class="am-footer-cookie-btn" data-am-cookies-open="1"><?php echo esc_html( $am_cookies_settings['footer_link_text'] ); ?></button></li>
+						<?php endif; ?>
 					</ul>
 				</div>
 			</div>

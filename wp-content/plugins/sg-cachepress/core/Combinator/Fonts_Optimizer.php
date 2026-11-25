@@ -222,7 +222,7 @@ class Fonts_Optimizer extends Abstract_Combinator {
 	 */
 	public function prepare_urls( $fonts ) {
 		// Define the display variable.
-		$display = apply_filters( 'sgo_google_fonts_display', 'swap' );
+		$display = apply_filters( 'sgo_google_fonts_display', 'swap' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 		// Implode different fonts into one.
 		foreach ( $fonts as $css_type => $value ) {
 			$url = self::GOOGLE_API_URL . $css_type;
@@ -303,7 +303,7 @@ class Fonts_Optimizer extends Abstract_Combinator {
 
 		// Loop trough urls and prepare them for insertion.
 		foreach ( $urls as $url ) {
-			$new_html .= '<link rel="preload" as="font" href="' . $url . '" crossorigin/>';
+			$new_html .= '<link rel="preload" as="font" href="' . esc_url( $url ) . '" crossorigin/>';
 		}
 
 		// Insert the link in the head section.

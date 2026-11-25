@@ -138,4 +138,33 @@ class Usernames_Service {
 
 		return $usernames;
 	}
+
+	/**
+	 * Restrict access to the REST API users endpoint for unauthenticated users.
+	 *
+	 * @param mixed           $result  Response to replace the requested version with.
+	 * @param WP_REST_Server  $server  Server instance.
+	 * @param WP_REST_Request $request Request object.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public function restrict_rest_api_users_endpoint( $result, $server, $request ) {
+		$route = $request->get_route();
+
+		if ( ! preg_match( '#^/wp/v2/users(?:/\d+)?$#', $route ) ) {
+			return $result;
+		}
+
+		if ( is_user_logged_in() ) {
+			return $result;
+		}
+
+		return new \WP_Error(
+			'rest_forbidden',
+			__( 'Sorry, you are not allowed to access this resource.', 'sg-security' ),
+			array(
+				'status' => rest_authorization_required_code(),
+			)
+		);
+	}
 }

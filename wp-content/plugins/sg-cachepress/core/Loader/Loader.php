@@ -22,8 +22,6 @@ class Loader {
 	 * @var mixed
 	 */
 	public $admin_bar;
-	public $settings_page;
-	public $settings;
 	public $helper;
 	public $helper_service;
 	public $i18n_service;
@@ -47,8 +45,8 @@ class Loader {
 	public $config;
 	public $rest;
 	public $database_optimizer;
-	public $campaign_service;
 	public $performance_reports;
+	public $elementor_css;
 
 	/**
 	 * Configuration map array.
@@ -80,9 +78,9 @@ class Loader {
 			'supercacher_helper'     => 'supercacher',
 			'file_cacher'            => 'file_cacher',
 			'ssl'                    => 'ssl',
-			'campaign_service'       => 'campaign_service',
 			'config'                 => 'config',
 			'performance_reports'    => 'performance_reports',
+			'elementor_css'          => 'compatibility',
 		),
 	);
 
@@ -92,14 +90,6 @@ class Loader {
 	 * @var array
 	 */
 	public $external_dependencies = array(
-		'Settings_Page' => array(
-			'namespace' => 'Data',
-			'hook'      => 'settings_page',
-		),
-		'Settings'      => array(
-			'namespace' => 'Data',
-			'hook'      => 'settings',
-		),
 		'Helper_Service' => array(
 			'namespace' => 'Helper',
 		),
@@ -117,54 +107,6 @@ class Loader {
 		$this->load_external_dependencies();
 		$this->load_dependencies();
 		$this->add_hooks();
-	}
-
-	/**
-	 * Add the data collector page hooks.
-	 *
-	 * @since 7.0.6
-	 */
-	public function add_settings_page_hooks() {
-
-		add_action( 'admin_menu', array( $this->settings_page, 'register_settings_page' ) );
-
-		add_action( 'admin_init', array( $this->settings_page, 'add_setting_fields' ) );
-
-		add_filter( 'allowed_options', array( $this->settings_page, 'change_allowed_options' ) );
-
-		// Register rest route.
-		add_action( 'rest_api_init', array( $this->settings_page, 'register_rest_routes' ) );
-	}
-
-	/**
-	 * Add the data collector hooks.
-	 *
-	 * @since 7.1.6
-	 */
-	public function add_settings_hooks() {
-		// Bail if no consent is set.
-		if ( 0 === intval( get_option( 'siteground_data_consent', 0 ) ) ) {
-			return;
-		}
-
-		$settings = ! method_exists( 'Siteground_Data\\Settings', 'get_instance' ) ? new Settings() : Settings::get_instance();
-
-		// Schedule Cron Job for sending the data.
-		$settings->schedule_cron_job();
-
-		add_action( 'admin_init', array( $settings, 'handle_settings_update' ) );
-
-		// Hook on wp login to send data, when the cron is disabled.
-		if ( defined( 'DISABLE_WP_CRON' ) && 1 === intval( DISABLE_WP_CRON ) ) {
-			add_action( 'wp_login', array( $settings, 'send_data_on_login' ) );
-		}
-
-		// Check if there is old data to be sent over.
-		add_action( 'siteground_data_collector_cron', array( $settings, 'check_for_old_data' ), 9 );
-		// Sent the data.
-		add_action( 'siteground_data_collector_cron', array( $settings, 'send_data' ), 10 );
-		// Add the custom cron interval.
-		add_action( 'cron_schedules', array( $settings, 'add_siteground_data_interval' ) );
 	}
 
 	/**
@@ -259,6 +201,8 @@ class Loader {
 		add_action( 'after_setup_theme', array( $this->i18n_service, 'load_textdomain' ), 9999 );
 		// Generate JSON translations.
 		add_action( 'upgrader_process_complete', array( $this->i18n_service, 'update_json_translations' ), 10, 2 );
+		// Download and update translations on language change.
+		add_action( 'update_option_WPLANG', array( $this->i18n_service, 'download_translations_on_lang_change' ), 10, 2 );
 	}
 
 	/**
@@ -307,12 +251,11 @@ class Loader {
 		// Register the stylesheets for the admin area.
 		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_styles' ), 111 );
 		// Register the JavaScript for the admin area.
-		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_scripts' ) );
+		add_action( 'admin_enqueue_scripts', array( $this->admin, 'enqueue_scripts' ), 111 );
 		// Add styles to WordPress admin head.
 		add_action( 'admin_print_styles', array( $this->admin, 'admin_print_styles' ) );
 		// Hide all errors and notices on our custom dashboard.
 		add_action( 'admin_init', array( $this->admin, 'hide_errors_and_notices' ), PHP_INT_MAX );
-		add_filter( 'admin_footer_text', array( $this->admin, 'show_privacy_policy' ) );
 
 		if ( ! $this->admin->is_multisite_without_permissions() ) {
 			// Register the top level page into the WordPress admin menu.
@@ -490,6 +433,14 @@ class Loader {
 			}
 		}
 
+		// Prepare responsive attributes for lazy-loaded images.
+		add_filter(
+			'wp_content_img_tag',
+			array( $this->lazy_load->lazyload_images, 'prepare_lazyload_image_attributes' ),
+			PHP_INT_MAX,
+			1
+		);
+
 		// Enqueue scripts and styles.
 		add_action( 'wp_enqueue_scripts', array( $this->lazy_load, 'load_scripts' ) );
 	}
@@ -558,7 +509,7 @@ class Loader {
 	public function add_images_optimizer_hooks() {
 
 		// Get the resize_images option and apply filters to check the set value.
-		$resize_images = apply_filters( 'sgo_set_max_image_width', intval( get_option( 'siteground_optimizer_resize_images', 2560 ) ) );
+		$resize_images = apply_filters( 'sgo_set_max_image_width', intval( get_option( 'siteground_optimizer_resize_images', 2560 ) ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		// Resize newly uploaded images, if different than default.
 		if ( 2560 !== $resize_images ) {
@@ -583,7 +534,7 @@ class Loader {
 		}
 
 		add_action( 'edit_attachment', array( $this->images_optimizer, 'custom_attachment_compression_level' ) );
-		add_filter( 'attachment_fields_to_edit', array( $this->images_optimizer, 'custom_attachment_compression_level_field' ), null, 2 );
+		add_filter( 'attachment_fields_to_edit', array( $this->images_optimizer, 'custom_attachment_compression_level_field' ), 10, 2 );
 	}
 
 	/**
@@ -651,7 +602,7 @@ class Loader {
 	 * @throws \Exception Exception If the type is not supported.
 	 */
 	public function add_supercacher_hooks() {
-		add_action( 'siteground_optimizer_purge_cron_cache', array( $this->supercacher, 'purge_cache' ), 11 );
+		add_action( 'siteground_optimizer_purge_cron_cache', array( $this->supercacher, 'process_purge_queue' ), 11 );
 
 		// Bail if Dynamic cache or Autoflush is disabled.
 		if (
@@ -688,6 +639,8 @@ class Loader {
 		if ( ! Options::is_enabled( 'siteground_optimizer_file_caching' ) ) {
 			return;
 		}
+
+		add_filter( 'wp_headers', array( $this->file_cacher, 'mark_wordpress_nocache_header' ), -PHP_INT_MAX );
 
 		add_action( 'cron_schedules', array( $this->file_cacher, 'sg_add_cron_interval' ) );
 		add_action( 'siteground_optimizer_cache_preheat', array( $this->file_cacher, 'preheat_cache' ) );
@@ -753,37 +706,6 @@ class Loader {
 	}
 
 	/**
-	 * Add the campaign service hooks.
-	 *
-	 * @since 7.1.0
-	 */
-	public function add_campaign_service_hooks() {
-		// Check if we need to start the campaign check.
-		if ( false === get_option( 'siteground_settings_optimizer_hello', false ) ) {
-			return;
-		}
-
-		// Check if we are suposed to send emails.
-		if ( $this->campaign_service->maybe_send_emails() ) {
-			// Check if we need to schedule the cron.
-			if ( ! wp_next_scheduled( 'sgo_campaign_cron' ) ) {
-				$this->campaign_service->campaign_service_email->schedule_event();
-			}
-		} else {
-			$this->campaign_service->campaign_service_email->unschedule_event();
-		}
-
-		// Update the campaing last timestamp before the mail is sent.
-		add_action( 'sgo_campaign_cron', array( $this->campaign_service, 'update_last_cron_run_timestamp' ), 1 );
-
-		// Sent the campaign email.
-		add_action( 'sgo_campaign_cron', array( $this->campaign_service->campaign_service_email, 'sg_handle_email' ) );
-
-		// Bump the campaign step counters after the mail is sent.
-		add_action( 'sgo_campaign_cron', array( $this->campaign_service, 'bump_campaign_count' ), PHP_INT_MAX );
-	}
-
-	/**
 	 * Add config hooks.
 	 *
 	 * @since 7.3.0
@@ -796,6 +718,34 @@ class Loader {
 
 		add_action( 'updated_option', array( $this->config, 'update_config_check' ), 10, 1 );
 		add_action( 'added_option', array( $this->config, 'update_config_check' ), 10, 1 );
+	}
+
+	/**
+	 * Add Elementor CSS compatibility hooks.
+	 *
+	 * @since 7.8.3
+	 */
+	public function add_elementor_css_hooks() {
+		if (
+			! Options::is_enabled( 'siteground_optimizer_enable_cache' ) &&
+			! Options::is_enabled( 'siteground_optimizer_file_caching' )
+		) {
+			return;
+		}
+
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		if ( ! is_plugin_active( 'elementor/elementor.php' ) ) {
+			return;
+		}
+
+		add_action( 'elementor/core/files/clear_cache', array( $this->elementor_css, 'start_generation' ), 1 );
+		add_filter( 'wp_headers', array( $this->elementor_css, 'filter_cache_headers' ), PHP_INT_MAX );
+		add_action( 'elementor/css-file/after_enqueue', array( $this->elementor_css, 'record_css_health' ) );
+		add_action( 'wp_footer', array( $this->elementor_css, 'mark_render_complete' ), PHP_INT_MAX );
+		add_action( 'shutdown', array( $this->elementor_css, 'commit_validation' ), PHP_INT_MAX );
 	}
 
 	/**

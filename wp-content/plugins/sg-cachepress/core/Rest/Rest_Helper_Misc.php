@@ -71,6 +71,11 @@ class Rest_Helper_Misc extends Rest_Helper {
 			$selected = array_unique( array_merge( $selected, $diff ) );
 		}
 
+		// Sanitize the lists that are printed in the page html.
+		if ( in_array( $type, array( 'dns_prefetch_urls', 'fonts_preload_urls' ), true ) ) {
+			$selected = $this->sanitize_url_list( $selected );
+		}
+
 		// Update the option.
 		$result = update_option( 'siteground_optimizer_' . $type, $selected );
 
@@ -91,6 +96,38 @@ class Rest_Helper_Misc extends Rest_Helper {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Remove the characters that are not allowed in urls from a list of urls.
+	 *
+	 * @since 7.8.5
+	 *
+	 * @param  mixed $urls List of urls.
+	 *
+	 * @return array       The sanitized list.
+	 */
+	public function sanitize_url_list( $urls ) {
+		if ( ! is_array( $urls ) ) {
+			return array();
+		}
+
+		$sanitized = array();
+
+		foreach ( $urls as $url ) {
+			if ( ! is_string( $url ) ) {
+				continue;
+			}
+
+			// Strip the tags, quotes and whitespaces, without changing the url format.
+			$url = preg_replace( '~[\s"\'<>`]~', '', wp_strip_all_tags( $url ) );
+
+			if ( ! empty( $url ) ) {
+				$sanitized[] = $url;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
 	}
 
 	/**

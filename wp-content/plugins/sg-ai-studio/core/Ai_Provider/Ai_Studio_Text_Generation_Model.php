@@ -25,6 +25,8 @@ use WordPress\AiClient\Results\Enums\FinishReasonEnum;
  */
 class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements TextGenerationModelInterface {
 
+	use Ai_Studio_Api_Request_Trait;
+
 	/**
 	 * Streaming text generation is not supported by the AI Studio backend.
 	 *
@@ -41,9 +43,8 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 	/**
 	 * Generates a text result from the given prompt.
 	 *
-	 * Uses wp_remote_post() directly instead of the SDK's HTTP transporter
-	 * because the AI Studio backend returns NDJSON streaming responses
-	 * rather than standard JSON.
+	 * Sends the request through the SDK's HTTP transporter so it is picked
+	 * up by transporter decorators such as AI request logging.
 	 *
 	 * @param list<Message> $prompt The prompt messages.
 	 * @return GenerativeAiResult The generated result.
@@ -52,6 +53,16 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 		$token = Helper::generate_ai_studio_token();
 
 		if ( false === $token || empty( $token ) ) {
+			// When the AI plugin's Connector Approval feature blocked the token
+			// request, throw so the AI Client surfaces an actionable error
+			// notice. Returning an error result here would instead be treated
+			// as generated content and silently written into the target field.
+			if ( 'connector_not_approved' === Helper::last_token_error() ) {
+				throw new \WordPress\AiClient\Common\Exception\RuntimeException(
+					Helper::connector_approval_error_message()
+				);
+			}
+
 			return $this->buildErrorResult( 'Failed to generate authentication token.' );
 		}
 
@@ -66,13 +77,15 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 		// Determine chat_source based on calling context.
 		$chat_source = $this->determine_chat_source();
 
-		$response = Helper::send_to_text_generation_api( $question_parts, $token, $model_config, false, $chat_source );
+		$api_request = Helper::build_generation_api_request( $question_parts, $model_config, false, $chat_source );
 
-		if ( is_wp_error( $response ) ) {
-			return $this->buildErrorResult( $response->get_error_message() );
+		try {
+			$response = $this->sendApiRequest( $api_request['url'], $api_request['body'], $token );
+		} catch ( \Exception $e ) {
+			return $this->buildErrorResult( $e->getMessage() );
 		}
 
-		$response_code = wp_remote_retrieve_response_code( $response );
+		$response_code = $response->getStatusCode();
 
 		// Detect token depletion (402 Payment Required).
 		if ( 402 === $response_code ) {
@@ -87,7 +100,7 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 			);
 		}
 
-		$raw_body    = wp_remote_retrieve_body( $response );
+		$raw_body    = (string) $response->getBody();
 		$parsed_data = $this->parseResponse( $raw_body );
 
 		// Strip markdown code fences when JSON output is expected.
@@ -237,25 +250,31 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 	 * the generated text response.
 	 *
 	 * @param string $raw_body The raw response body.
-	 * @return array{text: string, thread_id: string, has_error: bool} Parsed response data.
+	 * @return array{text: string, thread_id: string, has_error: bool, input_tokens: int, output_tokens: int} Parsed response data.
 	 */
 	protected function parseResponse( string $raw_body ): array {
 		$decoded = json_decode( $raw_body, true );
 
-		if ( null === $decoded ) {
+		if ( ! is_array( $decoded ) ) {
 			return array(
-				'text'      => '',
-				'thread_id' => '',
-				'has_error' => true,
+				'text'          => '',
+				'thread_id'     => '',
+				'has_error'     => true,
+				'input_tokens'  => 0,
+				'output_tokens' => 0,
 			);
 		}
+
+		$tokens = Ai_Studio_Provider::tokenCountsFromResponse( $decoded );
 
 		// Check for error response.
 		if ( ! empty( $decoded['error'] ) ) {
 			return array(
-				'text'      => $decoded['error']['message'] ?? 'Unknown error from AI Studio.',
-				'thread_id' => '',
-				'has_error' => true,
+				'text'          => $decoded['error']['message'] ?? 'Unknown error from AI Studio.',
+				'thread_id'     => '',
+				'has_error'     => true,
+				'input_tokens'  => $tokens['input'] ?? 0,
+				'output_tokens' => $tokens['output'] ?? 0,
 			);
 		}
 
@@ -266,16 +285,18 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 		$thread_id = $decoded['thread_id'] ?? $decoded['chat_id'] ?? '';
 
 		return array(
-			'text'      => $text,
-			'thread_id' => $thread_id,
-			'has_error' => false,
+			'text'          => $text,
+			'thread_id'     => $thread_id,
+			'has_error'     => false,
+			'input_tokens'  => $tokens['input'] ?? 0,
+			'output_tokens' => $tokens['output'] ?? 0,
 		);
 	}
 
 	/**
 	 * Builds a GenerativeAiResult from parsed response data.
 	 *
-	 * @param array{text: string, thread_id: string, has_error: bool} $parsed_data Parsed NDJSON data.
+	 * @param array{text: string, thread_id: string, has_error: bool, input_tokens: int, output_tokens: int} $parsed_data Parsed response data.
 	 * @return GenerativeAiResult The SDK-compatible result.
 	 */
 	protected function buildGenerativeAiResult( array $parsed_data ): GenerativeAiResult {
@@ -287,8 +308,9 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 		$message      = new Message( MessageRoleEnum::model(), array( $message_part ) );
 		$candidate    = new Candidate( $message, $finish_reason );
 
-		// AI Studio API does not currently return token usage data.
-		$token_usage = new TokenUsage( 0, 0, 0 );
+		$input_tokens  = $parsed_data['input_tokens'];
+		$output_tokens = $parsed_data['output_tokens'];
+		$token_usage   = new TokenUsage( $input_tokens, $output_tokens, $input_tokens + $output_tokens );
 
 		// Include thread_id as additional data for conversation continuity.
 		$additional_data = array();
@@ -391,9 +413,6 @@ class Ai_Studio_Text_Generation_Model extends AbstractApiBasedModel implements T
 	 * @return string The chat_source identifier for the request.
 	 */
 	protected function determine_chat_source(): string {
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
-		$backtrace = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 20 );
-
 		// Map of function/class patterns to chat_source values.
 		$patterns = array(
 			'excerpt'            => 'wp_admin_excerpt_generation',

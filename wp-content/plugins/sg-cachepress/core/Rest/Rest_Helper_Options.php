@@ -80,6 +80,78 @@ class Rest_Helper_Options extends Rest_Helper {
 	public $option_prefix = 'siteground_optimizer_';
 
 	/**
+	 * The network options that can be changed through the enable/disable option routes.
+	 *
+	 * @var array
+	 */
+	public $network_toggle_options = array(
+		'supercacher_permissions',
+		'frontend_permissions',
+		'images_permissions',
+		'environment_permissions',
+		'default_enable_cache',
+		'default_autoflush_cache',
+		'default_ssl_enabled',
+		'default_fix_insecure_content',
+		'default_optimize_html',
+		'default_optimize_javascript',
+		'default_optimize_javascript_async',
+		'default_optimize_css',
+		'default_combine_css',
+		'default_remove_query_strings',
+		'default_disable_emojis',
+		'default_optimize_images',
+		'default_lazyload_images',
+	);
+
+	/**
+	 * The site options that can be changed through the enable/disable option routes.
+	 *
+	 * @var array
+	 */
+	public $site_toggle_options = array(
+		'enable_cache',
+		'autoflush_cache',
+		'user_agent_header',
+		'fix_insecure_content',
+		'enable_gzip_compression',
+		'enable_browser_caching',
+		'dns_prefetch',
+		'heartbeat_control',
+		'heartbeat_dashboard_status',
+		'heartbeat_post_status',
+		'heartbeat_frontend_status',
+		'cloudflare_optimization',
+		'memcache_notice',
+		'memcache_crashed',
+		'database_optimization',
+		'optimize_html',
+		'optimize_javascript',
+		'optimize_javascript_async',
+		'combine_javascript',
+		'combine_javascript_error',
+		'optimize_css',
+		'combine_css',
+		'preload_combined_css',
+		'optimize_web_fonts',
+		'remove_query_strings',
+		'disable_emojis',
+		'optimize_images',
+		'webp_support',
+		'dismiss_cron_notice',
+		'lazyload_images',
+		'lazyload_iframes',
+		'lazyload_videos',
+		'lazyload_gravatars',
+		'lazyload_thumbnails',
+		'lazyload_responsive',
+		'lazyload_textwidgets',
+		'lazyload_mobile',
+		'lazyload_shortcodes',
+		'lazyload_woocommerce',
+	);
+
+	/**
 	 * The constructor.
 	 */
 	public function __construct() {
@@ -101,8 +173,12 @@ class Rest_Helper_Options extends Rest_Helper {
 	public function enable_option_from_rest( $request ) {
 		// Get the option key.
 		$key        = $this->validate_and_get_option_value( $request, 'option_key' );
-		$is_network = $this->validate_and_get_option_value( $request, 'is_multisite', false );
-		$result     = $this->options->enable_option( $key, $is_network );
+		$is_network = true === filter_var( $this->validate_and_get_option_value( $request, 'is_multisite', false ), FILTER_VALIDATE_BOOLEAN );
+
+		// Bail, if the option can't be changed by the current user.
+		$this->validate_option_request( $key, $is_network );
+
+		$result = $this->options->enable_option( $key, $is_network );
 
 		// Bail if .htaccess can't be changed.
 		if ( false === $this->maybe_change_htaccess_rules( $key, 1 ) ) {
@@ -139,8 +215,12 @@ class Rest_Helper_Options extends Rest_Helper {
 	public function disable_option_from_rest( $request ) {
 		// Get the option key.
 		$key        = $this->validate_and_get_option_value( $request, 'option_key' );
-		$is_network = $this->validate_and_get_option_value( $request, 'is_multisite', false );
-		$result     = $this->options->disable_option( $key, $is_network );
+		$is_network = true === filter_var( $this->validate_and_get_option_value( $request, 'is_multisite', false ), FILTER_VALIDATE_BOOLEAN );
+
+		// Bail, if the option can't be changed by the current user.
+		$this->validate_option_request( $key, $is_network );
+
+		$result = $this->options->disable_option( $key, $is_network );
 
 		// Bail if .htaccess can't be changed.
 		if ( false === $this->maybe_change_htaccess_rules( $key, 0 ) ) {
@@ -497,5 +577,56 @@ class Rest_Helper_Options extends Rest_Helper {
 			array( $this->htaccess_service, $htaccess_options[ $type ][ $value ] ),
 			array( $htaccess_options[ $type ]['rule'] )
 		);
+	}
+
+	/**
+	 * Validate that the option can be changed through the enable/disable option routes by the current user.
+	 * Sends a json error and stops the execution if it can't.
+	 *
+	 * @since 7.8.5
+	 *
+	 * @param mixed $key        The option key.
+	 * @param bool  $is_network Whether the network option should be changed.
+	 */
+	public function validate_option_request( $key, $is_network ) {
+		$name = is_string( $key ) ? preg_replace( '~^' . $this->option_prefix . '~', '', $key ) : '';
+
+		// Only the plugin options are allowed.
+		if (
+			empty( $name ) ||
+			$name === $key ||
+			! in_array( $name, $is_network ? $this->network_toggle_options : $this->site_toggle_options, true )
+		) {
+			self::send_json_error(
+				__( 'Invalid option key.', 'sg-cachepress' ),
+				array(
+					'option_key' => $key,
+				)
+			);
+		}
+
+		// The network options and the .htaccess rules are shared by all sites in the network.
+		if (
+			( $is_network || in_array( $name, array( 'enable_gzip_compression', 'enable_browser_caching' ), true ) ) &&
+			is_multisite() &&
+			! current_user_can( 'manage_network_options' )
+		) {
+			self::send_json_error(
+				__( 'You are not allowed to change this option.', 'sg-cachepress' ),
+				array(
+					'option_key' => $key,
+				)
+			);
+		}
+
+		// Network options can't be changed on a single site.
+		if ( $is_network && ! is_multisite() ) {
+			self::send_json_error(
+				__( 'Invalid option key.', 'sg-cachepress' ),
+				array(
+					'option_key' => $key,
+				)
+			);
+		}
 	}
 }

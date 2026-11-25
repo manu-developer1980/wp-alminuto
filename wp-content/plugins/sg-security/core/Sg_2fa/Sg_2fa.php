@@ -27,6 +27,13 @@ class Sg_2fa {
 	public $encryption;
 
 	/**
+	 * Session tokens issued by auth cookies in the current request, keyed by user ID.
+	 *
+	 * @var array
+	 */
+	private $login_session_tokens = array();
+
+	/**
 	 * The singleton instance.
 	 *
 	 * @since 1.1.1
@@ -73,6 +80,73 @@ class Sg_2fa {
 			self::$instance = new self();
 		}
 		return self::$instance;
+	}
+
+	/**
+	 * Check whether a user is required to use 2FA.
+	 *
+	 * @since  1.6.8
+	 *
+	 * @param  \WP_User $user WordPress user object.
+	 *
+	 * @return bool Whether the user is in 2FA scope.
+	 */
+	private function user_requires_2fa( $user ) {
+		if ( ! ( $user instanceof \WP_User ) ) {
+			return false;
+		}
+
+		if ( is_multisite() && is_super_admin( $user->ID ) ) {
+			return true;
+		}
+
+		return ! empty( array_intersect( $this->get_admin_user_roles(), $user->roles ) );
+	}
+
+	/**
+	 * Get the users who are required to use 2FA.
+	 *
+	 * @since  1.6.8
+	 *
+	 * @param  array $args Additional arguments for the final user query.
+	 *
+	 * @return array Users who are in 2FA scope.
+	 */
+	private function get_users_requiring_2fa( $args = array() ) {
+		$users = get_users(
+			array(
+				'role__in' => $this->get_admin_user_roles(),
+			)
+		);
+
+		// Super Administrators are not required to have a role on the current site.
+		if ( is_multisite() ) {
+			foreach ( get_super_admins() as $user_login ) {
+				$super_admin = get_user_by( 'login', $user_login );
+
+				if ( $super_admin instanceof \WP_User ) {
+					$users[] = $super_admin;
+				}
+			}
+		}
+
+		$user_ids = array();
+		foreach ( $users as $user ) {
+			if ( $this->user_requires_2fa( $user ) ) {
+				$user_ids[] = (int) $user->ID;
+			}
+		}
+
+		$user_ids = array_values( array_unique( $user_ids ) );
+		if ( empty( $user_ids ) ) {
+			return array();
+		}
+
+		// Query without a site-membership restriction so roleless Super Administrators are included.
+		$args['blog_id'] = 0;
+		$args['include'] = $user_ids;
+
+		return get_users( $args );
 	}
 
 	/**
@@ -128,11 +202,7 @@ class Sg_2fa {
 		delete_option( 'sg_security_2fa_encryption_file_notice' );
 
 		// Get all users which needs to have 2FA enabled.
-		$users = get_users(
-			array(
-				'role__in' => $this->get_admin_user_roles(),
-			)
-		);
+		$users = $this->get_users_requiring_2fa();
 
 		// Bail if there are no such users found.
 		if ( empty( $users ) ) {
@@ -140,13 +210,6 @@ class Sg_2fa {
 		}
 
 		foreach ( $users as $user ) {
-			// Get the user by the user id.
-			$user = get_userdata( $user->data->ID );
-
-			if ( empty( array_intersect( $this->get_admin_user_roles(), $user->roles ) ) ) {
-				continue;
-			}
-
 			$session_tokens = WP_Session_Tokens::get_instance( $user->data->ID );
 			$session_tokens->destroy_all();
 		}
@@ -454,18 +517,40 @@ class Sg_2fa {
 			return false;
 		}
 
-		// Parse the cookie.
+		// Parse the cookie into the user ID and the token.
 		$cookie_data = explode( '|', $_COOKIE[ $sg_2fa_user_cookie ] );
 
-		if (
-			// If the 2FA is configured for the user.
-			1 == get_user_meta( $cookie_data[0], 'sg_security_2fa_configured', true ) && // phpcs:ignore
-			get_user_meta( $cookie_data[0], 'sgs_2fa_dnc_token', true ) === $cookie_data[1] // If there is already a cookie with that name and the name matches.
-		) {
-			return true;
+		// Bail if the cookie is malformed. It must be exactly "<user_id>|<token>" with both parts present.
+		if ( 2 !== count( $cookie_data ) || '' === $cookie_data[0] || '' === $cookie_data[1] ) {
+			return false;
 		}
 
-		return false;
+		// Bail if the cookie user ID does not match the logging in user ID.
+		if ( (int) $cookie_data[0] !== (int) $user->ID ) {
+			return false;
+		}
+
+		// Bail if the 2FA is not configured for the user.
+		if ( 1 != get_user_meta( $cookie_data[0], 'sg_security_2fa_configured', true ) ) { // phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+			return false;
+		}
+
+		// Bail if the user has no stored token. An absent single-value meta returns an empty
+		// string, which must never be treated as a match for an empty cookie token.
+		if ( ! metadata_exists( 'user', (int) $cookie_data[0], 'sgs_2fa_dnc_token' ) ) {
+			return false;
+		}
+
+		// Get the stored 'do not challenge' token for the user.
+		$stored_token = get_user_meta( $cookie_data[0], 'sgs_2fa_dnc_token', true ); // phpcs:ignore
+
+		// Bail if the stored token is empty.
+		if ( '' === $stored_token ) {
+			return false;
+		}
+
+		// Constant-time comparison of the stored token against the supplied cookie token.
+		return hash_equals( (string) $stored_token, (string) $cookie_data[1] );
 	}
 
 	/**
@@ -526,6 +611,67 @@ class Sg_2fa {
 	}
 
 	/**
+	 * Block XML-RPC password authentication for users who are in 2FA scope.
+	 *
+	 * @since  1.6.6
+	 *
+	 * @param  null|\WP_User|\WP_Error $user The authenticated user, a WP_Error, or null.
+	 * @return null|\WP_User|\WP_Error       WP_Error to block, otherwise $user unchanged.
+	 */
+	public function block_xmlrpc_for_2fa_users( $user ) {
+		// Only act on XML-RPC requests; leave every other auth path untouched.
+		if ( ! defined( 'XMLRPC_REQUEST' ) || ! XMLRPC_REQUEST ) {
+			return $user;
+		}
+
+		// Let core's own failures/short-circuits stand; only act on a resolved user.
+		if ( ! ( $user instanceof \WP_User ) ) {
+			return $user;
+		}
+
+		// Allow users who are not in 2FA scope (e.g. subscribers) to keep using XML-RPC.
+		if ( ! $this->user_requires_2fa( $user ) ) {
+			return $user;
+		}
+
+		// Escape hatch for sites that intentionally rely on XML-RPC for covered users.
+		if ( ! apply_filters( 'sg_security_2fa_block_xmlrpc', true, $user ) ) {
+			return $user;
+		}
+
+		// Reject: wp_xmlrpc_server::login() turns this into a 403 fault before
+		// wp_set_current_user() runs, so no authenticated session is created.
+		return new \WP_Error(
+			'sgs_2fa_xmlrpc_blocked',
+			__( 'XML-RPC authentication is disabled for accounts that require 2-factor authentication.', 'sg-security' )
+		);
+	}
+
+	/**
+	 * Remember the session token of an auth cookie issued in this request,
+	 * so init_2fa() can revoke only the session created by the current login.
+	 *
+	 * @since 1.7.0
+	 *
+	 * @param string $cookie     The auth cookie value.
+	 * @param int    $expire     The login grace period expiration timestamp.
+	 * @param int    $expiration The cookie expiration timestamp.
+	 * @param int    $user_id    The user ID.
+	 * @param string $scheme     The authentication scheme.
+	 * @param string $token      The session token (passed since WP 4.9).
+	 */
+	public function capture_login_session_token( $cookie, $expire, $expiration, $user_id, $scheme, $token = '' ) {
+		// Parse the cookie too: older WP versions do not pass $token and the cookie may be filtered.
+		$cookie_data = wp_parse_auth_cookie( $cookie, $scheme );
+
+		foreach ( array( $token, empty( $cookie_data['token'] ) ? '' : $cookie_data['token'] ) as $session_token ) {
+			if ( ! empty( $session_token ) ) {
+				$this->login_session_tokens[ (int) $user_id ][ $session_token ] = true;
+			}
+		}
+	}
+
+	/**
 	 * Initialize the 2fa
 	 *
 	 * @since  1.0.0
@@ -539,8 +685,11 @@ class Sg_2fa {
 			return;
 		}
 
-		// Bail if the user role does not allow 2FA setup.
-		if ( empty( array_intersect( $this->get_admin_user_roles(), $user->roles ) ) ) {
+		$login_session_tokens = isset( $this->login_session_tokens[ $user->ID ] ) ? array_keys( $this->login_session_tokens[ $user->ID ] ) : array();
+		unset( $this->login_session_tokens[ $user->ID ] );
+
+		// Bail if the user is not required to use 2FA.
+		if ( ! $this->user_requires_2fa( $user ) ) {
 			return;
 		}
 
@@ -553,6 +702,18 @@ class Sg_2fa {
 		if ( false === $this->encryption->get_encryption_key() ) {
 			// Disable the 2FA and show admin notice.
 			return $this->disable_2fa_show_notice();
+		}
+
+		// Revoke only the session created by this login, other devices stay logged in.
+		$session_manager = WP_Session_Tokens::get_instance( $user->ID );
+
+		if ( empty( $login_session_tokens ) ) {
+			// Fail closed if the token was not captured (e.g. wp_set_auth_cookie() is overridden).
+			$session_manager->destroy_all();
+		}
+
+		foreach ( $login_session_tokens as $session_token ) {
+			$session_manager->destroy( $session_token );
 		}
 
 		// Remove the auth cookie.
@@ -628,10 +789,14 @@ class Sg_2fa {
 			return;
 		}
 
+		// Enforce an active login restriction before validating the backup code.
+		do_action( 'sg_security_before_2fa_login' );
+
 		$result = false;
+		$is_login_attempt = isset( $_POST['sgc2fabackupcode'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		// Check if the 2fa backup code is set, if not, don't try to apply it's value.
-		if ( isset( $_POST['sgc2fabackupcode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $is_login_attempt ) {
 			// Validate the backup code.
 			$result = $this->validate_backup_login(
 				wp_unslash( $_POST['sgc2fabackupcode'] ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -641,6 +806,10 @@ class Sg_2fa {
 
 		// Check the result of the authtication.
 		if ( false === $result ) {
+			if ( $is_login_attempt ) {
+				do_action( 'sg_security_2fa_login_failed' );
+			}
+
 			$this->load_form(
 				array(
 					'template' => '2fa-login-backup-code.php',
@@ -649,6 +818,9 @@ class Sg_2fa {
 				)
 			);
 		}
+
+		// The 2FA flow does not fire wp_login, so reset attempts explicitly.
+		do_action( 'sg_security_2fa_login_success' );
 
 		// Login the user.
 		$this->login_user( $cookie_data[0] );
@@ -682,6 +854,9 @@ class Sg_2fa {
 			return;
 		}
 
+		// Enforce an active login restriction before validating the authentication code.
+		do_action( 'sg_security_before_2fa_login' );
+
 		// Validate the encryption key.
 		if ( false === $this->encryption->get_encryption_key() ) {
 			// Disable the 2FA and show admin notice.
@@ -689,14 +864,19 @@ class Sg_2fa {
 		}
 
 		$result = false;
+		$is_login_attempt = isset( $_POST['sgc2facode'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		// Check if the 2fa code is set, if not, don't try to apply it's value.
-		if ( isset( $_POST['sgc2facode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $is_login_attempt ) {
 			$result = $this->check_authentication_code( wp_unslash( $_POST['sgc2facode'] ), wp_unslash( $cookie_data[0] ) ); // phpcs:ignore
 		}
 
 		// Check the result of the authtication.
 		if ( false === $result ) {
+			if ( $is_login_attempt ) {
+				do_action( 'sg_security_2fa_login_failed' );
+			}
+
 			// Arguments for 2fa login.
 			$args = array(
 				'template' => '2fa-login.php',
@@ -718,6 +898,9 @@ class Sg_2fa {
 
 			$this->load_form( $args ); // phpcs:ignore
 		}
+
+		// The 2FA flow does not fire wp_login, so reset attempts explicitly.
+		do_action( 'sg_security_2fa_login_success' );
 
 		// Login the user.
 		$this->login_user( $cookie_data[0] );
@@ -828,9 +1011,8 @@ class Sg_2fa {
 	 */
 	public function check_for_users_using_2fa() {
 		// Get all users with 2FA configured.
-		$users = get_users(
+		$users = $this->get_users_requiring_2fa(
 			array(
-				'role__in'   => $this->get_admin_user_roles(),
 				'orderby'    => 'user_login',
 				'order'      => 'ASC',
 				'fields'     => array(
@@ -1000,7 +1182,7 @@ class Sg_2fa {
 		// If we have only WP_User object and no username, recover the username and continue the login.
 		if ( empty( $user_login ) && $user instanceof \WP_User ) {
 			// If its admin user trying to log in with broken parameters, bail.
-			if ( ! empty( array_intersect( $this->get_admin_user_roles(), $user->roles ) ) ) {
+			if ( $this->user_requires_2fa( $user ) ) {
 				wp_clear_auth_cookie();
 				wp_set_current_user( 0 );
 				return false;
@@ -1023,7 +1205,7 @@ class Sg_2fa {
 
 			// If its admin user trying to log in with broken parameters, bail.
 			if ( $maybe_user instanceof \WP_User ) {
-				if ( ! empty( array_intersect( $this->get_admin_user_roles(), $maybe_user->roles ) ) ) {
+				if ( $this->user_requires_2fa( $maybe_user ) ) {
 					wp_clear_auth_cookie();
 					wp_set_current_user( 0 );
 					return false;

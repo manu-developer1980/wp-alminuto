@@ -154,12 +154,17 @@ if ( ! class_exists( 'CMPLZ_COOKIE' ) ) {
 				$translated_cookie->isTranslationFrom = $parent_ID;
 				$translated_cookie->service           = $service_name;
 				$translated_cookie->lastAddDate       = time();
-				// Copy field values from parent to translation
-				$translated_cookie->retention             = $this->retention;
-				$translated_cookie->cookieFunction        = $this->cookieFunction;
-				$translated_cookie->purpose               = $this->purpose;
-				$translated_cookie->type                  = $this->type;
-				$translated_cookie->collectedPersonalData = $this->collectedPersonalData;
+				// type is structural and language-independent — always copy.
+				$translated_cookie->type = $this->type;
+				// For CDB-synced cookies, don't overwrite existing translated content.
+				// The CDB fills in proper translations during sync; only copy English
+				// content as a placeholder when the translation has no content yet.
+				if ( ! $this->sync || empty( $translated_cookie->purpose ) ) {
+					$translated_cookie->retention             = $this->retention;
+					$translated_cookie->cookieFunction        = $this->cookieFunction;
+					$translated_cookie->purpose               = $this->purpose;
+					$translated_cookie->collectedPersonalData = $this->collectedPersonalData;
+				}
 				$translated_cookie->save();
 				if ( $return_language && $language === $return_language ) {
 					$return_id = $translated_cookie->ID;
@@ -475,11 +480,15 @@ if ( ! class_exists( 'CMPLZ_COOKIE' ) ) {
 
 			if ( $this->language === 'en' ) {
 				if ( ! defined( 'POLYLANG_VERSION' ) || ! $this->sync ) {
-					cmplz_register_translation( $this->purpose, 'cookie_purpose' );
+					cmplz_register_translation( $this->purpose, 'cookie_purpose', 'en' );
 				}
-				cmplz_register_translation( $this->retention, 'cookie_retention' );
-				cmplz_register_translation( $this->cookieFunction, 'cookie_function' );
-				cmplz_register_translation( $this->collectedPersonalData, 'cookie_collected_personal_data' );
+				// retention is 'en' on purpose, even though our own cookies build it with __() above.
+				// Every cookie registers under the same 'cookie_retention' name, so declaring two
+				// source languages for that one string would make WPML store the value as a
+				// translation of itself and overwrite the existing one on each sync.
+				cmplz_register_translation( $this->retention, 'cookie_retention', 'en' );
+				cmplz_register_translation( $this->cookieFunction, 'cookie_function', 'en' );
+				cmplz_register_translation( $this->collectedPersonalData, 'cookie_collected_personal_data', 'en' );
 			}
 
 			// update legacy data

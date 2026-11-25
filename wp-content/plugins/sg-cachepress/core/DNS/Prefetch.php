@@ -60,8 +60,10 @@ class Prefetch {
 			// Replace the protocol with //.
 			$url_without_protocol = preg_replace( '~(?:(?:https?:)?(?:\/\/)(?:www\.|(?!www)))?((?:.*?)\.(?:.*))~', '//$1', $url );
 
+			$safe_url = esc_url( $url_without_protocol );
+
 			// Remove the protocol if for some reason url has passed with it.
-			$new_html .= '<link rel="dns-prefetch" href="' . $url_without_protocol . '" data-set-by="Speed Optimizer by SiteGround"/>';
+			$new_html .= '<link rel="dns-prefetch" href="' . $safe_url . '" data-set-by="Speed Optimizer by SiteGround"/>';
 		}
 
 		// Insert the link in the head section.

@@ -513,12 +513,14 @@ class Reports extends Rest_Controller_Base {
 			'private' => __( 'Private', 'sg-ai-studio' ),
 		);
 
-		$data = array();
+		$data          = array();
+		$product_types = Helper::get_all_product_types();
 
 		foreach ( $product_statuses as $slug => $name ) {
 			$products = \wc_get_products(
 				array(
 					'status' => $slug,
+					'type'   => $product_types,
 					'limit'  => -1,
 					'return' => 'ids',
 				)

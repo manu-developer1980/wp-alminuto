@@ -3,10 +3,8 @@ declare(strict_types=1);
 
 namespace SG_AI_Studio\HelperAuth;
 
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use SG_AI_Studio\Vendor\Firebase\JWT\JWT;
+use SG_AI_Studio\Vendor\Firebase\JWT\Key;
 use SG_AI_Studio\Helper\Helper;
 class SignApiAuthException extends \Exception
 {
@@ -38,6 +36,19 @@ class SignApiServerException extends \Exception
 	{
 		return $this->statusCode;
 	}
+}
+
+/**
+ * Raised when the AI plugin's Connector Approval feature blocks the outbound
+ * token request at the HTTP layer because the calling plugin has not been
+ * approved for the SiteGround AI connector.
+ *
+ * Extends SignApiAuthException so existing catch blocks keep working, while
+ * letting callers detect this specific, actionable case and skip retries
+ * (an approval block will not clear on its own within a request).
+ */
+class ConnectorNotApprovedException extends SignApiAuthException
+{
 }
 
 class Claims
@@ -102,6 +113,22 @@ class SignApiClient
 	private string $algorithm;
 	private ?string $token = null;
 	private ?float $token_expiry = null;
+
+	/**
+	 * Minimum RSA modulus size (bits) accepted for RSA-based keys (RS and PS families).
+	 */
+	private const MIN_RSA_BITS = 2048;
+
+	/**
+	 * Minimum secret length (bytes) per HMAC algorithm, matching the hash output size.
+	 * Mirrors the key-length validation added upstream in firebase/php-jwt v7 (CVE-2025-45769),
+	 * backported here so we stay on the PHP 7.4-compatible 6.x line.
+	 */
+	private const HMAC_MIN_KEY_BYTES = array(
+		'HS256' => 32,
+		'HS384' => 48,
+		'HS512' => 64,
+	);
 
 	public function __construct(
 		string $clientName,
@@ -171,6 +198,48 @@ class SignApiClient
 		return $keyData;
 	}
 
+	/**
+	 * Reject signing/verification keys that are too weak for the given algorithm.
+	 *
+	 * @param string $key        The key material (HMAC secret, or PEM private/public key).
+	 * @param string $algorithm  The JWT algorithm the key will be used with.
+	 * @param bool   $is_private Whether $key is a private key (true) or public key (false).
+	 *
+	 * @throws SignApiAuthException When the key does not meet the minimum strength.
+	 */
+	private function validate_key_strength( string $key, string $algorithm, bool $is_private ): void {
+		// HMAC: the symmetric secret must be at least as long as the hash output.
+		if ( isset( self::HMAC_MIN_KEY_BYTES[ $algorithm ] ) ) {
+			$min = self::HMAC_MIN_KEY_BYTES[ $algorithm ];
+			if ( strlen( $key ) < $min ) {
+				throw new SignApiAuthException(
+					sprintf( 'Insecure HMAC key for %s: %d bytes provided, %d required', $algorithm, strlen( $key ), $min )
+				);
+			}
+			return;
+		}
+
+		// Asymmetric (RS, PS, ES families): inspect the key material via OpenSSL.
+		$pkey = $is_private ? openssl_pkey_get_private( $key ) : openssl_pkey_get_public( $key );
+		if ( false === $pkey ) {
+			throw new SignApiAuthException( 'Invalid key supplied for ' . esc_html( $algorithm ) );
+		}
+
+		$details = openssl_pkey_get_details( $pkey );
+		if ( false === $details ) {
+			throw new SignApiAuthException( 'Unable to read key details for ' . esc_html( $algorithm ) );
+		}
+
+		if (
+			( $details['type'] ?? null ) === OPENSSL_KEYTYPE_RSA
+			&& ( $details['bits'] ?? 0 ) < self::MIN_RSA_BITS
+		) {
+			throw new SignApiAuthException(
+				sprintf( 'Insecure RSA key for %s: %d bits, minimum %d required', $algorithm, $details['bits'] ?? 0, self::MIN_RSA_BITS )
+			);
+		}
+	}
+
 	private function generate_token( array $key_data, int $retries = 5, ?array $extra_payload = null ): string
 	{
 		$private_key = $key_data['private_key'];
@@ -186,6 +255,7 @@ class SignApiClient
 			$payload = array_merge( $payload, $extra_payload );
 		}
 
+		$this->validate_key_strength( $private_key, $this->algorithm, true );
 		$token         = JWT::encode( $payload, $private_key, $this->algorithm );
 		$token_request = new TokenRequest( $token, $service, $client, $client_key );
 
@@ -198,55 +268,55 @@ class SignApiClient
 	}
 
 	private function make_token_request( TokenRequest $tokenRequest ): string {
-		$client = new Client(
-			[
+		$args = array(
 			'timeout' => $this->timeout,
-			'verify' => $this->verifyCertificate,
-			]
+			'sslverify' => $this->verifyCertificate,
+			'headers' => $this->getDefaultHeaders(),
+			'body' => wp_json_encode( $tokenRequest->toArray() ),
 		);
 
-		try {
-			$response = $client->post($this->signServerUrl, [
-				'json' => $tokenRequest->toArray(),
-				'headers' => $this->getDefaultHeaders(),
-			]);
+		$response = wp_remote_post( $this->signServerUrl, $args );
 
-
-			if ($response->getStatusCode() >= 400) {
-				$errorMsg = "Sign server error: " . $response->getStatusCode();
-				try {
-					$errorData = json_decode($response->getBody()->getContents(), true);
-
-					if (isset($errorData['message'])) {
-						$errorMsg = $errorData['message'];
-					}
-				} catch (\Exception $e) {
-					$responseText = $response->getBody()->getContents();
-					if (!empty($responseText)) {
-
-						$errorMsg = $responseText;
-					}
-				}
-				throw new SignApiAuthException($errorMsg, $response->getStatusCode());
+		// Check for WP_Error
+		if ( is_wp_error( $response ) ) {
+			// The AI plugin's Connector Approval feature blocks the request at
+			// the HTTP layer (pre_http_request) until an administrator approves
+			// the calling plugin for the SiteGround AI connector. Surface it as
+			// a dedicated, non-retryable exception so callers can show an
+			// actionable message instead of a generic auth failure.
+			if ( 'wpai_connector_not_approved' === $response->get_error_code() ) {
+				throw new ConnectorNotApprovedException( $response->get_error_message() );
 			}
 
-			$responseData = json_decode($response->getBody()->getContents(), true);
-
-
-			if (!isset($responseData['data']['token'])) {
-				throw new SignApiAuthException("No token returned from sign server");
-			}
-
-			$signedToken = $responseData['data']['token'];
-
-			return $signedToken;
-
-		} catch (GuzzleException $e) {
-			throw new SignApiAuthException("HTTP request failed: " . esc_html( $e->getMessage() ));
+			throw new SignApiAuthException( "HTTP request failed: " . esc_html( $response->get_error_message() ) );
 		}
+
+		$status_code = wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+
+		if ( $status_code >= 400 ) {
+			$errorMsg = "Sign server error: " . $status_code;
+			$errorData = json_decode( $body, true );
+
+			if ( isset( $errorData['message'] ) ) {
+				$errorMsg = $errorData['message'];
+			} elseif ( ! empty( $body ) ) {
+				$errorMsg = $body;
+			}
+
+			throw new SignApiAuthException( $errorMsg, $status_code );
+		}
+
+		$responseData = json_decode( $body, true );
+
+		if ( ! isset( $responseData['data']['token'] ) ) {
+			throw new SignApiAuthException( "No token returned from sign server" );
+		}
+
+		return $responseData['data']['token'];
 	}
 
-	public function get_auth_token( int $retries = 5 ): string {
+	public function get_auth_token( int $retries = 5, ?array $extra_payload = null ): string {
 		$current_time = time();
 		if ( $this->token && $this->token_expiry && $current_time < ( $this->token_expiry - 300 ) ) {
 
@@ -260,7 +330,7 @@ class SignApiClient
 			throw new SignApiAuthException( 'No API key found for client ' . esc_html( $this->clientName ) );
 		}
 
-		$token              = $this->generate_token( $key_data, $retries );
+		$token              = $this->generate_token( $key_data, $retries, $extra_payload );
 		$this->token        = $token;
 		$this->token_expiry = $current_time + $this->token_valid_seconds;
 
@@ -279,6 +349,10 @@ class SignApiClient
 		for ( $attempt = 0; $attempt <= $retries; $attempt++ ) {
 			try {
 				return $operation();
+			} catch ( ConnectorNotApprovedException $e ) {
+				// A Connector Approval block will not clear within this loop;
+				// fail fast instead of hanging through the backoff schedule.
+				throw $e;
 			} catch ( \Exception $e ) {
 				$last_exception = $e;
 				if ( $attempt >= $retries ) {
@@ -322,6 +396,7 @@ class SignApiClient
 
 		foreach ( $algorithms as $algorithm ) {
 			try {
+				$this->validate_key_strength( trim( $service_key['key_pub'] ), $algorithm, false );
 				$decoded_data = JWT::decode( $token, new Key( trim( $service_key['key_pub'] ), $algorithm ) );
 				$decoded_data = (array) $decoded_data;
 
@@ -371,6 +446,7 @@ class SignApiClient
 		try {
 			$key_value = trim( $public_key['key_pub'] );
 
+			$this->validate_key_strength( $key_value, $this->algorithm, false );
 			$decoded_data = JWT::decode( $token, new Key( $key_value, $this->algorithm ) );
 			$decoded_data = (array) $decoded_data;
 		} catch ( \Exception $e ) {

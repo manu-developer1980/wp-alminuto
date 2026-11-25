@@ -8,7 +8,7 @@
 namespace SG_AI_Studio\CLI;
 
 use SG_AI_Studio\Helper\Helper;
-use CharlesRumley\PoToJson;
+use SG_AI_Studio\Vendor\CharlesRumley\PoToJson;
 /**
  * WP-CLI commands for SG AI Studio plugin
  */

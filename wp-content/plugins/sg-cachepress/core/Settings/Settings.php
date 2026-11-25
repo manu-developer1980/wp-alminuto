@@ -18,6 +18,13 @@ class Settings {
 	public $options_service;
 
 	/**
+	 * The options prefix.
+	 *
+	 * @var string
+	 */
+	public $option_prefix = 'siteground_optimizer_';
+
+	/**
 	 * The array containing all settings that can be imported/exported.
 	 *
 	 * @var array
@@ -92,6 +99,29 @@ class Settings {
 	);
 
 	/**
+	 * Options, with array values, containing array of strings.
+	 *
+	 * @var array
+	 */
+	public $array_options = array(
+		'async_javascript_exclude',
+		'excluded_lazy_load_classes',
+		'excluded_lazy_load_media_types',
+		'database_optimization',
+		'post_types_exclude',
+		'combine_javascript_exclude',
+		'minify_javascript_exclude',
+		'dns_prefetch_urls',
+	);
+
+	/**
+	 * Options with scalar values.
+	 */
+	public $scalar_options = array(
+		'resize_images',
+	);
+
+	/**
 	 * Create export file or hash.
 	 *
 	 * @since  5.7.13
@@ -129,6 +159,9 @@ class Settings {
 	 * @return array The options updated, their values and errors
 	 */
 	public function import( $source ) {
+		// Init the Options Service.
+		$this->options_service = new Options();
+
 		// Get the content of the hash, decode the import and map the available options for import.
 		$options = json_decode( base64_decode( $source ), true );
 
@@ -145,10 +178,61 @@ class Settings {
 				continue;
 			}
 
-			// Update the option if we don't need to do additional optimizations.
-			if ( ! array_key_exists( $option, $this->complex_options ) ) {
-				// Update the option.
-				update_option( 'siteground_optimizer_' . $option, $value );
+			// Update the toggle options if we don't need to do additional optimizations.
+			if (
+				! array_key_exists( $option, $this->complex_options ) &&
+				! in_array( $option, $this->array_options ) &&
+				! in_array( $option, $this->scalar_options )
+			) {
+				// If the value is not 0 or empty, enable the option (set its value to 1).
+				if ( (bool) $value ) {
+					$this->options_service->enable_option( $this->option_prefix . $option, is_multisite() );
+					continue;
+				}
+
+				$this->options_service->disable_option( $this->option_prefix . $option, is_multisite() );
+				continue;
+			}
+
+			// Update the array options.
+			if ( in_array( $option, $this->array_options ) ) {
+				// Bail if the value is not array.
+				if ( ! is_array( $value ) ) {
+					$failed_options[] = $option;
+					continue;
+				}
+
+				// Check if the array contain strings.
+				$is_valid = true;
+				foreach ( $value as $key => $item ) {
+					if ( ! is_string( $item ) ) {
+						$is_valid = false;
+						break;
+					}
+
+					if ( 'dns_prefetch_urls' === $option ) {
+						$value[ $key ] = esc_url_raw( $item );
+					}
+				}
+
+				if ( ! $is_valid ) {
+					$failed_options[] = $option;
+					continue;
+				}
+
+				update_option( $this->option_prefix . $option, $value );
+				continue;
+			}
+
+			// Update the scalar options.
+			if ( in_array( $option, $this->scalar_options ) ) {
+				// Bail, if the value is not scalar.
+				if ( ! is_scalar( $value ) ) {
+					$failed_options[] = $option;
+					continue;
+				}
+
+				update_option( $this->option_prefix . $option, $value );
 				continue;
 			}
 
@@ -160,7 +244,7 @@ class Settings {
 				continue;
 			}
 
-			// Impor the complex option.
+			// Import the complex option.
 			$result = $this->import_complex_option( $option, $value );
 
 			// Add the option to the failed option if the optimization is not successful.

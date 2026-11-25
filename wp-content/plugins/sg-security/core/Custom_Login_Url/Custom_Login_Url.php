@@ -33,6 +33,13 @@ class Custom_Login_Url {
 	private $um_form_detected_error = false;
 
 	/**
+	 * Whether WordPress is currently rendering the auth check modal.
+	 *
+	 * @var bool
+	 */
+	private $is_auth_check_modal_rendering = false;
+
+	/**
 	 * The Constructor
 	 *
 	 * @since 1.1.0
@@ -100,7 +107,7 @@ class Custom_Login_Url {
 	 * @return string          Modified message.
 	 */
 	public function change_email_links( $message ) {
-		return str_replace( 'wp-login.php', trailingslashit( $this->options['new_slug'] ), $message );
+		return str_replace( 'wp-login.php', untrailingslashit( $this->options['new_slug'] ), $message );
 	}
 
 	/**
@@ -111,7 +118,7 @@ class Custom_Login_Url {
 	public function handle_request() {
 
 		// Get the path.
-		$path = Helper::get_url_path( $_SERVER['REQUEST_URI'] ); //phpcs:ignore
+		$path = rawurldecode(  Helper::get_url_path( $_SERVER['REQUEST_URI'] ) ); //phpcs:ignore
 
 		if ( $path === $this->options['new_slug'] ) {
 			$this->redirect_with_token( 'login', 'wp-login.php' );
@@ -700,5 +707,57 @@ class Custom_Login_Url {
 
 		// Unset the cookie from the $_COOKIE superglobal.
 		unset( $_COOKIE[ $cookie_name ] );
+	}
+
+	/**
+	* Change the login URL, so WordPress core uses the custom login URL.
+	*
+	* @param string $login_url    The login URL.
+	* @param string $redirect     The path to redirect to after login.
+	* @param bool   $force_reauth Whether to force reauthorization.
+	*
+	* @return string
+	*/
+	public function custom_interim_login_url( $login_url, $redirect, $force_reauth ) {
+		// Check, if the interim-login modal is about to be rendered.
+		if ( ! $this->is_auth_check_modal_rendering ) {
+			return $login_url;
+		}
+
+		$custom_login_slug = get_option( 'sg_security_login_url' );
+
+		if ( empty( $custom_login_slug ) ) {
+			return $login_url;
+		}
+
+		$login_url = home_url( '/' . ltrim( $custom_login_slug, '/' ) );
+
+		// Preserve the redirect URL if present.
+		if ( ! empty( $redirect ) ) {
+			$login_url = add_query_arg( 'redirect_to', $redirect, $login_url );
+		}
+
+		// Force the login authorization.
+		if ( $force_reauth ) {
+			$login_url = add_query_arg( 'reauth', '1', $login_url );
+		}
+
+		return $login_url;
+	}
+
+	/**
+	 * Sets the auth check modal rendering flag to true.
+	 */
+	public function add_flag_auth_check_modal_rendering() {
+		if ( false !== has_action( 'admin_print_footer_scripts', 'wp_auth_check_html' ) ) {
+			$this->is_auth_check_modal_rendering = true;
+		}
+	}
+
+	/**
+	 * Sets the auth check modal rendering flag to false.
+	 */
+	public function remove_flag_auth_check_modal_rendering() {
+			$this->is_auth_check_modal_rendering = false;
 	}
 }

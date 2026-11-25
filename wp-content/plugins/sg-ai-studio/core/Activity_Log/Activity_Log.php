@@ -34,6 +34,13 @@ class Activity_Log {
 	public static $wpdb;
 
 	/**
+	 * Cached results of has_column(), keyed by table and column.
+	 *
+	 * @var array
+	 */
+	private static $columns = array();
+
+	/**
 	 * The constructor.
 	 */
 	public function __construct() {
@@ -160,6 +167,40 @@ class Activity_Log {
 	}
 
 	/**
+	 * Checks if a column exists in the log table.
+	 *
+	 * Tables created before 1.3.2 lack the visitor_login column until the
+	 * 1.3.2 install runs, so writes and reads check for it first.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @param  string $column The column name.
+	 *
+	 * @return boolean        True/False.
+	 */
+	public static function has_column( $column ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'sg_ai_log_events';
+		$key        = $table_name . '.' . $column;
+
+		if ( ! isset( self::$columns[ $key ] ) ) {
+			self::$columns[ $key ] = null !== $wpdb->get_var( $wpdb->prepare( 'SHOW COLUMNS FROM `' . esc_sql( $table_name ) . '` LIKE %s', $column ) ); //phpcs:ignore
+		}
+
+		return self::$columns[ $key ];
+	}
+
+	/**
+	 * Forget the cached has_column() results after the table changes.
+	 *
+	 * @since 1.3.2
+	 */
+	public static function reset_column_cache() {
+		self::$columns = array();
+	}
+
+	/**
 	 * Delete old logs from events table.
 	 *
 	 * @since 1.0.0
@@ -202,11 +243,14 @@ class Activity_Log {
 					  `ts` int(11) NOT NULL DEFAULT '0',
 					  `activity` varchar(255) NOT NULL,
 					  `description` varchar(255) NOT NULL,
+					  `visitor_login` varchar(60) NOT NULL DEFAULT '',
 					  PRIMARY KEY (`id`),
 					  INDEX `log_event_index` (`visitor_id`, `ts`, `activity`, `id`)
 				) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4;";
 
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		dbDelta( $events_sql );
+
+		self::reset_column_cache();
 	}
 }

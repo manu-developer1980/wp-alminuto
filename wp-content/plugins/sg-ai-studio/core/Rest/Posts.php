@@ -18,6 +18,10 @@ use SG_AI_Studio\Helper\Helper;
  * Handles REST API endpoints for post operations.
  */
 class Posts extends Rest_Controller_Base {
+	use Revisions;
+	use Object_Terms;
+	use Meta_Support;
+
 	/**
 	 * REST API base
 	 *
@@ -64,13 +68,14 @@ class Posts extends Rest_Controller_Base {
 					'callback'            => array( $this, 'get_post' ),
 					'permission_callback' => array( $this, 'read_permissions_check' ),
 					'args'                => array(
-						'id' => array(
+						'id'          => array(
 							'description' => 'Unique identifier for the post.',
 							'type'        => 'integer',
 							'required'    => true,
 						),
+						'embed_terms' => $this->get_embed_terms_arg(),
 					),
-					'description'         => 'Retrieves a specific post by ID.',
+					'description'         => 'Retrieves a specific post (or custom post type item) by ID, including its custom fields under meta. Pass embed_terms=true to get the assigned terms of every taxonomy as named terms instead of only the category and tag IDs.',
 				),
 				array(
 					'methods'             => 'PUT',
@@ -131,6 +136,12 @@ class Posts extends Rest_Controller_Base {
 				'schema' => array( $this, 'get_batch_schema' ),
 			)
 		);
+
+		// Register revision endpoints (list, read, restore, prune).
+		$this->register_revision_routes( $this->base );
+
+		// Register object term endpoints (read assigned terms, assign terms).
+		$this->register_object_terms_routes( $this->base );
 	}
 
 	/**
@@ -242,7 +253,8 @@ class Posts extends Rest_Controller_Base {
 	 */
 	protected function get_posts_args() {
 		return array(
-			'page'       => array(
+			'embed_terms' => $this->get_embed_terms_arg(),
+			'page'        => array(
 				'description'       => 'Current page of the collection.',
 				'type'              => 'integer',
 				'default'           => 1,
@@ -250,7 +262,7 @@ class Posts extends Rest_Controller_Base {
 				'minimum'           => 1,
 				'required'          => false,
 			),
-			'per_page'   => array(
+			'per_page'    => array(
 				'description'       => 'Maximum number of items to be returned in result set.',
 				'type'              => 'integer',
 				'default'           => 10,
@@ -259,12 +271,12 @@ class Posts extends Rest_Controller_Base {
 				'sanitize_callback' => 'absint',
 				'required'          => false,
 			),
-			'search'     => array(
+			'search'      => array(
 				'description' => 'Limit results to those matching a string.',
 				'type'        => 'string',
 				'required'    => false,
 			),
-			'author'     => array(
+			'author'      => array(
 				'description' => 'Limit result set to posts assigned to specific authors.',
 				'type'        => 'array',
 				'items'       => array(
@@ -272,7 +284,7 @@ class Posts extends Rest_Controller_Base {
 				),
 				'required'    => false,
 			),
-			'status'     => array(
+			'status'      => array(
 				'description' => 'Limit result set to posts with specific statuses.',
 				'type'        => 'array',
 				'items'       => array(
@@ -281,7 +293,7 @@ class Posts extends Rest_Controller_Base {
 				),
 				'required'    => false,
 			),
-			'post_type'  => array(
+			'post_type'   => array(
 				'description' => 'Limit result set to posts with specific post types.',
 				'type'        => 'array',
 				'items'       => array(
@@ -290,7 +302,7 @@ class Posts extends Rest_Controller_Base {
 				'default'     => array( 'post' ),
 				'required'    => false,
 			),
-			'categories' => array(
+			'categories'  => array(
 				'description' => 'Limit result set to posts with specific categories.',
 				'type'        => 'array',
 				'items'       => array(
@@ -298,7 +310,7 @@ class Posts extends Rest_Controller_Base {
 				),
 				'required'    => false,
 			),
-			'tags'       => array(
+			'tags'        => array(
 				'description' => 'Limit result set to posts with specific tags.',
 				'type'        => 'array',
 				'items'       => array(
@@ -306,21 +318,21 @@ class Posts extends Rest_Controller_Base {
 				),
 				'required'    => false,
 			),
-			'orderby'    => array(
+			'orderby'     => array(
 				'description' => 'Sort collection by object attribute.',
 				'type'        => 'string',
 				'default'     => 'date',
 				'enum'        => array( 'date', 'title', 'modified', 'author', 'comment_count' ),
 				'required'    => false,
 			),
-			'order'      => array(
+			'order'       => array(
 				'description' => 'Order sort attribute ascending or descending.',
 				'type'        => 'string',
 				'default'     => 'desc',
 				'enum'        => array( 'asc', 'desc' ),
 				'required'    => false,
 			),
-			'include'    => array(
+			'include'     => array(
 				'description' => 'Limit result set to specific IDs.',
 				'type'        => 'array',
 				'items'       => array(
@@ -328,7 +340,7 @@ class Posts extends Rest_Controller_Base {
 				),
 				'required'    => false,
 			),
-			'exclude'    => array( // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+			'exclude'     => array( // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
 				'description' => 'Ensure result set excludes specific IDs.',
 				'type'        => 'array',
 				'items'       => array(
@@ -522,8 +534,9 @@ class Posts extends Rest_Controller_Base {
 					'enum'        => array( 'open', 'closed' ),
 				),
 				'meta'           => array(
-					'description' => 'Meta fields.',
-					'type'        => 'object',
+					'description' => 'Custom fields of the post, keyed by meta key, with values exactly as stored so they can be written back through meta unchanged. Present only on single reads. Protected internal fields (keys starting with an underscore) are omitted unless registered with show_in_rest. Null when the user cannot edit the post. Use the meta_fields of GET /types/{type} to discover which fields a post type has.',
+					'type'        => array( 'object', 'null' ),
+					'readonly'    => true,
 				),
 				'categories'     => array(
 					'description' => 'The categories assigned to the post.',
@@ -538,6 +551,11 @@ class Posts extends Rest_Controller_Base {
 					'items'       => array(
 						'type' => 'integer',
 					),
+				),
+				'terms'          => array(
+					'description' => 'Named terms assigned to the post, keyed by taxonomy slug. Present only when embed_terms=true was requested. A taxonomy with nothing assigned is an empty array.',
+					'type'        => 'object',
+					'readonly'    => true,
 				),
 			),
 		);
@@ -616,25 +634,27 @@ class Posts extends Rest_Controller_Base {
 		// Get the post.
 		$post = get_post( $post_id );
 
-		// Format the response.
-		$response = $this->prepare_post_for_response( $post );
-
 		// Log the activity.
 		/* translators: %1$s is the post title, %2$d is the post ID. */
 		Activity_Log_Helper::add_log_entry( 'Posts', sprintf( __( 'Post Created: %1$s (ID: %2$d)', 'sg-ai-studio' ), $post->post_title, $post_id ) );
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
 			\wp_cache_flush();
 		}
 
+		// Return lean response for write operation.
 		return new WP_REST_Response(
 			array(
-				'success' => true,
-				'data'    => $response,
+				'success'  => true,
+				'id'       => $post->ID,
+				'title'    => $post->post_title,
+				'status'   => $post->post_status,
+				'link'     => get_permalink( $post->ID ),
+				'modified' => mysql_to_rfc3339( $post->post_modified ),
 			),
 			201
 		);
@@ -660,9 +680,24 @@ class Posts extends Rest_Controller_Base {
 			);
 		}
 
+		// Save a pre-edit revision so the edit has a deterministic restore point.
+		// Respects the site's revision config; 0 when disabled/unsupported.
+		$revision_id = Helper::save_pre_edit_revision( $post_id );
+
 		// Prepare post data.
 		$post_data       = $this->prepare_post_for_database( $request );
 		$post_data['ID'] = $post_id;
+
+		// The post type and author defaults only make sense on create. Applied to
+		// an update they would turn a custom post type item into a post and hand
+		// it over to the current user.
+		if ( ! isset( $request['post_type'] ) ) {
+			unset( $post_data['post_type'] );
+		}
+
+		if ( ! isset( $request['author'] ) ) {
+			unset( $post_data['post_author'] );
+		}
 
 		// Update the post.
 		$updated = wp_update_post( $post_data, true );
@@ -702,25 +737,29 @@ class Posts extends Rest_Controller_Base {
 		// Get the updated post.
 		$post = get_post( $post_id );
 
-		// Format the response.
-		$response = $this->prepare_post_for_response( $post );
-
 		// Log the activity.
 		/* translators: %1$s is the post title, %2$d is the post ID. */
 		Activity_Log_Helper::add_log_entry( 'Posts', sprintf( __( 'Post Updated: %1$s (ID: %2$d)', 'sg-ai-studio' ), $post->post_title, $post_id ) );
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
 			\wp_cache_flush();
 		}
 
+		// Return lean response for write operation.
 		return new WP_REST_Response(
 			array(
-				'success' => true,
-				'data'    => $response,
+				'success'           => true,
+				'id'                => $post->ID,
+				'title'             => $post->post_title,
+				'status'            => $post->post_status,
+				'link'              => get_permalink( $post->ID ),
+				'modified'          => mysql_to_rfc3339( $post->post_modified ),
+				'revision_id'       => $revision_id ? $revision_id : null,
+				'revisions_enabled' => wp_revisions_enabled( $post ),
 			),
 			200
 		);
@@ -758,9 +797,6 @@ class Posts extends Rest_Controller_Base {
 			);
 		}
 
-		// Get the post before deleting it.
-		$previous = $this->prepare_post_for_response( $post );
-
 		// Delete the post.
 		$result = wp_delete_post( $post_id, $force );
 
@@ -777,39 +813,29 @@ class Posts extends Rest_Controller_Base {
 		// Log the activity.
 		if ( $force ) {
 			/* translators: %1$s is the post title, %2$d is the post ID. */
-			Activity_Log_Helper::add_log_entry( 'Posts', sprintf( __( 'Post permanently deleted: %1$s (ID: %2$d)', 'sg-ai-studio' ), $post->post_title, $post_id ) );
+			Activity_Log_Helper::add_log_entry( 'Posts', sprintf( __( 'Post Permanently Deleted: %1$s (ID: %2$d)', 'sg-ai-studio' ), $post->post_title, $post_id ) );
 		} else {
 			/* translators: %1$s is the post title, %2$d is the post ID. */
-			Activity_Log_Helper::add_log_entry( 'Posts', sprintf( __( 'Post moved to trash: %1$s (ID: %2$d)', 'sg-ai-studio' ), $post->post_title, $post_id ) );
+			Activity_Log_Helper::add_log_entry( 'Posts', sprintf( __( 'Post Moved to Trash: %1$s (ID: %2$d)', 'sg-ai-studio' ), $post->post_title, $post_id ) );
 		}
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
 			\wp_cache_flush();
 		}
 
-		if ( $force ) {
-			return new WP_REST_Response(
-				array(
-					'success' => true,
-					'message' => __( 'The post has been permanently deleted.', 'sg-ai-studio' ),
-					'data'    => $previous,
-				),
-				200
-			);
-		} else {
-			return new WP_REST_Response(
-				array(
-					'success' => true,
-					'message' => __( 'The post has been moved to the trash.', 'sg-ai-studio' ),
-					'data'    => $previous,
-				),
-				200
-			);
-		}
+		// Return lean response for delete operation.
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'id'      => $post_id,
+				'status'  => $force ? 'deleted' : 'trashed',
+			),
+			200
+		);
 	}
 
 	/**
@@ -868,10 +894,20 @@ class Posts extends Rest_Controller_Base {
 		$query = new WP_Query( $args );
 		$posts = $query->posts;
 
+		$embed_terms = (bool) $request['embed_terms'];
+
+		// Prime the object term cache once so embedding terms is a single query, not one per post.
+		if ( $embed_terms && ! empty( $posts ) ) {
+			update_object_term_cache(
+				wp_list_pluck( $posts, 'ID' ),
+				array_values( array_unique( wp_list_pluck( $posts, 'post_type' ) ) )
+			);
+		}
+
 		// Format the response.
 		$data = array();
 		foreach ( $posts as $post ) {
-			$data[] = $this->prepare_post_for_response( $post );
+			$data[] = $this->prepare_post_for_response( $post, 'list', $embed_terms );
 		}
 
 		// Prepare pagination headers.
@@ -916,7 +952,7 @@ class Posts extends Rest_Controller_Base {
 		}
 
 		// Format the response.
-		$response = $this->prepare_post_for_response( $post );
+		$response = $this->prepare_post_for_response( $post, 'view', (bool) $request['embed_terms'] );
 
 		return new WP_REST_Response(
 			array(
@@ -960,7 +996,7 @@ class Posts extends Rest_Controller_Base {
 		$success = empty( $errors );
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
@@ -1020,7 +1056,7 @@ class Posts extends Rest_Controller_Base {
 		$success = empty( $errors );
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
@@ -1074,14 +1110,14 @@ class Posts extends Rest_Controller_Base {
 			if ( $response->is_error() || ! $response->get_data()['success'] ) {
 				$errors[ $post_id ] = $response->get_data();
 			} else {
-				$results[ $post_id ] = $response->get_data()['message'];
+				$results[ $post_id ] = $response->get_data()['status'];
 			}
 		}
 
 		$success = empty( $errors );
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
@@ -1159,10 +1195,14 @@ class Posts extends Rest_Controller_Base {
 	/**
 	 * Prepare a post for the response
 	 *
-	 * @param WP_Post $post Post object.
+	 * @param \WP_Post $post        Post object.
+	 * @param string   $context     Request context: 'view' for single reads (full fidelity)
+	 *                              or 'list' for collection responses (heavy fields omitted).
+	 * @param bool     $embed_terms Whether to include the named terms of every taxonomy
+	 *                              on the post, alongside the bare category and tag IDs.
 	 * @return array Prepared post data.
 	 */
-	protected function prepare_post_for_response( $post ) {
+	protected function prepare_post_for_response( $post, $context = 'view', $embed_terms = false ) {
 		// Get the post categories.
 		$category_ids = wp_get_post_categories( $post->ID );
 
@@ -1176,25 +1216,14 @@ class Posts extends Rest_Controller_Base {
 		$data = array(
 			'id'             => $post->ID,
 			'date'           => mysql_to_rfc3339( $post->post_date ),
-			'date_gmt'       => mysql_to_rfc3339( $post->post_date_gmt ),
 			'modified'       => mysql_to_rfc3339( $post->post_modified ),
-			'modified_gmt'   => mysql_to_rfc3339( $post->post_modified_gmt ),
 			'slug'           => $post->post_name,
 			'status'         => $post->post_status,
 			'type'           => $post->post_type,
 			'link'           => get_permalink( $post->ID ),
-			'title'          => array(
-				'raw'      => $post->post_title,
-				'rendered' => get_the_title( $post->ID ),
-			),
-			'content'        => array(
-				'raw'      => $post->post_content,
-				'rendered' => apply_filters( 'the_content', $post->post_content ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-			),
-			'excerpt'        => array(
-				'raw'      => $post->post_excerpt,
-				'rendered' => apply_filters( 'the_excerpt', $post->post_excerpt ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-			),
+			'title'          => $post->post_title,
+			'content'        => $post->post_content,
+			'excerpt'        => $post->post_excerpt,
 			'author'         => (int) $post->post_author,
 			'featured_media' => (int) $featured_media_id,
 			'comment_status' => $post->comment_status,
@@ -1202,6 +1231,20 @@ class Posts extends Rest_Controller_Base {
 			'categories'     => $category_ids,
 			'tags'           => $tag_ids,
 		);
+
+		// Named terms for every taxonomy on the post, so callers never have to
+		// report a bare term ID. Additive: `categories` and `tags` are untouched.
+		if ( $embed_terms ) {
+			$data['terms'] = $this->get_object_terms_map( $post->ID, $post->post_type );
+		}
+
+		// Omit heavy fields in list context to keep collection responses small.
+		// Single reads (context 'view') retain full content and custom fields.
+		if ( 'list' === $context ) {
+			unset( $data['content'], $data['excerpt'] );
+		} else {
+			$data['meta'] = $this->get_post_meta_map( $post );
+		}
 
 		return $data;
 	}

@@ -8,11 +8,25 @@
 namespace SG_AI_Studio\Helper;
 
 use SG_AI_Studio\HelperAuth\SignApiClient;
+use SG_AI_Studio\HelperAuth\ConnectorNotApprovedException;
 
 /**
  * Helper class for utility functions.
  */
 class Helper {
+	/**
+	 * Reason code for the most recent generate_ai_studio_token() failure.
+	 *
+	 * Null when the last attempt succeeded or has not run. Set to
+	 * 'connector_not_approved' when the AI plugin's Connector Approval feature
+	 * blocked the token request. Lets synchronous callers (the AI provider
+	 * models) surface an actionable message without changing the token
+	 * method's string|false return contract.
+	 *
+	 * @var string|null
+	 */
+	private static $last_token_error = null;
+
 	/**
 	 * Check if the plugin is running in staging environment
 	 *
@@ -21,6 +35,752 @@ class Helper {
 	 */
 	public static function is_staging_environment(): bool {
 		return defined( 'SG_AI_STUDIO_ENV' ) && \SG_AI_STUDIO_ENV === 'staging';
+	}
+
+	/**
+	 * Derive a minimal, structured page context for the current request.
+	 *
+	 * Re-derived on every call (never cached) so it always reflects the current
+	 * page. Only cheap, readily-available server-side fields are populated;
+	 * anything requiring a heavier lookup is omitted. Returns null when the
+	 * current page cannot be determined, in which case callers should omit
+	 * page_context entirely from the injected chat config. This function never
+	 * throws, so it is safe to call during chat init.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @return array|null The page context array, or null if it cannot be determined.
+	 */
+	public static function get_page_context() {
+		if ( is_admin() ) {
+			return self::get_admin_page_context();
+		}
+
+		// Page builders (Elementor, Beaver, Divi, Bricks, etc.) render their
+		// "Edit with <builder>" experience on a front-end URL inside an <iframe>,
+		// so WordPress' is_admin() returns false even though the user is really on
+		// an editor screen. Detect that here and report a 'wp-admin' surface with
+		// the correct editor, instead of mislabelling it as 'frontend'.
+		$builder = self::get_page_builder_editor();
+		if ( '' !== $builder ) {
+			return self::get_builder_page_context( $builder );
+		}
+
+		return self::get_frontend_page_context();
+	}
+
+	/**
+	 * Derive the page context for a wp-admin request.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @return array|null The admin page context, or null if it cannot be determined.
+	 */
+	private static function get_admin_page_context() {
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return null;
+		}
+
+		$screen = get_current_screen();
+
+		if ( ! $screen ) {
+			return null;
+		}
+
+		$context = array(
+			'surface' => 'wp-admin',
+		);
+
+		// Admin-relative request URL, e.g. wp-admin/post.php?post=42&action=edit.
+		$url = self::get_admin_relative_url();
+		if ( '' !== $url ) {
+			$context['url'] = $url;
+		}
+
+		if ( 'post' === $screen->base ) {
+			// Editing (or creating) a single post/page.
+			$context['screen'] = 'edit-post';
+
+			$post = self::get_edited_post();
+			if ( $post instanceof \WP_Post ) {
+				$context['post_id']   = $post->ID;
+				$context['post_type'] = $post->post_type;
+
+				$title = get_the_title( $post );
+				if ( '' !== $title ) {
+					$context['title'] = $title;
+				}
+			}
+
+			$context['editor'] = self::get_admin_editor( $screen );
+		} else {
+			// Any other admin screen (settings, tools, list tables, etc.).
+			$context['screen'] = 'settings';
+
+			$area = self::get_admin_area_label();
+			if ( '' !== $area ) {
+				$context['area'] = $area;
+			}
+		}
+
+		return $context;
+	}
+
+	/**
+	 * Derive the page context for a front-end request.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @return array|null The front-end page context, or null if it cannot be determined.
+	 */
+	private static function get_frontend_page_context() {
+		$context = array(
+			'surface' => 'frontend',
+		);
+
+		$queried = get_queried_object();
+
+		if ( $queried instanceof \WP_Post ) {
+			$context['post_id']   = $queried->ID;
+			$context['post_type'] = $queried->post_type;
+
+			$title = get_the_title( $queried );
+			if ( '' !== $title ) {
+				$context['title'] = $title;
+			}
+
+			$permalink = get_permalink( $queried );
+			if ( $permalink ) {
+				$context['url'] = wp_make_link_relative( $permalink );
+			}
+		}
+
+		// Fall back to the WordPress-parsed request path (from the rewrite engine)
+		// when no canonical permalink was derived, e.g. on archives or search.
+		if ( empty( $context['url'] ) ) {
+			$wp_request = isset( $GLOBALS['wp']->request ) && is_string( $GLOBALS['wp']->request ) ? $GLOBALS['wp']->request : '';
+			if ( '' !== $wp_request ) {
+				$context['url'] = '/' . ltrim( $wp_request, '/' );
+			} elseif ( ( function_exists( 'is_front_page' ) && is_front_page() ) || ( function_exists( 'is_home' ) && is_home() ) ) {
+				$context['url'] = '/';
+			}
+		}
+
+		// Without at least a URL or a queried post there is nothing to report.
+		if ( count( $context ) <= 1 ) {
+			return null;
+		}
+
+		return $context;
+	}
+
+	/**
+	 * Resolve the post being edited on the current admin screen, if any.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @return \WP_Post|null The edited post, or null when none can be resolved.
+	 */
+	private static function get_edited_post() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['post'] ) ) {
+			// Read-only context lookup; no state change, so no nonce is required.
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$post = get_post( absint( wp_unslash( $_GET['post'] ) ) );
+			if ( $post instanceof \WP_Post ) {
+				return $post;
+			}
+		}
+
+		if ( ! empty( $GLOBALS['post'] ) && $GLOBALS['post'] instanceof \WP_Post ) {
+			return $GLOBALS['post'];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Detect which editor is active on the current admin edit screen.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @param \WP_Screen $screen The current admin screen.
+	 * @return string One of 'gutenberg', 'elementor' or 'classic'.
+	 */
+	private static function get_admin_editor( $screen ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! empty( $_GET['action'] ) && 'elementor' === $_GET['action'] ) {
+			return 'elementor';
+		}
+
+		if ( $screen && method_exists( $screen, 'is_block_editor' ) && $screen->is_block_editor() ) {
+			return 'gutenberg';
+		}
+
+		return 'classic';
+	}
+
+	/**
+	 * Detect a front-end page builder that is currently in edit/preview mode.
+	 *
+	 * These builders load their editor (or its live-preview iframe) on a
+	 * front-end URL, so is_admin() is false. Each is identified primarily by the
+	 * distinctive query argument the builder itself adds to that request (the
+	 * most reliable signal at enqueue time), with the builder's own API used as a
+	 * secondary, guarded confirmation so a renamed function can never fatal.
+	 *
+	 * @since 1.2.8
+	 *
+	 * @return string The builder slug (e.g. 'elementor'), or '' when none is active.
+	 */
+	private static function get_page_builder_editor() {
+		// Elementor — the editor shell is a wp-admin URL (?action=elementor, already
+		// handled above); its live preview loads from the front end (?elementor-preview=<id>).
+		if (
+			self::has_query_param( 'elementor-preview' )
+			|| 'elementor' === self::get_query_param( 'action' )
+			|| ( class_exists( '\Elementor\Plugin' )
+				&& isset( \Elementor\Plugin::$instance->preview )
+				&& \Elementor\Plugin::$instance->preview->is_preview_mode() )
+		) {
+			return 'elementor';
+		}
+
+		// Beaver Builder — front-end editor (?fl_builder).
+		if (
+			self::has_query_param( 'fl_builder' )
+			|| ( class_exists( '\FLBuilderModel' ) && \FLBuilderModel::is_builder_active() )
+		) {
+			return 'beaver-builder';
+		}
+
+		// Divi Visual Builder (?et_fb=1).
+		if (
+			'' !== self::get_query_param( 'et_fb' )
+			|| ( function_exists( 'et_core_is_fb_enabled' ) && et_core_is_fb_enabled() )
+		) {
+			return 'divi';
+		}
+
+		// Bricks Builder (?bricks=run).
+		if (
+			'run' === self::get_query_param( 'bricks' )
+			|| ( function_exists( 'bricks_is_builder' ) && bricks_is_builder() )
+		) {
+			return 'bricks';
+		}
+
+		// Oxygen Builder (?ct_builder=true, its iframe adds ?oxygen_iframe).
+		if (
+			'' !== self::get_query_param( 'ct_builder' )
+			|| self::has_query_param( 'oxygen_iframe' )
+			|| defined( 'SHOW_CT_BUILDER' )
+		) {
+			return 'oxygen';
+		}
+
+		// WPBakery Page Builder / Visual Composer front-end editor (?vc_action=vc_inline).
+		if (
+			'vc_inline' === self::get_query_param( 'vc_action' )
+			|| self::has_query_param( 'vc_editable' )
+			|| ( function_exists( 'vc_is_inline' ) && vc_is_inline() )
+		) {
+			return 'wpbakery';
+		}
+
+		// Thrive Architect / Thrive Theme Builder (?tve=true).
+		if (
+			'true' === self::get_query_param( 'tve' )
+			|| ( function_exists( 'tve_in_architect' ) && tve_in_architect() )
+		) {
+			return 'thrive-architect';
+		}
+
+		// Avada Live / Fusion Builder (?fb-edit=1).
+		if (
+			'' !== self::get_query_param( 'fb-edit' )
+			|| ( function_exists( 'fusion_is_builder_frame' ) && fusion_is_builder_frame() )
+		) {
+			return 'avada';
+		}
+
+		// Cornerstone / Pro (ThemeCo) front-end editor.
+		if (
+			self::has_query_param( 'cornerstone' )
+			|| self::has_query_param( 'cs-preview' )
+			|| ( function_exists( 'cornerstone_is_permalink_endpoint' ) && cornerstone_is_permalink_endpoint() )
+		) {
+			return 'cornerstone';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Build a wp-admin edit-post context for a front-end page builder session.
+	 *
+	 * Mirrors the shape produced for the native editor by get_admin_page_context()
+	 * so downstream consumers see a consistent "editing a post in wp-admin"
+	 * context regardless of which builder is in use.
+	 *
+	 * @since 1.2.8
+	 *
+	 * @param string $editor The builder slug from get_page_builder_editor().
+	 * @return array The page context array.
+	 */
+	private static function get_builder_page_context( $editor ) {
+		$context = array(
+			'surface' => 'wp-admin',
+			'screen'  => 'edit-post',
+			'editor'  => $editor,
+		);
+
+		$post = self::get_builder_edited_post();
+		if ( $post instanceof \WP_Post ) {
+			$context['post_id']   = $post->ID;
+			$context['post_type'] = $post->post_type;
+
+			$title = get_the_title( $post );
+			if ( '' !== $title ) {
+				$context['title'] = $title;
+			}
+
+			// The canonical wp-admin edit URL for the post, matching the surface.
+			$context['url'] = 'wp-admin/post.php?post=' . $post->ID . '&action=edit';
+		}
+
+		return $context;
+	}
+
+	/**
+	 * Resolve the post being edited in a front-end page builder session.
+	 *
+	 * Builders load on the post's own front-end URL, so the main query normally
+	 * already resolves to it; a post ID passed in the query string is used as a
+	 * fallback (e.g. Elementor's ?elementor-preview=<id>).
+	 *
+	 * @since 1.2.8
+	 *
+	 * @return \WP_Post|null The edited post, or null when none can be resolved.
+	 */
+	private static function get_builder_edited_post() {
+		$queried = get_queried_object();
+		if ( $queried instanceof \WP_Post ) {
+			return $queried;
+		}
+
+		foreach ( array( 'elementor-preview', 'fl_builder_id', 'post', 'p', 'page_id', 'post_id' ) as $key ) {
+			$value = self::get_query_param( $key );
+			if ( '' !== $value ) {
+				$post = get_post( absint( $value ) );
+				if ( $post instanceof \WP_Post ) {
+					return $post;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether a read-only query argument is present on the current request.
+	 *
+	 * @since 1.2.8
+	 *
+	 * @param string $key The query argument name.
+	 * @return bool True when the argument is set.
+	 */
+	private static function has_query_param( $key ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return isset( $_GET[ $key ] );
+	}
+
+	/**
+	 * Read and sanitize a read-only query argument from the current request.
+	 *
+	 * Used only for cheap, read-only page-context detection, so no nonce is
+	 * required; the value is always sanitized before use.
+	 *
+	 * @since 1.2.8
+	 *
+	 * @param string $key The query argument name.
+	 * @return string The sanitized value, or '' when the argument is absent.
+	 */
+	private static function get_query_param( $key ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! isset( $_GET[ $key ] ) ) {
+			return '';
+		}
+
+		// Read-only context lookup; no state change, so no nonce is required.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+	}
+
+	/**
+	 * Build the admin-relative request URL (from wp-admin/ onward).
+	 *
+	 * Uses the WordPress-parsed script name ($pagenow) rather than the raw
+	 * request URI, and re-attaches only the context-relevant query args, each
+	 * sanitized individually, so nonces and other transient params never leak
+	 * into the chat config.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @return string The relative URL, or an empty string when unavailable.
+	 */
+	private static function get_admin_relative_url() {
+		$pagenow = isset( $GLOBALS['pagenow'] ) && is_string( $GLOBALS['pagenow'] ) ? $GLOBALS['pagenow'] : '';
+
+		if ( '' === $pagenow ) {
+			return '';
+		}
+
+		$url = 'wp-admin/' . $pagenow;
+
+		$allowed_args = array( 'page', 'post', 'post_type', 'action', 'taxonomy', 'tab' );
+		$query        = array();
+
+		foreach ( $allowed_args as $key ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( isset( $_GET[ $key ] ) ) {
+				// Read-only context lookup; no state change, so no nonce is required.
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$query[ $key ] = sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+			}
+		}
+
+		if ( ! empty( $query ) ) {
+			$url = add_query_arg( $query, $url );
+		}
+
+		return ltrim( esc_url_raw( '/' . $url ), '/' );
+	}
+
+	/**
+	 * Resolve a human-readable label for the current admin area/screen.
+	 *
+	 * @since 1.2.7
+	 *
+	 * @return string The area label (e.g. "Speed Optimizer"), or an empty string.
+	 */
+	private static function get_admin_area_label() {
+		if ( function_exists( 'get_admin_page_title' ) ) {
+			$title = get_admin_page_title();
+			if ( is_string( $title ) && '' !== trim( $title ) ) {
+				return wp_strip_all_tags( $title );
+			}
+		}
+
+		if ( ! empty( $GLOBALS['title'] ) && is_string( $GLOBALS['title'] ) ) {
+			return wp_strip_all_tags( $GLOBALS['title'] );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Capabilities relevant to the agent surface.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return array<int,string> List of capability names.
+	 */
+	public static function get_agent_surface_capabilities() {
+		return array(
+			// Read-only.
+			'read',
+			// Content.
+			'edit_posts',
+			'edit_others_posts',
+			'publish_posts',
+			'delete_posts',
+			'delete_others_posts',
+			'edit_pages',
+			'edit_others_pages',
+			'publish_pages',
+			'delete_pages',
+			'manage_categories',
+			'moderate_comments',
+			'upload_files',
+			// Store (WooCommerce).
+			'manage_woocommerce',
+			'edit_products',
+			'edit_shop_orders',
+			// Design.
+			'edit_theme_options',
+			'switch_themes',
+			'edit_themes',
+			'install_themes',
+			// Site / automations.
+			'manage_options',
+			'activate_plugins',
+			'install_plugins',
+			'update_plugins',
+			'update_core',
+			// Users.
+			'list_users',
+			'create_users',
+			'edit_users',
+			'delete_users',
+			'promote_users',
+		);
+	}
+
+	/**
+	 * Build a capability => granted map for a user across the given capabilities.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_User|int $user The user object or ID.
+	 * @param array        $caps List of capability names to evaluate.
+	 * @return array<string,bool> Map of capability name to whether the user is granted it.
+	 */
+	public static function get_user_capability_map( $user, array $caps ) {
+		if ( ! $user instanceof \WP_User ) {
+			$user = get_userdata( (int) $user );
+		}
+
+		$map = array();
+
+		if ( ! $user ) {
+			return $map;
+		}
+
+		foreach ( $caps as $cap ) {
+			$map[ $cap ] = user_can( $user, $cap );
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Describe the current acting WordPress user for the AI Studio backend.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return array|null The acting user block, or null when there is no logged-in user.
+	 */
+	public static function get_acting_user() {
+		$user = get_userdata( get_current_user_id() );
+
+		if ( ! $user ) {
+			return null;
+		}
+
+		$capability_map = self::get_user_capability_map( $user, self::get_agent_surface_capabilities() );
+
+		// Reduce to the granted capabilities, matching the shape the backend expects.
+		$granted_caps = array_keys( array_filter( $capability_map ) );
+
+		return array(
+			'id'    => $user->ID,
+			'roles' => array_values( $user->roles ),
+			'caps'  => array_values( $granted_caps ),
+		);
+	}
+
+	/**
+	 * Check if Editor access to the AI Agent is enabled.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @return bool True if Editors can use the AI Agent, false otherwise (default).
+	 */
+	public static function is_editor_access_enabled() {
+		return (bool) get_option( 'sg_ai_studio_editor_access', false );
+	}
+
+	/**
+	 * Check if a user may use the AI Agent chat.
+	 *
+	 * Administrators always can. Editors can only when Editor access is enabled.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @param \WP_User|int|null $user The user object or ID. Defaults to the current user.
+	 * @return bool True if the user may use the AI Agent, false otherwise.
+	 */
+	public static function can_use_agent( $user = null ) {
+		if ( ! $user instanceof \WP_User ) {
+			$user = null === $user ? wp_get_current_user() : get_userdata( (int) $user );
+		}
+
+		if ( ! $user || ! $user->exists() ) {
+			return false;
+		}
+
+		if ( user_can( $user, 'manage_options' ) ) {
+			return true;
+		}
+
+		return self::is_editor_access_enabled() && in_array( 'editor', (array) $user->roles, true );
+	}
+
+	/**
+	 * Capability the acting user needs for each AI Agent REST area.
+	 *
+	 * The area is the first route segment after the namespace (e.g. "posts" for
+	 * /sg-ai-studio/posts/12/terms). Areas not listed here need manage_options.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @return array<string,string> Map of route area to required capability.
+	 */
+	public static function get_agent_area_capabilities() {
+		return array(
+			// Content.
+			'posts'          => 'edit_posts',
+			'pages'          => 'edit_pages',
+			'categories'     => 'manage_categories',
+			'tags'           => 'manage_categories',
+			'taxonomies'     => 'manage_categories',
+			'types'          => 'edit_posts',
+			'comments'       => 'moderate_comments',
+			'media'          => 'upload_files',
+			'entity'         => 'edit_posts',
+			'site-snapshot'  => 'edit_posts',
+			'ping'           => 'read',
+			// Design.
+			'menus'          => 'edit_theme_options',
+			'menu-items'     => 'edit_theme_options',
+			'menu-locations' => 'edit_theme_options',
+			'menu-type'      => 'edit_theme_options',
+			'template-parts' => 'edit_theme_options',
+			'themes'         => 'switch_themes',
+			// Store (WooCommerce).
+			'products'       => 'manage_woocommerce',
+			'orders'         => 'manage_woocommerce',
+			'coupons'        => 'manage_woocommerce',
+			'reports'        => 'manage_woocommerce',
+			// Site.
+			'plugins'        => 'activate_plugins',
+			'core'           => 'update_core',
+			'settings'       => 'manage_options',
+			'settings-page'  => 'manage_options',
+			// Users.
+			'users'          => 'list_users',
+		);
+	}
+
+	/**
+	 * Resolve the capability required for an AI Agent REST request.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @param \WP_REST_Request $request Full details about the request.
+	 * @return string The required capability.
+	 */
+	public static function get_agent_request_capability( $request ) {
+		$area = self::get_agent_request_area( $request );
+
+		// The entity endpoint edits posts, pages and templates alike.
+		if ( 'entity' === $area ) {
+			$type = $request->get_param( 'type' );
+
+			if ( 'page' === $type ) {
+				return 'edit_pages';
+			}
+
+			if ( in_array( $type, array( 'template', 'template_part' ), true ) ) {
+				return 'edit_theme_options';
+			}
+		}
+
+		$capabilities = self::get_agent_area_capabilities();
+
+		return isset( $capabilities[ $area ] ) ? $capabilities[ $area ] : 'manage_options';
+	}
+
+	/**
+	 * Resolve the AI Agent REST area of a request.
+	 *
+	 * @since 1.3.3
+	 *
+	 * @param \WP_REST_Request $request Full details about the request.
+	 * @return string The route area, or an empty string.
+	 */
+	public static function get_agent_request_area( $request ) {
+		$route = ltrim( (string) $request->get_route(), '/' );
+		$parts = explode( '/', $route );
+
+		return isset( $parts[1] ) ? $parts[1] : '';
+	}
+
+	/**
+	 * Token sources allowed to act without a WP user.
+	 *
+	 * @since 1.3.3
+	 *
+	 * @return string[] Allowed _src values.
+	 */
+	public static function get_userless_token_sources() {
+		return array( 'ai-studio', 'system' );
+	}
+
+	/**
+	 * Areas a token with neither _uid nor an allowed _src may still reach.
+	 *
+	 * @since 1.3.3
+	 *
+	 * @return string[] Read-only route areas.
+	 */
+	public static function get_unattributed_token_areas() {
+		return array( 'ping' );
+	}
+
+	/**
+	 * Act as the chatting user carried in the AI Studio token.
+	 *
+	 * Tokens without a user must carry an allowed _src claim. Tokens with
+	 * neither may only reach the read-only areas.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @param array            $payload Decoded token payload.
+	 * @param \WP_REST_Request $request Full details about the request.
+	 * @return true|\WP_Error True if the user may perform the request, WP_Error otherwise.
+	 */
+	public static function authorize_token_user( $payload, $request ) {
+		if ( empty( $payload['_uid'] ) ) {
+			$source = isset( $payload['_src'] ) && is_string( $payload['_src'] ) ? $payload['_src'] : '';
+
+			if ( in_array( $source, self::get_userless_token_sources(), true ) ) {
+				return true;
+			}
+
+			if ( in_array( self::get_agent_request_area( $request ), self::get_unattributed_token_areas(), true ) ) {
+				return true;
+			}
+
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'This request needs a signed-in user.', 'sg-ai-studio' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		$user = get_userdata( (int) $payload['_uid'] );
+
+		if ( ! $user || ! self::can_use_agent( $user ) ) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'This needs an administrator.', 'sg-ai-studio' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		wp_set_current_user( $user->ID );
+
+		if ( ! current_user_can( self::get_agent_request_capability( $request ) ) ) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'This needs an administrator.', 'sg-ai-studio' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
 	}
 
 	/**
@@ -82,7 +842,7 @@ class Helper {
 			'method'      => 'POST',
 			'timeout'     => 90000000,
 			'redirection' => 45,
-			'sslverify'   => false,
+			'sslverify'   => true,
 		);
 
 		return wp_remote_post( $url, $args );
@@ -516,6 +1276,84 @@ class Helper {
 	}
 
 	/**
+	 * Validate that a URL is safe to fetch server-side (SSRF protection).
+	 *
+	 * Rejects non-http(s) schemes and any URL whose host resolves to a loopback,
+	 * private, link-local, reserved, or cloud-metadata (169.254.169.254) address.
+	 * Should be paired with wp_safe_remote_get() for defense in depth.
+	 *
+	 * @param string $url The URL to validate.
+	 * @return bool True if the URL is safe to fetch, false otherwise.
+	 */
+	public static function is_safe_remote_url( $url ) {
+		if ( ! is_string( $url ) || '' === $url ) {
+			return false;
+		}
+
+		$parts = wp_parse_url( $url );
+
+		// Require an explicit http(s) scheme and a host.
+		if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+			return false;
+		}
+
+		$scheme = strtolower( $parts['scheme'] );
+		if ( 'http' !== $scheme && 'https' !== $scheme ) {
+			return false;
+		}
+
+		// Strip IPv6 brackets if present.
+		$host = trim( $parts['host'], '[]' );
+
+		// Collect the set of IP addresses the host resolves to.
+		$ips = array();
+
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			// Host is already a literal IP address.
+			$ips[] = $host;
+		} else {
+			// Resolve both IPv4 (A) and IPv6 (AAAA) records. Silenced because a
+			// resolution failure is expected and handled via the empty() check below.
+			$records = @dns_get_record( $host, DNS_A | DNS_AAAA ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( is_array( $records ) ) {
+				foreach ( $records as $record ) {
+					if ( ! empty( $record['ip'] ) ) {
+						$ips[] = $record['ip'];
+					}
+					if ( ! empty( $record['ipv6'] ) ) {
+						$ips[] = $record['ipv6'];
+					}
+				}
+			}
+
+			// Fallback to a simple IPv4 lookup if no DNS records were returned.
+			if ( empty( $ips ) ) {
+				$resolved = gethostbynamel( $host );
+				if ( is_array( $resolved ) ) {
+					$ips = $resolved;
+				}
+			}
+		}
+
+		// If the host could not be resolved to any IP, treat it as unsafe.
+		if ( empty( $ips ) ) {
+			return false;
+		}
+
+		foreach ( $ips as $ip ) {
+			// Reject private and reserved ranges. FILTER_FLAG_NO_RES_RANGE covers
+			// loopback (127/8, ::1), link-local (169.254/16 incl. cloud metadata,
+			// fe80::/10) and other reserved ranges; FILTER_FLAG_NO_PRIV_RANGE covers
+			// 10/8, 172.16/12, 192.168/16 and fc00::/7.
+			if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Upload image from URL to WordPress media library
 	 *
 	 * @param string $image_url The URL of the image to upload.
@@ -524,8 +1362,13 @@ class Helper {
 	 * @return int|false The attachment ID on success, false on failure.
 	 */
 	public static function upload_image_from_url( $image_url, $description = '', $post_id = 0 ) {
+		// Validate the URL to prevent SSRF before making any outbound request.
+		if ( ! self::is_safe_remote_url( $image_url ) ) {
+			return false;
+		}
+
 		// Download the image.
-		$response = wp_remote_get( $image_url, array( 'timeout' => 30 ) );
+		$response = wp_safe_remote_get( $image_url, array( 'timeout' => 30 ) );
 
 		if ( is_wp_error( $response ) ) {
 			return false;
@@ -612,6 +1455,9 @@ class Helper {
 		$attachment_data = wp_generate_attachment_metadata( $attachment_id, $file_path );
 		wp_update_attachment_metadata( $attachment_id, $attachment_data );
 
+		// Add custom meta to identify AI-generated images from Gutenberg.
+		update_post_meta( $attachment_id, '_sg_ai_studio_generated', true );
+
 		return $attachment_id;
 	}
 
@@ -651,8 +1497,7 @@ class Helper {
 				'dynamic-keys'
 			);
 
-			// Just decode the token to validate it.
-			$sign_client->decode( $token );
+			$payload = $sign_client->decode( $token );
 		} catch ( \SG_AI_Studio\HelperAuth\SignApiAuthException $e ) {
 			return new \WP_Error(
 				'rest_forbidden',
@@ -669,7 +1514,7 @@ class Helper {
 			);
 		}
 
-		return true;
+		return self::authorize_token_user( $payload, $request );
 	}
 
 	/**
@@ -695,6 +1540,7 @@ class Helper {
 			'sg_ai_studio_connected',
 			'sg_ai_studio_provider_connected',
 			'sg_ai_studio_connected_url',
+			'sg_ai_studio_editor_access',
 		);
 
 		foreach( $options as $option ) {
@@ -773,20 +1619,20 @@ class Helper {
 		);
 	}
 	/**
-	 * Send request to AI Studio generation API (v1)
+	 * Build a request for the AI Studio generation API (v1)
 	 *
-	 * Handles text generation, image generation, and image editing requests
-	 * with different endpoints and request formats.
+	 * Resolves the endpoint and request body for text generation, image
+	 * generation, and image editing requests. Sending is left to the caller
+	 * so requests can go through the WP AI Client SDK HTTP transporter.
 	 *
 	 * @param array  $question_parts Array of question parts with 'type' and content (for text) or prompt string (for image).
-	 * @param string $api_key AI Studio API key.
 	 * @param array  $model_config Optional model configuration.
 	 * @param bool   $is_image_generation Whether this is an image generation request.
 	 * @param string $chat_source Optional source identifier for the chat request.
 	 * @param bool   $is_image_edit Whether this is an image editing/refinement request.
-	 * @return array|\WP_Error The API response or WP_Error.
+	 * @return array{url: string, body: array} The endpoint URL and request body.
 	 */
-	public static function send_to_text_generation_api( $question_parts, $api_key, $model_config = array(), $is_image_generation = false, $chat_source = '', $is_image_edit = false ) {
+	public static function build_generation_api_request( $question_parts, $model_config = array(), $is_image_generation = false, $chat_source = '', $is_image_edit = false ) {
 		if ( self::is_staging_environment() ) {
 			$hostname = 'https://api.staging.studio.siteground.ai';
 		} else {
@@ -844,37 +1690,40 @@ class Helper {
 			}
 		}
 
-		$headers = array(
-			'Authorization' => 'Bearer ' . $api_key,
-			'Content-Type'  => 'application/json',
-			'Connection'    => 'keep-alive',
-			'Accept'        => '*/*',
+		return array(
+			'url'  => $url,
+			'body' => $body,
 		);
-
-		$args = array(
-			'headers'     => $headers,
-			'body'        => wp_json_encode( $body ),
-			'method'      => 'POST',
-			'timeout'     => 90000000,
-			'redirection' => 45,
-			'sslverify'   => false,
-		);
-
-		return wp_remote_post( $url, $args );
 	}
 
 	/**
 	 * Generates a token for AI Studio Service.
 	 *
-	 * @return string $token
+	 * The logged-in user is added to the token so the backend knows who is acting.
+	 * Without a logged-in user (cron, CLI) the token carries no user.
+	 *
+	 * On failure returns false; call last_token_error() to find out whether
+	 * the AI plugin's Connector Approval feature blocked the request.
+	 *
+	 * @return string|false $token
 	 */
 	public static function generate_ai_studio_token() {
-		$auth_token = '';
+		self::$last_token_error = null;
+		$auth_token             = '';
 		// Get client_id from WordPress options or request parameters.
 		$client_id = get_option( 'sg_ai_studio_client_id' );
 		if ( empty( $client_id ) ) {
-			error_log( 'No client_id set.' );  // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return $auth_token;
+		}
+
+		$extra_payload = null;
+		$acting_user   = self::get_acting_user();
+
+		if ( ! empty( $acting_user ) ) {
+			$extra_payload = array(
+				'_uid'    => $acting_user['id'],
+				'_uroles' => $acting_user['roles'],
+			);
 		}
 
 		require_once plugin_dir_path( __FILE__ ) . 'HelperAuth.php';
@@ -893,17 +1742,60 @@ class Helper {
 
 		// Generate the authentication token.
 		try {
-			$auth_token = $auth_client->get_auth_token();
+			$auth_token = $auth_client->get_auth_token( 5, $extra_payload );
+		} catch ( ConnectorNotApprovedException $e ) {
+			// Record why the token failed so callers can surface an
+			// actionable message. Keep returning false to preserve the
+			// string|false contract every other caller relies on.
+			self::$last_token_error = 'connector_not_approved';
+			$auth_token             = false;
 		} catch ( \Exception $e ) {
-			error_log( 'Failed to generate authentication token: ' . $e->getMessage() );  // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$auth_token = false;
 		}
 
-		if ( false === $auth_token ) {
-			error_log( 'Authentication token is invalid or could not be generated.' );  // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		return $auth_token;
+	}
+
+	/**
+	 * Returns the reason code for the most recent token-generation failure.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @return string|null 'connector_not_approved' when the AI plugin's
+	 *                      Connector Approval feature blocked the last token
+	 *                      request; null if it succeeded or failed otherwise.
+	 */
+	public static function last_token_error() {
+		return self::$last_token_error;
+	}
+
+	/**
+	 * Actionable message shown when the SiteGround AI connector is blocked by
+	 * the AI plugin's Connector Approval feature.
+	 *
+	 * @since 1.3.2
+	 *
+	 * @param bool $with_link Whether to link "Tools/Connector Approvals" to the
+	 *                        approvals page. Use false where HTML isn't rendered.
+	 *
+	 * @return string
+	 */
+	public static function connector_approval_error_message( $with_link = false ): string {
+		$page_label = __( 'Tools/Connector Approvals', 'sg-ai-studio' );
+
+		if ( $with_link ) {
+			$page_label = sprintf(
+				'<a href="%1$s">%2$s</a>',
+				esc_url( admin_url( 'tools.php?page=ai-connector-approval' ) ),
+				esc_html( $page_label )
+			);
 		}
 
-		return $auth_token;
+		return sprintf(
+			/* translators: %s: "Tools/Connector Approvals" admin page name, optionally linked. */
+			__( 'This feature needs Connector Approval. Approve the AI Agent by SiteGround and the AI plugins on the %s page.', 'sg-ai-studio' ),
+			$page_label
+		);
 	}
 
 	/**
@@ -914,7 +1806,66 @@ class Helper {
 	 * @return bool True if value is true, 'true', or 1, false otherwise.
 	 */
 	public static function validate_force_param( $value ) {
-		return $value === true || $value === 'true' || $value === 1;
+		return $value === true || $value === 'true' || $value === 1 || $value === 'True';
+	}
+
+	/**
+	 * Get all WooCommerce product type slugs, including plugin-registered ones.
+	 *
+	 * @return array Product type slugs.
+	 */
+	public static function get_all_product_types() {
+		$types = \function_exists( '\wc_get_product_types' ) ? array_keys( \wc_get_product_types() ) : array();
+
+		$terms = get_terms(
+			array(
+				'taxonomy'   => 'product_type',
+				'fields'     => 'slugs',
+				'hide_empty' => false,
+			)
+		);
+
+		if ( ! is_wp_error( $terms ) ) {
+			$types = array_merge( $types, $terms );
+		}
+
+		return array_values( array_unique( $types ) );
+	}
+
+	/**
+	 * Save a pre-edit revision for a post so an edit has a deterministic restore point.
+	 *
+	 * Uses WordPress' normal revision path, which respects the site's
+	 * `WP_POST_REVISIONS` config and the post type's revision support. This does
+	 * NOT force revisions: when revisions are disabled or unsupported (e.g. most
+	 * WooCommerce products), no revision is created and 0 is returned. Callers
+	 * should report the site status separately via wp_revisions_enabled().
+	 *
+	 * Call this BEFORE the update is persisted so the snapshot captures the
+	 * pre-edit state.
+	 *
+	 * @param int $post_id The post ID to snapshot.
+	 * @return int The pre-edit revision ID, or 0 when none exists/could be created.
+	 */
+	public static function save_pre_edit_revision( $post_id ) {
+		// Respects the site's WP_POST_REVISIONS config and post-type support.
+		$revision_id = wp_save_post_revision( $post_id );
+
+		if ( ! is_wp_error( $revision_id ) && (int) $revision_id > 0 ) {
+			return (int) $revision_id;
+		}
+
+		// Content unchanged since the last snapshot -> that revision is the
+		// restore point. Returns 0 when revisions are disabled or unsupported.
+		$revisions = wp_get_post_revisions(
+			$post_id,
+			array(
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			)
+		);
+
+		return ! empty( $revisions ) ? (int) reset( $revisions ) : 0;
 	}
 
 	/**
@@ -979,6 +1930,20 @@ class Helper {
 		}
 
 		return (int) ( @file_exists( '/etc/yum.repos.d/baseos.repo' ) && @file_exists( '/Z' ) );
+	}
+
+	/**
+	 * Purge all caches (SiteGround Cache + WordPress object cache)
+	 *
+	 * @return void
+	 */
+	public static function purge_caches() {
+		if ( function_exists( '\sg_cachepress_purge_cache' ) ) {
+			\sg_cachepress_purge_cache();
+			\wp_cache_flush();
+		} else {
+			\wp_cache_flush();
+		}
 	}
 
 	/**

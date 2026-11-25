@@ -202,35 +202,14 @@ class Activity_Log {
 		if ( ! $per_page ) {
 			$per_page = $this->number_of_entries;
 		}
-		$activity = $request->get_param( 'activity' );
-		$user     = $request->get_param( 'user' );
-		$from     = $request->get_param( 'from' );
-		$to       = $request->get_param( 'to' );
 
 		$table_name = $wpdb->prefix . 'sg_ai_log_events';
 
 		$select = "SELECT * FROM {$table_name}";
-		$where  = ' WHERE 1=1';
+		$where  = $this->build_where( $request );
 		$order  = ' ORDER BY ts DESC';
 		$limit  = ' LIMIT ' . intval( $per_page );
 		$offset = ' OFFSET ' . intval( ( $page - 1 ) * $per_page );
-
-		// Add filters.
-		if ( ! empty( $activity ) ) {
-			$where .= $wpdb->prepare( ' AND activity = %s', $activity );
-		}
-
-		if ( ! empty( $user ) ) {
-			$where .= $wpdb->prepare( ' AND user_id = %d', intval( $user ) );
-		}
-
-		if ( ! empty( $from ) ) {
-			$where .= $wpdb->prepare( ' AND timestamp >= %d', intval( $from ) );
-		}
-
-		if ( ! empty( $to ) ) {
-			$where .= $wpdb->prepare( ' AND timestamp <= %d', intval( $to ) );
-		}
 
 		return $select . $where . $order . $limit . $offset;
 	}
@@ -244,15 +223,28 @@ class Activity_Log {
 	private function build_count_query( $request ) {
 		global $wpdb;
 
+		$table_name = $wpdb->prefix . 'sg_ai_log_events';
+
+		$select = "SELECT COUNT(*) FROM {$table_name}";
+
+		return $select . $this->build_where( $request );
+	}
+
+	/**
+	 * Build the WHERE clause shared by the entries and count queries
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return string The WHERE clause.
+	 */
+	private function build_where( $request ) {
+		global $wpdb;
+
 		$activity = $request->get_param( 'activity' );
 		$user     = $request->get_param( 'user' );
 		$from     = $request->get_param( 'from' );
 		$to       = $request->get_param( 'to' );
 
-		$table_name = $wpdb->prefix . 'sg_ai_log_events';
-
-		$select = "SELECT COUNT(*) FROM {$table_name}";
-		$where  = ' WHERE 1=1';
+		$where = ' WHERE 1=1';
 
 		// Add filters.
 		if ( ! empty( $activity ) ) {
@@ -260,18 +252,18 @@ class Activity_Log {
 		}
 
 		if ( ! empty( $user ) ) {
-			$where .= $wpdb->prepare( ' AND user_id = %d', intval( $user ) );
+			$where .= $wpdb->prepare( ' AND visitor_id = %d', intval( $user ) );
 		}
 
 		if ( ! empty( $from ) ) {
-			$where .= $wpdb->prepare( ' AND timestamp >= %d', intval( $from ) );
+			$where .= $wpdb->prepare( ' AND ts >= %d', intval( $from ) );
 		}
 
 		if ( ! empty( $to ) ) {
-			$where .= $wpdb->prepare( ' AND timestamp <= %d', intval( $to ) );
+			$where .= $wpdb->prepare( ' AND ts <= %d', intval( $to ) );
 		}
 
-		return $select . $where;
+		return $where;
 	}
 
 	/**
@@ -281,14 +273,52 @@ class Activity_Log {
 	 * @return array Formatted log entry.
 	 */
 	private function format_log_entry( $entry ) {
-		$user     = get_user_by( 'id', $entry['user_id'] );
-		$username = $user ? $user->user_login : 'Unknown User';
+		return array(
+			'id'       => intval( $entry['id'] ),
+			'date'     => $entry['ts'],
+			'activity' => $entry['activity'],
+			'message'  => \htmlspecialchars_decode( $entry['description'] ),
+			'user'     => $this->format_log_user( $entry ),
+		);
+	}
+
+	/**
+	 * Describe the user who made a log entry
+	 *
+	 * Uses the live user when they still exist, the login stored with the
+	 * entry when they were deleted, and "Unknown" for entries without a user.
+	 *
+	 * @param array $entry Raw log entry from database.
+	 * @return array The user's id, name, login and role.
+	 */
+	private function format_log_user( $entry ) {
+		$visitor_id = intval( $entry['visitor_id'] );
+		$user       = $visitor_id ? get_userdata( $visitor_id ) : false;
+
+		if ( $user ) {
+			$role      = '';
+			$user_role = reset( $user->roles );
+
+			if ( $user_role && isset( wp_roles()->role_names[ $user_role ] ) ) {
+				$role = translate_user_role( wp_roles()->role_names[ $user_role ] );
+			}
+
+			return array(
+				'id'    => $user->ID,
+				'name'  => $user->display_name,
+				'login' => $user->user_login,
+				'role'  => $role,
+			);
+		}
+
+		// Entries logged before 1.3.2, or before the column was added, have no login.
+		$login = isset( $entry['visitor_login'] ) ? $entry['visitor_login'] : '';
 
 		return array(
-			'id'        => intval( $entry['id'] ),
-			'date'      => $entry['ts'],
-			'activity'  => $entry['activity'],
-			'message'   => \htmlspecialchars_decode( $entry['description'] ),
+			'id'    => $visitor_id,
+			'name'  => '' !== $login ? $login : __( 'Unknown', 'sg-ai-studio' ),
+			'login' => $login,
+			'role'  => '',
 		);
 	}
 }

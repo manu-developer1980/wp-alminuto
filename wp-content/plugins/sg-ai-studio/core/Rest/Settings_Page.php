@@ -58,7 +58,7 @@ class Settings_Page extends Rest_Controller_Base {
 				array(
 					'methods'             => 'GET',
 					'callback'            => array( $this, 'get_connected' ),
-					'permission_callback' => array( $this, 'ai_studio_settings_permissions_check' ),
+					'permission_callback' => array( $this, 'ai_studio_agent_permissions_check' ),
 					'description'         => 'Retrieves the current connected status.',
 				),
 				array(
@@ -137,6 +137,73 @@ class Settings_Page extends Rest_Controller_Base {
 				'description'         => 'Reconnect AI Studio as a provider to WP Connectors.',
 			)
 		);
+
+		// Register Gutenberg actions toggle endpoint.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->base . '/gutenberg-actions',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'get_gutenberg_actions_status' ),
+					'permission_callback' => array( $this, 'ai_studio_settings_permissions_check' ),
+					'description'         => 'Retrieves the current Gutenberg actions status.',
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'update_gutenberg_actions_status' ),
+					'permission_callback' => array( $this, 'ai_studio_settings_permissions_check' ),
+					'description'         => 'Updates the Gutenberg actions status (enable/disable).',
+				),
+			)
+		);
+
+		// Register chat bubble visibility endpoint.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->base . '/chat-bubble',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'get_chat_bubble' ),
+					'permission_callback' => array( $this, 'ai_studio_powermode_permissions_check' ),
+					'description'         => 'Retrieves the current chat bubble visibility state.',
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'update_chat_bubble' ),
+					'permission_callback' => array( $this, 'ai_studio_powermode_permissions_check' ),
+					'description'         => 'Updates the chat bubble visibility state.',
+				),
+			)
+		);
+
+		// Register Editor access endpoint.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->base . '/editor-access',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'get_editor_access' ),
+					'permission_callback' => array( $this, 'ai_studio_settings_permissions_check' ),
+					'description'         => 'Retrieves the Editor access setting and the number of Editors.',
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'update_editor_access' ),
+					'permission_callback' => array( $this, 'ai_studio_settings_permissions_check' ),
+					'description'         => 'Enables or disables AI Agent access for Editors.',
+					'args'                => array(
+						'enabled' => array(
+							'type'              => 'boolean',
+							'required'          => true,
+							'sanitize_callback' => 'rest_sanitize_boolean',
+						),
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -163,6 +230,16 @@ class Settings_Page extends Rest_Controller_Base {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Check if a user has permission to use the AI Agent chat
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return bool True if the user may use the AI Agent, false otherwise.
+	 */
+	public function ai_studio_agent_permissions_check( $request ) {
+		return Helper::can_use_agent();
 	}
 
 	/**
@@ -605,6 +682,162 @@ class Settings_Page extends Rest_Controller_Base {
 			array(
 				'success' => true,
 				'message' => __( 'AI Studio provider reconnected successfully.', 'sg-ai-studio' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Get Gutenberg actions status
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+	 */
+	public function get_gutenberg_actions_status( $request ) {
+		$enabled = get_option( 'sg_ai_studio_gutenberg_actions', false );
+
+		return new WP_REST_Response(
+			array(
+				'enabled' => (bool) $enabled,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Update Gutenberg actions status
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+	 */
+	public function update_gutenberg_actions_status( $request ) {
+		$enabled = (bool) $request->get_param( 'enabled' );
+
+		// Update the option.
+		update_option( 'sg_ai_studio_gutenberg_actions', (int) $enabled );
+
+		return new WP_REST_Response(
+			array(
+				'enabled' => $enabled,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Check if Gutenberg actions are enabled
+	 *
+	 * @return bool True if Gutenberg actions are enabled, false otherwise.
+	 */
+	public static function is_gutenberg_actions_enabled() {
+		return (bool) get_option( 'sg_ai_studio_gutenberg_actions', false );
+	}
+
+	/**
+	 * Get chat bubble visibility state
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function get_chat_bubble( $request ) {
+		return new WP_REST_Response(
+			array(
+				'admin_hidden' => (bool) get_option( 'sg_ai_studio_chat_bubble_admin_hidden', false ),
+				'fe_hidden'    => (bool) get_option( 'sg_ai_studio_chat_bubble_fe_hidden', false ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Update chat bubble visibility state
+	 *
+	 * Accepts either or both fields: admin_hidden, fe_hidden.
+	 * Only acts on fields present in the request.
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function update_chat_bubble( $request ) {
+		$updated_fields = array();
+
+		// Handle admin_hidden field if present.
+		if ( $request->has_param( 'admin_hidden' ) ) {
+			$admin_hidden = (bool) $request->get_param( 'admin_hidden' );
+			update_option( 'sg_ai_studio_chat_bubble_admin_hidden', (int) $admin_hidden );
+			$updated_fields['admin_hidden'] = $admin_hidden;
+		}
+
+		// Handle fe_hidden field if present.
+		if ( $request->has_param( 'fe_hidden' ) ) {
+			$fe_hidden = (bool) $request->get_param( 'fe_hidden' );
+			update_option( 'sg_ai_studio_chat_bubble_fe_hidden', (int) $fe_hidden );
+			$updated_fields['fe_hidden'] = $fe_hidden;
+		}
+
+		// If no recognized fields were provided.
+		if ( empty( $updated_fields ) ) {
+			return new WP_REST_Response(
+				array(
+					'message' => __( 'No valid fields provided.', 'sg-ai-studio' ),
+				),
+				400
+			);
+		}
+
+		return new WP_REST_Response( $updated_fields, 200 );
+	}
+
+	/**
+	 * Check if chat bubble is hidden in admin
+	 *
+	 * @return bool True if admin bubble is hidden, false if visible (default).
+	 */
+	public static function is_chat_bubble_admin_hidden() {
+		return (bool) get_option( 'sg_ai_studio_chat_bubble_admin_hidden', false );
+	}
+
+	/**
+	 * Check if chat bubble is hidden on front-end
+	 *
+	 * @return bool True if FE bubble is hidden, false if visible (default).
+	 */
+	public static function is_chat_bubble_fe_hidden() {
+		return (bool) get_option( 'sg_ai_studio_chat_bubble_fe_hidden', false );
+	}
+
+	/**
+	 * Get Editor access setting
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function get_editor_access( $request ) {
+		$users = count_users();
+
+		return new WP_REST_Response(
+			array(
+				'enabled'       => Helper::is_editor_access_enabled(),
+				'editors_count' => (int) ( $users['avail_roles']['editor'] ?? 0 ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Update Editor access setting
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function update_editor_access( $request ) {
+		$enabled = (bool) $request->get_param( 'enabled' );
+
+		update_option( 'sg_ai_studio_editor_access', (int) $enabled );
+
+		return new WP_REST_Response(
+			array(
+				'enabled' => $enabled,
 			),
 			200
 		);

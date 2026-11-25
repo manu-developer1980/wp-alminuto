@@ -1256,20 +1256,22 @@ class Orders extends Rest_Controller_Base {
 		/* translators: %d is the order ID. */
 		Activity_Log_Helper::add_log_entry( 'Orders', sprintf( __( 'Order Created (Order ID: %d)', 'sg-ai-studio' ), $order->get_id() ) );
 
-		$response = $this->prepare_order_for_response( $order );
-
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
 			\wp_cache_flush();
 		}
 
+		// Return lean response for write operation.
 		return new WP_REST_Response(
 			array(
-				'success' => true,
-				'data'    => $response,
+				'success'      => true,
+				'id'           => $order->get_id(),
+				'status'       => $order->get_status(),
+				'total'        => $order->get_total(),
+				'date_created' => $order->get_date_created() ? $order->get_date_created()->format( 'c' ) : null,
 			),
 			201
 		);
@@ -1312,20 +1314,22 @@ class Orders extends Rest_Controller_Base {
 		/* translators: %d is the order ID. */
 		Activity_Log_Helper::add_log_entry( 'Orders', sprintf( __( 'Order Updated (Order ID: %d)', 'sg-ai-studio' ), $order->get_id() ) );
 
-		$response = $this->prepare_order_for_response( $order );
-
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
 			\wp_cache_flush();
 		}
 
+		// Return lean response for write operation.
 		return new WP_REST_Response(
 			array(
-				'success' => true,
-				'data'    => $response,
+				'success'       => true,
+				'id'            => $order->get_id(),
+				'status'        => $order->get_status(),
+				'total'         => $order->get_total(),
+				'date_modified' => $order->get_date_modified() ? $order->get_date_modified()->format( 'c' ) : null,
 			),
 			200
 		);
@@ -1362,7 +1366,7 @@ class Orders extends Rest_Controller_Base {
 			);
 		}
 
-		$previous = $this->prepare_order_for_response( $order );
+		$order_id = $order->get_id();
 
 		$result = $order->delete( $force );
 
@@ -1379,39 +1383,29 @@ class Orders extends Rest_Controller_Base {
 		// Log the activity.
 		if ( $force ) {
 			/* translators: %d is the order ID. */
-			Activity_Log_Helper::add_log_entry( 'Orders', sprintf( __( 'Order Permanently Deleted (Order ID: %d)', 'sg-ai-studio' ), $order->get_id() ) );
+			Activity_Log_Helper::add_log_entry( 'Orders', sprintf( __( 'Order Permanently Deleted (Order ID: %d)', 'sg-ai-studio' ), $order_id ) );
 		} else {
 			/* translators: %d is the order ID. */
-			Activity_Log_Helper::add_log_entry( 'Orders', sprintf( __( 'Order Moved to Trash (Order ID: %d)', 'sg-ai-studio' ), $order->get_id() ) );
+			Activity_Log_Helper::add_log_entry( 'Orders', sprintf( __( 'Order Moved to Trash (Order ID: %d)', 'sg-ai-studio' ), $order_id ) );
 		}
 
 		// Clear all caches.
-		if( \function_exists('\sg_cachepress_purge_cache') ) {
+		if ( \function_exists( '\sg_cachepress_purge_cache' ) ) {
 			\sg_cachepress_purge_cache();
 			\wp_cache_flush();
 		} else {
 			\wp_cache_flush();
 		}
 
-		if ( $force ) {
-			return new WP_REST_Response(
-				array(
-					'success' => true,
-					'message' => __( 'The order has been permanently deleted.', 'sg-ai-studio' ),
-					'data'    => $previous,
-				),
-				200
-			);
-		} else {
-			return new WP_REST_Response(
-				array(
-					'success' => true,
-					'message' => __( 'The order has been moved to the trash.', 'sg-ai-studio' ),
-					'data'    => $previous,
-				),
-				200
-			);
-		}
+		// Return lean response for delete operation.
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'id'      => $order_id,
+				'status'  => $force ? 'deleted' : 'trashed',
+			),
+			200
+		);
 	}
 
 	/**
@@ -1422,22 +1416,34 @@ class Orders extends Rest_Controller_Base {
 	 */
 	public function get_orders( $request ) {
 		$args = array(
+			// Exclude refunds (shop_order_refund) so the listed orders match the total count.
+			'type'    => 'shop_order',
 			'limit'   => $request['per_page'],
 			'page'    => $request['page'],
 			'orderby' => $request['orderby'],
 			'order'   => $request['order'],
 		);
 
+		$id_filters = array();
+
 		if ( isset( $request['search'] ) && ! empty( $request['search'] ) ) {
-			$args['search'] = $request['search'];
+			$search = \wc_clean( \wp_unslash( $request['search'] ) );
+
+			if ( $this->is_hpos_enabled() ) {
+				// HPOS supports full order search (addresses, emails, items) natively.
+				$args['s'] = $search;
+			} else {
+				// On CPT storage 's' would only search post title/content, so resolve IDs via the order search.
+				$id_filters[] = array_map( 'absint', \wc_order_search( $search ) );
+			}
 		}
 
-		if ( isset( $request['after'] ) && ! empty( $request['after'] ) ) {
-			$args['date_created'] = '>=' . $request['after'];
+		$date_created = $this->build_date_created_query( $request['after'] ?? '', $request['before'] ?? '' );
+		if ( is_wp_error( $date_created ) ) {
+			return $date_created;
 		}
-
-		if ( isset( $request['before'] ) && ! empty( $request['before'] ) ) {
-			$args['date_created'] = '<=' . $request['before'];
+		if ( '' !== $date_created ) {
+			$args['date_created'] = $date_created;
 		}
 
 		if ( isset( $request['exclude'] ) && ! empty( $request['exclude'] ) ) {
@@ -1446,7 +1452,7 @@ class Orders extends Rest_Controller_Base {
 		}
 
 		if ( isset( $request['include'] ) && ! empty( $request['include'] ) ) {
-			$args['include'] = $request['include'];
+			$id_filters[] = array_map( 'absint', (array) $request['include'] );
 		}
 
 		if ( isset( $request['offset'] ) && ! empty( $request['offset'] ) ) {
@@ -1465,12 +1471,23 @@ class Orders extends Rest_Controller_Base {
 			$args['status'] = $request['status'];
 		}
 
-		if ( isset( $request['customer'] ) && ! empty( $request['customer'] ) ) {
+		if ( isset( $request['customer'] ) ) {
 			$args['customer_id'] = $request['customer'];
 		}
 
 		if ( isset( $request['product'] ) && ! empty( $request['product'] ) ) {
-			$args['product'] = $request['product'];
+			$id_filters[] = $this->get_order_ids_by_product( absint( $request['product'] ) );
+		}
+
+		if ( ! empty( $id_filters ) ) {
+			$order_ids = array_shift( $id_filters );
+			foreach ( $id_filters as $ids ) {
+				$order_ids = array_intersect( $order_ids, $ids );
+			}
+			$order_ids = array_values( array_unique( array_filter( $order_ids ) ) );
+
+			// Force an empty result when no order matches, instead of dropping the restriction.
+			$args['post__in'] = ! empty( $order_ids ) ? $order_ids : array( 0 );
 		}
 
 		$orders       = \wc_get_orders( $args );
@@ -1511,6 +1528,92 @@ class Orders extends Rest_Controller_Base {
 		);
 
 		return $response;
+	}
+
+	/**
+	 * Check whether WooCommerce HPOS (custom order tables) is the active order storage.
+	 *
+	 * @return bool
+	 */
+	protected function is_hpos_enabled() {
+		return class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
+			&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+	}
+
+	/**
+	 * Get the IDs of orders that contain a given product or variation as a line item.
+	 *
+	 * Order items live in the same tables for both CPT and HPOS storage.
+	 *
+	 * @param int $product_id Product or variation ID.
+	 * @return int[] Order IDs.
+	 */
+	protected function get_order_ids_by_product( $product_id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$order_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT items.order_id
+				FROM {$wpdb->prefix}woocommerce_order_items AS items
+				INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS meta
+					ON meta.order_item_id = items.order_item_id
+				WHERE items.order_item_type = 'line_item'
+				AND meta.meta_key IN ( '_product_id', '_variation_id' )
+				AND meta.meta_value = %d",
+				$product_id
+			)
+		);
+
+		return array_map( 'absint', $order_ids );
+	}
+
+	/**
+	 * Build the date_created query value for wc_get_orders() from the after/before params.
+	 *
+	 * Dates are converted to timestamps (interpreted in the site timezone when no offset is given)
+	 * so WooCommerce applies second precision and ISO strings with fractional seconds still parse.
+	 *
+	 * @param string $after  ISO8601 date, orders created on or after it.
+	 * @param string $before ISO8601 date, orders created on or before it.
+	 * @return string|WP_Error Query value ('' when no date filter), or error on an invalid date.
+	 */
+	protected function build_date_created_query( $after, $before ) {
+		$timestamps = array();
+		$params     = array(
+			'after'  => $after,
+			'before' => $before,
+		);
+
+		foreach ( $params as $param => $value ) {
+			if ( empty( $value ) ) {
+				continue;
+			}
+
+			try {
+				$timestamps[ $param ] = \wc_string_to_datetime( $value )->getTimestamp();
+			} catch ( \Exception $e ) {
+				return new WP_Error(
+					'rest_invalid_param',
+					sprintf( 'Invalid date for parameter "%s".', $param ),
+					array( 'status' => 400 )
+				);
+			}
+		}
+
+		if ( isset( $timestamps['after'], $timestamps['before'] ) ) {
+			return $timestamps['after'] . '...' . $timestamps['before'];
+		}
+
+		if ( isset( $timestamps['after'] ) ) {
+			return '>=' . $timestamps['after'];
+		}
+
+		if ( isset( $timestamps['before'] ) ) {
+			return '<=' . $timestamps['before'];
+		}
+
+		return '';
 	}
 
 	/**
@@ -1864,8 +1967,8 @@ class Orders extends Rest_Controller_Base {
 				$errors[ $order_id ] = $response->get_data();
 			} else {
 				$results[ $order_id ] = array(
-					'id'      => $order_id,
-					'message' => $response->get_data()['message'],
+					'id'     => $order_id,
+					'status' => $response->get_data()['status'],
 				);
 			}
 		}
@@ -1893,10 +1996,6 @@ class Orders extends Rest_Controller_Base {
 				412
 			);
 		}
-
-		// OBSERVABILITY: Log request for verification.
-		error_log( 'Batch request - Method: ' . $request->get_method() );
-		error_log( 'Batch request - Body: ' . wp_json_encode( $request->get_json_params() ) );
 
 		$body = $request->get_json_params();
 

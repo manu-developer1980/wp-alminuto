@@ -96,6 +96,34 @@ class Users extends Rest_Controller_Base {
 			)
 		);
 
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->base . '/(?P<id>[\d]+)/capabilities',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'verify_user_capabilities' ),
+					'permission_callback' => array( $this, 'get_user_permissions_check' ),
+					'args'                => array(
+						'id'   => array(
+							'description' => 'Unique identifier for the user.',
+							'type'        => 'integer',
+							'required'    => true,
+						),
+						'caps' => array(
+							'description' => 'Optional list of capabilities to check. Defaults to the agent-surface capability set.',
+							'type'        => 'array',
+							'items'       => array(
+								'type' => 'string',
+							),
+							'required'    => false,
+						),
+					),
+					'description'         => 'Returns the authoritative roles and capability map for a user so the backend can verify the acting user.',
+				),
+			)
+		);
+
 		// Register endpoint for bulk operations on users.
 		register_rest_route(
 			$this->namespace,
@@ -931,6 +959,50 @@ class Users extends Rest_Controller_Base {
 			array(
 				'success' => true,
 				'data'    => $response,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Verify a user's capabilities.
+	 *
+	 * Returns the authoritative roles and a capability => granted map for the given
+	 * user.
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function verify_user_capabilities( $request ) {
+		$user_id = (int) $request['id'];
+		$user    = get_userdata( $user_id );
+
+		if ( ! $user ) {
+			return new WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => __( 'Invalid user ID.', 'sg-ai-studio' ),
+				),
+				404
+			);
+		}
+
+		// Use the caps the caller asked about, or fall back to the agent-surface set.
+		$requested_caps = $request->get_param( 'caps' );
+		$caps           = ( is_array( $requested_caps ) && ! empty( $requested_caps ) )
+			? array_values( array_unique( array_map( 'sanitize_key', $requested_caps ) ) )
+			: Helper::get_agent_surface_capabilities();
+
+		$capability_map = Helper::get_user_capability_map( $user, $caps );
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'data'    => array(
+					'id'           => $user->ID,
+					'roles'        => array_values( $user->roles ),
+					'capabilities' => $capability_map,
+				),
 			),
 			200
 		);

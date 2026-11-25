@@ -958,6 +958,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 }
 
 require_once __DIR__ . '/inc/backup/backup-loader.php';
+require_once __DIR__ . '/inc/cookies/cookies-loader.php';
 
 function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
@@ -1609,6 +1610,14 @@ function alminuto_theme_admin_menu() {
 		'manage_options',
 		'alminuto-cleanup',
 		'alminuto_theme_render_cleanup_page'
+	);
+	add_submenu_page(
+		'alminuto-theme-panel',
+		'Gestor de Cookies (RGPD)',
+		'Cookies',
+		'manage_options',
+		'alminuto-cookies',
+		[ 'Alminuto_Cookies_Admin', 'render_page' ]
 	);
 	add_submenu_page(
 		'alminuto-theme-panel',

@@ -122,7 +122,6 @@ class Activity_Log_Weekly_Emails extends Activity_Log_Helper {
 			'start_time'           => ( 'en_US' === $locale ) ? $start_date->format( 'F d' ) : $weekly_emails->translate_dates( $start_date, $locale, 'start' ),
 			'end_time'             => ( 'en_US' === $locale ) ? $end_date->format( 'F d, Y' ) : $weekly_emails->translate_dates( $end_date, $locale, 'end' ),
 			'is_siteground'        => Helper_Service::is_siteground(),
-			'agreed_email_consent' => (int) get_option( 'siteground_email_consent', 0 ),
 			'total_human'          => $total_human,
 			'total_bots'           => $total_bots,
 			'total_blocked_login'  => $total_blocked_login,

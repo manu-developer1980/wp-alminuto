@@ -35,18 +35,24 @@ class Activity_Log_Helper {
 			Activity_Log::create_log_tables();
 		}
 
+		$data   = array(
+			'visitor_id'  => $visitor_id,
+			'ts'          => time(),
+			'activity'    => sanitize_text_field( $activity ),
+			'description' => sanitize_text_field( $description ),
+		);
+		$format = array( '%d', '%d', '%s', '%s' );
+
+		// Keep the login so the entry still names the user after they are deleted.
+		if ( Activity_Log::has_column( 'visitor_login' ) ) {
+			$user                  = $visitor_id ? get_userdata( $visitor_id ) : false;
+			$data['visitor_login'] = $user ? $user->user_login : '';
+			$format[]              = '%s';
+		}
+
 		// Insert the log entry.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$result = $wpdb->insert(
-			$table_name,
-			array(
-				'visitor_id'  => $visitor_id,
-				'ts'          => time(),
-				'activity'    => sanitize_text_field( $activity ),
-				'description' => sanitize_text_field( $description ),
-			),
-			array( '%d', '%d', '%s', '%s' )
-		);
+		$result = $wpdb->insert( $table_name, $data, $format );
 
 		if ( false === $result ) {
 			return false;

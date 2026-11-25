@@ -69,14 +69,14 @@ class Rest_Helper_Options extends Rest_Helper {
 
 		$pages = array(
 			'security' => array(
-				'lock_system_folders' => intval( get_option( 'sg_security_lock_system_folders', 0 ) ),
-				'disable_file_edit'   => intval( get_option( 'sg_security_disable_file_edit', 0 ) ),
-				'wp_remove_version'   => intval( get_option( 'sg_security_wp_remove_version', 0 ) ),
-				'disable_xml_rpc'     => intval( get_option( 'sg_security_disable_xml_rpc', 0 ) ),
-				'disable_feed'        => intval( get_option( 'sg_security_disable_feed', 0 ) ),
-				'xss_protection'      => intval( get_option( 'sg_security_xss_protection', 0 ) ),
-				'xss_protection'      => intval( get_option( 'sg_security_xss_protection', 0 ) ),
-				'delete_readme'       => intval( get_option( 'sg_security_delete_readme', 0 ) ),
+				'lock_system_folders'   => intval( get_option( 'sg_security_lock_system_folders', 0 ) ),
+				'disable_file_edit'     => intval( get_option( 'sg_security_disable_file_edit', 0 ) ),
+				'wp_remove_version'     => intval( get_option( 'sg_security_wp_remove_version', 0 ) ),
+				'disable_xml_rpc'       => intval( get_option( 'sg_security_disable_xml_rpc', 0 ) ),
+				'disable_feed'          => intval( get_option( 'sg_security_disable_feed', 0 ) ),
+				'xss_protection'        => intval( get_option( 'sg_security_xss_protection', 0 ) ),
+				'delete_readme'         => intval( get_option( 'sg_security_delete_readme', 0 ) ),
+				'rest_user_enumeration' => intval( get_option( 'sg_security_rest_user_enumeration', 0 ) ),
 			),
 			'login'    => array(
 				'sg2fa'             => intval( get_option( 'sg_security_sg2fa', 0 ) ),

@@ -131,4 +131,15 @@ class Rest_Helper_Site_Security extends Rest_Helper {
 		// Change the option in the DB, so that on the next update the hook for deleting the readme is called.
 		return $this->rest_helper_options->change_option_from_rest( $request, 'delete_readme' );
 	}
+
+	/**
+	 * Enable the Rest user enueration protection.
+	 *
+	 * @since  1.0.0
+	 *
+	 * @param  object $request Request data.
+	 */
+	public function rest_user_enumeration( $request ) {
+		return $this->rest_helper_options->change_option_from_rest( $request, 'rest_user_enumeration' );
+	}
 }

@@ -1,0 +1,469 @@
+/* Al Minuto GDPR Cookie Consent — acorde al estilo de alminuto-theme */
+
+.am-cookie-banner {
+  position: fixed;
+  z-index: 9990;
+  background: var(--am-card, #fff);
+  color: var(--am-text, #111);
+  border-top: 3px solid var(--am-red, #be282a);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.14);
+  font-family: "Futura Light", sans-serif;
+}
+
+.am-cookie-banner[hidden] {
+  display: none !important;
+}
+
+.am-cookie-banner--bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.am-cookie-banner--card {
+  left: 16px;
+  bottom: 16px;
+  max-width: 520px;
+  border: 1px solid var(--am-border, #e5e5e5);
+  border-top: 4px solid var(--am-red, #be282a);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.am-cookie-banner-inner {
+  width: min(var(--am-max, 1160px), calc(100% - 32px));
+  margin: 0 auto;
+  padding: 18px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.am-cookie-banner--card .am-cookie-banner-inner {
+  width: 100%;
+  padding: 18px 20px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.am-cookie-banner-copy {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.am-cookie-banner--card .am-cookie-banner-copy {
+  flex: none;
+}
+
+.am-cookie-banner-title {
+  margin: 0 0 6px;
+  font-family: "Futura Medium", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #000;
+}
+
+.am-cookie-banner-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #222;
+}
+
+.am-cookies-link {
+  color: var(--am-red, #be282a);
+  font-family: "Futura Medium", sans-serif;
+  text-decoration: underline;
+}
+
+.am-cookies-link:hover {
+  color: var(--am-red-dark, #6e191a);
+}
+
+.am-cookie-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Botones al mismo nivel visual (cumplimiento AEPD / RGPD) */
+.am-cookie-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 18px;
+  background: var(--am-red, #be282a);
+  color: #fff;
+  border: 2px solid var(--am-red, #be282a);
+  font-family: "Futura Medium", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.am-cookie-btn:hover {
+  background: var(--am-red-dark, #6e191a);
+  border-color: var(--am-red-dark, #6e191a);
+  color: #fff;
+}
+
+.am-cookie-btn:focus-visible {
+  outline: 3px solid var(--am-red-dark, #6e191a);
+  outline-offset: 2px;
+}
+
+.am-cookie-btn--equal {
+  flex: 1 1 auto;
+  min-width: 138px;
+  text-align: center;
+}
+
+.am-cookie-btn--outline {
+  background: #fff;
+  color: var(--am-red, #be282a);
+  border: 2px solid var(--am-red, #be282a);
+}
+
+.am-cookie-btn--outline:hover {
+  background: #fdf2f2;
+  border-color: var(--am-red-dark, #6e191a);
+  color: var(--am-red-dark, #6e191a);
+}
+
+/* Modal <dialog> nativo */
+dialog.am-cookie-modal {
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--am-border, #e5e5e5);
+  border-top: 4px solid var(--am-red, #be282a);
+  background: var(--am-card, #fff);
+  color: var(--am-text, #111);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+  font-family: "Futura Light", sans-serif;
+}
+
+dialog.am-cookie-modal:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.am-cookie-modal::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.am-cookie-modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 36px);
+}
+
+.am-cookie-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--am-border, #e5e5e5);
+}
+
+.am-cookie-modal-title {
+  margin: 0;
+  font-family: "Futura Medium", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #000;
+}
+
+.am-cookie-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--am-border, #e5e5e5);
+  color: #111;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.am-cookie-modal-close:hover {
+  background: var(--am-bg, #efefef);
+}
+
+.am-cookie-modal-close:focus-visible {
+  outline: 3px solid var(--am-red-dark, #6e191a);
+  outline-offset: 2px;
+}
+
+.am-cookie-modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+
+.am-cookie-modal-intro {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #222;
+}
+
+.am-cookie-modal-links {
+  margin: 0 0 16px;
+  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.am-cookie-modal-links a {
+  color: var(--am-red, #be282a);
+  font-family: "Futura Medium", sans-serif;
+  text-decoration: underline;
+}
+
+.am-cookie-categories {
+  display: grid;
+  gap: 12px;
+}
+
+.am-cookie-cat {
+  padding: 14px;
+  background: #fafafa;
+  border: 1px solid var(--am-border, #e5e5e5);
+}
+
+.am-cookie-cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.am-cookie-cat-name {
+  font-family: "Futura Medium", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  cursor: pointer;
+}
+
+.am-cookie-cat-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-family: "Futura Medium", sans-serif;
+  font-size: 12px;
+  background: #e9e9e9;
+  color: #333;
+}
+
+.am-cookie-cat-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--am-muted, #666);
+}
+
+/* Switch accesible basado en input[type="checkbox"][switch] */
+.am-cookie-cat input[type="checkbox"][switch] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 26px;
+  margin: 0;
+  border-radius: 999px;
+  background: #c4c4c4;
+  accent-color: var(--am-red, #be282a);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.am-cookie-cat input[type="checkbox"][switch]::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.am-cookie-cat input[type="checkbox"][switch]:checked {
+  background: var(--am-red, #be282a);
+}
+
+.am-cookie-cat input[type="checkbox"][switch]:checked::before {
+  transform: translateX(20px);
+}
+
+.am-cookie-cat input[type="checkbox"][switch]:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.am-cookie-cat input[type="checkbox"][switch]:focus-visible {
+  outline: 3px solid var(--am-red-dark, #6e191a);
+  outline-offset: 3px;
+}
+
+.am-cookie-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--am-border, #e5e5e5);
+  background: #fafafa;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Botón en el footer y botón flotante opcional */
+.am-footer-cookie-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #fff;
+  font: inherit;
+  opacity: 0.92;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.am-footer-cookie-btn:hover {
+  opacity: 1;
+}
+
+.am-cookie-floating-trigger {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 9980;
+  padding: 8px 14px;
+  background: var(--am-red, #be282a);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-family: "Futura Medium", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.am-cookie-floating-trigger:hover {
+  background: var(--am-red-dark, #6e191a);
+}
+
+/* Placeholder para embeds bloqueados (YouTube / Facebook) */
+.am-cookie-embed-box {
+  position: relative;
+}
+
+.am-cookie-embed-box iframe[data-am-src] {
+  display: none;
+}
+
+.am-cookie-embed-box.is-unblocked iframe {
+  display: block;
+}
+
+.am-cookie-embed-box.is-unblocked .am-cookie-embed-placeholder {
+  display: none;
+}
+
+.am-cookie-embed-placeholder {
+  padding: 24px 20px;
+  background: var(--am-bg, #efefef);
+  border: 1px solid var(--am-border, #e5e5e5);
+  border-left: 4px solid var(--am-red, #be282a);
+  text-align: center;
+}
+
+.am-cookie-embed-title {
+  margin: 0 0 8px;
+  font-family: "Futura Medium", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #000;
+}
+
+.am-cookie-embed-desc {
+  margin: 0 0 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.am-cookie-embed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Tabla de declaración de cookies */
+.am-cookie-declaration-wrap {
+  overflow-x: auto;
+  margin: 18px 0;
+}
+
+.am-cookie-declaration-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 15px;
+}
+
+.am-cookie-declaration-table th,
+.am-cookie-declaration-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--am-border, #e5e5e5);
+  text-align: left;
+  vertical-align: top;
+}
+
+.am-cookie-declaration-table th {
+  background: var(--am-red, #be282a);
+  color: #fff;
+  font-family: "Futura Medium", sans-serif;
+  font-weight: 700;
+}
+
+.am-cookie-shortcode-btn {
+  border: 0;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .am-cookie-banner-actions,
+  .am-cookie-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .am-cookie-banner--card {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
+}

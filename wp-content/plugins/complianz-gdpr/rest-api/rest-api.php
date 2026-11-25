@@ -95,14 +95,25 @@ function cmplz_rest_consented_content( WP_REST_Request $request ) {
 		return new WP_Error( 'rest_forbidden', '', array( 'status' => 403 ) );
 	}
 
+	// Password-protected posts keep post_status 'publish', so the gate above lets
+	// them through. Enforce WordPress password protection here: an unauthenticated
+	// caller (no valid password cookie) must not read the consented content.
+	if ( ! empty( $post->post_password ) && post_password_required( $post ) ) {
+		return new WP_Error( 'rest_forbidden', '', array( 'status' => 403 ) );
+	}
+
 	$html   = $post->post_content;
 	$output = '';
 	if ( has_block( 'complianz/consent-area', $html ) ) {
-		$blocks = parse_blocks( $post->post_content );
-		foreach ( $blocks as $block ) {
-			if ( 'complianz/consent-area' === $block['blockName'] && $block['attrs']['blockId'] === $block_id ) {
-				$output = $block['attrs']['consentedContent'];
+		$queue = parse_blocks( $post->post_content );
+		while ( ! empty( $queue ) ) {
+			$block = array_shift( $queue );
+			if ( 'complianz/consent-area' === $block['blockName'] && ( $block['attrs']['blockId'] ?? '' ) === $block_id ) {
+				$output = $block['attrs']['consentedContent'] ?? '';
 				break;
+			}
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				array_push( $queue, ...$block['innerBlocks'] );
 			}
 		}
 	} elseif ( strpos( $html, '[cmplz-consent-area' ) !== false ) {

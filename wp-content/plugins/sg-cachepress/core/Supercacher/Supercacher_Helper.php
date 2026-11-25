@@ -21,8 +21,10 @@ class Supercacher_Helper {
 		$is_cache_enabled = (int) get_option( 'siteground_optimizer_enable_cache', 0 );
 
 		// Prepare the url.
-		$url = ( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] == 'on' ) ? 'https://' : 'http://';
-		$url .= $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
+		$server_name = isset( $_SERVER['SERVER_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_NAME'] ) ) : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$url         = ( isset( $_SERVER['HTTPS'] ) && 'on' === $_SERVER['HTTPS'] ) ? 'https://' : 'http://';
+		$url        .= $server_name . $request_uri;
 
 		// Set the cache header to false so it's skipped from caching.
 		if (
@@ -53,8 +55,10 @@ class Supercacher_Helper {
 		$file_cache_enabled = (int) get_option( 'siteground_optimizer_file_caching', 0 );
 		$vary_user_agent    = (int) get_option( 'siteground_optimizer_user_agent_header', 0 );
 
-		$url = ( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] == 'on' ) ? 'https://' : 'http://';
-		$url .= $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
+		$server_name = isset( $_SERVER['SERVER_NAME'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_NAME'] ) ) : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$url         = ( isset( $_SERVER['HTTPS'] ) && 'on' === $_SERVER['HTTPS'] ) ? 'https://' : 'http://';
+		$url        .= $server_name . $request_uri;
 
 		// Bail if the cache is not enabled or if the url is excluded from cache.
 		if (
@@ -89,7 +93,7 @@ class Supercacher_Helper {
 	 */
 	public static function is_url_excluded( $url ) {
 		// Get excluded urls.
-		$parts = apply_filters( 'sgo_exclude_urls_from_cache', \get_option( 'siteground_optimizer_excluded_urls', array() ) );
+		$parts = apply_filters( 'sgo_exclude_urls_from_cache', \get_option( 'siteground_optimizer_excluded_urls', array() ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		// Bail if there are no excluded urls.
 		if ( empty( $parts ) ) {
@@ -183,7 +187,7 @@ class Supercacher_Helper {
 	 */
 	public static function is_query_param_excluded( $url ) {
 		// Get the excluded parameters, if there are such.
-		$excluded_params = apply_filters( 'sgo_bypass_query_params', array() );
+		$excluded_params = apply_filters( 'sgo_bypass_query_params', array() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		if ( empty( $excluded_params ) ) {
 			return false;

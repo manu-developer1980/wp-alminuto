@@ -57,7 +57,7 @@ class Auth {
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'generate_token' ),
 				'permission_callback' => function() {
-					return current_user_can( 'manage_options' );
+					return Helper::can_use_agent();
 				},
 			)
 		);
@@ -261,6 +261,15 @@ class Auth {
 
 			// Generate the authentication token.
 			$token = Helper::generate_ai_studio_token();
+			if ( 'connector_not_approved' === Helper::last_token_error() ) {
+				return new \WP_REST_Response(
+					array(
+						'message'   => Helper::connector_approval_error_message( true ),
+						'errorCode' => 'connector_approval',
+					),
+					403
+				);
+			}
 
 			return new \WP_REST_Response(
 				array(

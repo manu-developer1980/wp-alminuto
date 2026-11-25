@@ -159,6 +159,50 @@ if ( !function_exists('cmplz_sanitize_title_preserve_uppercase')) {
 	}
 }
 
+if ( ! function_exists( 'cmplz_canonical_placeholder_id' ) ) {
+	/**
+	 * Get the canonical form of a placeholder id
+	 *
+	 * The dash form is canonical: that is what sanitize_title() leaves us with for the ids the
+	 * settings UI and the blocked scripts use. Pre 7.0 versions stored the underscore form in
+	 * cmplz_disabled_placeholders, so both forms are still in the wild.
+	 *
+	 * @param string $id Placeholder id in either the dash or the legacy underscore form.
+	 *
+	 * @return string
+	 */
+	function cmplz_canonical_placeholder_id( string $id ): string {
+		return str_replace( '_', '-', $id );
+	}
+}
+
+if ( ! function_exists( 'cmplz_placeholder_id_in_list' ) ) {
+	/**
+	 * Check if a placeholder id occurs in a list of placeholder ids, in whichever form it is stored
+	 *
+	 * Both sides are canonicalized, so a legacy underscore entry matches the dash form the rest of
+	 * the plugin queries with, and the other way around. This is the single matcher for
+	 * cmplz_disabled_placeholders: the reader and the enforcer used to apply different rules to the
+	 * same option, which left a stale underscore entry disabling a placeholder the settings UI
+	 * reported as enabled.
+	 *
+	 * @param string $id  Placeholder id to look for.
+	 * @param array  $ids Stored placeholder ids, in any form.
+	 *
+	 * @return bool
+	 */
+	function cmplz_placeholder_id_in_list( string $id, array $ids ): bool {
+		$id = cmplz_canonical_placeholder_id( $id );
+		foreach ( $ids as $stored_id ) {
+			if ( is_string( $stored_id ) && cmplz_canonical_placeholder_id( $stored_id ) === $id ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+}
+
 if ( ! function_exists( 'cmplz_uses_google_analytics' ) ) {
 
 	/**
@@ -262,6 +306,25 @@ if ( ! function_exists('cmplz_upload_url')) {
 	}
 }
 
+if ( ! function_exists( 'cmplz_https_upload_url' ) ) {
+	/**
+	 * Get the upload url, normalized to https on SSL pages.
+	 *
+	 * The cmplz_upload_url() helper inherits the siteurl/WP_CONTENT_URL scheme,
+	 * which may be http:// on sites served over https via a proxy. Enqueuing an
+	 * http:// asset on an https page triggers a browser mixed-content block. Use
+	 * this wherever the upload URL is emitted to the frontend (e.g. banner CSS).
+	 *
+	 * @param string $path Optional sub-path appended under the complianz uploads directory.
+	 *
+	 * @return string
+	 */
+	function cmplz_https_upload_url( string $path = '' ): string {
+		$url = cmplz_upload_url( $path );
+		return is_ssl() ? str_replace( 'http://', 'https://', $url ) : $url;
+	}
+}
+
 if ( ! function_exists( 'cmplz_uses_social_media' ) ) {
 
 	/**
@@ -292,6 +355,28 @@ if ( !function_exists('cmplz_upgraded_to_current_version')){
 			return true;
 		}
 		return false;
+	}
+}
+
+if ( ! function_exists( 'cmplz_is_new_install' ) ) {
+	/**
+	 * Check whether this is a fresh installation at the current version.
+	 *
+	 * cmplz_first_version is written once in upgrade.php when no prior version
+	 * exists, and is never updated afterwards. Comparing it to CMPLZ_VERSION
+	 * distinguishes a fresh install (equal) from an upgrade (lower).
+	 *
+	 * Returns false when cmplz_first_version is absent — uncertain state,
+	 * safe default to avoid showing upsells to existing users.
+	 *
+	 * @return bool True only when the plugin was installed fresh at the current version.
+	 */
+	function cmplz_is_new_install(): bool {
+		$first_version = get_option( 'cmplz_first_version' );
+		if ( ! $first_version ) {
+			return false;
+		}
+		return version_compare( $first_version, CMPLZ_VERSION, '>=' );
 	}
 }
 
@@ -868,10 +953,16 @@ if ( ! function_exists( 'cmplz_page_is_of_type' ) ) {
 		global $post;
 		if ( !$post ) return false;
 
-		$post_id = $post->ID;
+		$post_id = (int) $post->ID;
 		foreach ( $regions as $region ) {
 			$policy_id = COMPLIANZ::$document->get_shortcode_page_id( $type, $region );
-			if ( $policy_id === $post_id ) {
+			if ( ! $policy_id ) {
+				continue;
+			}
+			// Map to the current language, like the other consumers of get_shortcode_page_id() do:
+			// the lookup finds the source-language page, so a translated document would not match.
+			$policy_id = apply_filters( 'wpml_object_id', $policy_id, 'page', true, substr( get_locale(), 0, 2 ) );
+			if ( (int) $policy_id === $post_id ) {
 				return true;
 			}
 		}
@@ -889,16 +980,6 @@ if ( ! function_exists( 'cmplz_uses_statistics' ) ) {
 		return false;
 	}
 }
-
-if ( ! function_exists( 'cmplz_show_install_burst_warning' ) ) {
-	function cmplz_show_install_burst_warning() {
-		if ( cmplz_get_option('consent_for_anonymous_stats') === 'yes' && !defined( 'burst_version' ) ) {
-			return true;
-		}
-		return false;
-	}
-}
-
 
 if ( ! function_exists( 'cmplz_uses_only_functional_cookies' ) ) {
 	function cmplz_uses_only_functional_cookies() {
@@ -1341,16 +1422,16 @@ if ( !function_exists('cmplz_get_transient') ) {
 
 		$value = false;
 		$now = time();
-		$transients = get_option('cmplz_transients', array());
+		$transients = get_option( 'cmplz_transients', array() );
 
-		if ( isset($transients[$name]) ) {
-			$data = $transients[$name];
-			$expires = isset($data['expires']) ? $data['expires'] : 0;
-			$value = isset($data['value']) ? $data['value'] : false;
+		if ( isset( $transients[ $name ] ) ) {
+			$data = $transients[ $name ];
+			$expires = isset( $data[ 'expires' ]) ? $data[ 'expires' ] : 0;
+			$value = isset( $data['value'] ) ? $data[ 'value' ] : false;
 			if ( $expires < $now ) {
-				unset($transients[$name]);
+				unset( $transients[$name] );
 
-				update_option('cmplz_transients', $transients);
+				update_option( 'cmplz_transients', $transients, false );
 				$value = false;
 			}
 		}
@@ -1358,7 +1439,7 @@ if ( !function_exists('cmplz_get_transient') ) {
 	}
 }
 
-if (!function_exists('cmplz_delete_transient')) {
+if ( !function_exists('cmplz_delete_transient') ) {
 	/**
 	 * We user our own transient, as the wp transient is not always persistent
 	 *
@@ -1376,7 +1457,7 @@ if (!function_exists('cmplz_delete_transient')) {
 			unset($transients[$name]);
 		}
 
-		update_option( 'cmplz_transients', $transients );
+		update_option( 'cmplz_transients', $transients, false );
 	}
 }
 if (!function_exists('cmplz_set_transient')) {
@@ -1401,7 +1482,33 @@ if (!function_exists('cmplz_set_transient')) {
 				'value'   => $value,
 				'expires' => time() + (int) $expiration,
 		);
-		update_option( 'cmplz_transients', $transients );
+		update_option( 'cmplz_transients', $transients, false );
+	}
+}
+if ( !function_exists('cmplz_delete_transients_by_prefix') ) {
+	/**
+	 * Delete all cmplz transients whose name starts with the given prefix.
+	 * Used to invalidate grouped caches such as page_links_{banner_id}_{locale}.
+	 *
+	 * @param string $prefix
+	 *
+	 * @return void
+	 */
+	function cmplz_delete_transients_by_prefix( string $prefix ): void {
+		$transients = get_option( 'cmplz_transients', array() );
+		if ( ! is_array( $transients ) ) {
+			return;
+		}
+		$changed = false;
+		foreach ( array_keys( $transients ) as $name ) {
+			if ( strpos( $name, $prefix ) === 0 ) {
+				unset( $transients[ $name ] );
+				$changed = true;
+			}
+		}
+		if ( $changed ) {
+			update_option( 'cmplz_transients', $transients, false );
+		}
 	}
 }
 
@@ -2174,17 +2281,53 @@ if ( ! function_exists( 'cmplz_cdb_reference_in_policy' ) ) {
 	}
 }
 
-/**
- * Register a translation
- *
- * @param $fieldname
- *
- * @return bool
- */
+if ( ! function_exists( 'cmplz_get_wpml_source_language' ) ) {
+	/**
+	 * Get the source language to declare when registering a string with WPML.
+	 *
+	 * When no source language is passed, WPML resolves one itself: the language configured for
+	 * the string domain, or a hardcoded 'en' when that is unset. That labels our already
+	 * translated strings as English, and on a site with a non English default language they can
+	 * then no longer be translated, because WPML never offers a string for translation into its
+	 * own source language.
+	 *
+	 * @param string|null $source_language Pass 'en' for the English cookiedatabase dataset, or
+	 *                                     null to resolve WPML's own default language.
+	 *
+	 * @return string Language code, or an empty string to keep WPML's own fallback.
+	 */
+	function cmplz_get_wpml_source_language( $source_language = null ) {
+		if ( ! is_string( $source_language ) ) {
+			$source_language = '';
+
+			// read wpml's own setting rather than the wpml_default_language filter: other
+			// multilingual plugins answer that filter as a compatibility shim, so it can return a
+			// language code that is not wpml's. Don't run the result through
+			// cmplz_sanitize_language(), which would mangle codes like pt-br and zh-hans.
+			if ( function_exists( 'wpml_get_setting' ) ) {
+				$default_language = wpml_get_setting( 'default_language' );
+				if ( is_string( $default_language ) ) {
+					$source_language = $default_language;
+				}
+			}
+		}
+
+		return $source_language;
+	}
+}
 
 if ( ! function_exists( 'cmplz_register_translation' ) ) {
 
-	function cmplz_register_translation( $string, $fieldname ) {
+	/**
+	 * Register a translation
+	 *
+	 * @param string      $string          The string to register for translation.
+	 * @param string      $fieldname       Name that identifies the string in the translation plugin.
+	 * @param string|null $source_language Language of $string. Defaults to WPML's default language.
+	 *
+	 * @return void
+	 */
+	function cmplz_register_translation( $string, $fieldname, $source_language = null ) {
 		if ( ! is_string( $string ) || !is_string($fieldname) ) {
 			return;
 		}
@@ -2194,11 +2337,12 @@ if ( ! function_exists( 'cmplz_register_translation' ) ) {
 		}
 
 		//wpml
+		$source_language = cmplz_get_wpml_source_language( $source_language );
 		if ( function_exists( 'icl_register_string' ) ) {
-			icl_register_string( 'complianz', $fieldname, $string );
+			icl_register_string( 'complianz', $fieldname, $string, false, $source_language );
 		}
 
-		do_action( 'wpml_register_single_string', 'complianz', $fieldname, $string );
+		do_action( 'wpml_register_single_string', 'complianz', $fieldname, $string, false, $source_language );
 
 	}
 }
@@ -2357,6 +2501,28 @@ if ( ! function_exists( 'cmplz_get_used_consenttypes' ) ) {
 		}
 
 		return $consent_types;
+	}
+}
+
+if ( ! function_exists( 'cmplz_banner_css_is_deterministic' ) ) {
+	/**
+	 * Whether every visitor of this page gets the same banner stylesheet, so its
+	 * URL can be resolved server-side instead of by the javascript.
+	 *
+	 * False when the variant is drawn per visitor and the value would end up in
+	 * cached HTML shared by all of them: under A/B testing the banner id is drawn
+	 * per request, and with more than one used consent type geo-IP picks the type
+	 * per request. Note this is about the URL being invariant, not about geo-IP
+	 * being inactive — with one used type geo-IP can still report 'other'
+	 * (pro/filters-actions.php:141), which suppresses the banner rather than
+	 * changing its stylesheet.
+	 *
+	 * @param string[] $consent_types Consent types in use, from cmplz_get_used_consenttypes().
+	 *
+	 * @return bool
+	 */
+	function cmplz_banner_css_is_deterministic( array $consent_types ) {
+		return ! cmplz_ab_testing_enabled() && count( $consent_types ) === 1;
 	}
 }
 
@@ -2817,7 +2983,8 @@ if ( ! function_exists( 'cmplz_sprintf' ) ) {
 	 */
 	function cmplz_sprintf(){
 		$args = func_get_args();
-		$count = substr_count($args[0], '%s');
+		preg_match_all( '/%(?:\d+\$)?s/', $args[0], $placeholder_matches );
+		$count      = count( $placeholder_matches[0] );
 		$args_count = count($args) - 1;
 		if ( $args_count === $count ){
 			return call_user_func_array('sprintf', $args);
@@ -2919,4 +3086,96 @@ if ( ! function_exists('cmplz_targets_quebec') ) {
 
 		return false;
 	}
+}
+
+if ( ! function_exists( 'cmplz_site_has_webshop' ) ) {
+	/**
+	 * Check if WooCommerce or Easy Digital Downloads is active.
+	 * Plugin presence is checked directly — independent of the is_webshop wizard option,
+	 * which classifies the site legally but does not reflect whether e-commerce pages
+	 * exist and need scanning.
+	 *
+	 * @return bool
+	 */
+	function cmplz_site_has_webshop(): bool {
+		return class_exists( 'WooCommerce' ) || class_exists( 'Easy_Digital_Downloads' );
+	}
+}
+
+if ( ! function_exists( 'cmplz_site_has_custom_post_types' ) ) {
+	/**
+	 * Check if the site has any public non-builtin custom post types registered.
+	 *
+	 * @return bool
+	 */
+	function cmplz_site_has_custom_post_types(): bool {
+		return ! empty( get_post_types( array( 'public' => true, '_builtin' => false ) ) );
+	}
+}
+
+if ( ! function_exists( 'cmplz_site_has_high_post_count' ) ) {
+	/**
+	 * Check whether the site exceeds the volume-upsell post/page threshold.
+	 * Stores two transients (TTL: DAY_IN_SECONDS):
+	 *   cmplz_scan_high_post_count — '1'/'0' boolean guard (avoids COUNT on every request).
+	 *   cmplz_scan_post_count      — raw integer count for the dynamic volume upsell title.
+	 *
+	 * @return bool
+	 */
+	function cmplz_site_has_high_post_count(): bool {
+		$cached = get_transient( 'cmplz_scan_high_post_count' );
+		if ( $cached !== false ) {
+			return $cached === '1';
+		}
+
+		global $wpdb;
+		$count = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->posts}
+			 WHERE post_status = 'publish'
+			 AND post_type IN ('post', 'page')"
+		);
+
+		$threshold = 50;
+		$result    = $count > $threshold;
+		set_transient( 'cmplz_scan_high_post_count', $result ? '1' : '0', DAY_IN_SECONDS );
+		set_transient( 'cmplz_scan_post_count', $count, DAY_IN_SECONDS );
+
+		return $result;
+	}
+}
+
+if ( ! function_exists( 'cmplz_volume_upsell_applies' ) ) {
+	/**
+	 * Check if the volume upsell notice should be shown.
+	 * Returns false when a higher-priority upsell (webshop or CPT) is already active.
+	 *
+	 * @return bool
+	 */
+	function cmplz_volume_upsell_applies(): bool {
+		if ( cmplz_site_has_webshop() || cmplz_site_has_custom_post_types() ) {
+			return false;
+		}
+		return cmplz_site_has_high_post_count();
+	}
+}
+
+
+if ( defined( 'cmplz_free' ) && cmplz_free ) {
+	if ( ! function_exists( 'cmplz_invalidate_post_count_cache' ) ) {
+		/**
+		 * Delete the high-post-count transients when a post is first published.
+		 * Clears both cmplz_scan_high_post_count and cmplz_scan_post_count.
+		 *
+		 * @param string $new New post status.
+		 * @param string $old Previous post status.
+		 * @return void
+		 */
+		function cmplz_invalidate_post_count_cache( string $new, string $old ): void {
+			if ( $new === 'publish' && $old !== 'publish' ) {
+				delete_transient( 'cmplz_scan_high_post_count' );
+				delete_transient( 'cmplz_scan_post_count' );
+			}
+		}
+	}
+	add_action( 'transition_post_status', 'cmplz_invalidate_post_count_cache', 10, 2 );
 }

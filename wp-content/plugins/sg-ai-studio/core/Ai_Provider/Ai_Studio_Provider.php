@@ -40,6 +40,21 @@ class Ai_Studio_Provider extends AbstractApiProvider {
 	}
 
 	/**
+	 * Extracts token counts from a decoded AI Studio API response.
+	 *
+	 * @param array $response The decoded response body.
+	 * @return array{input: int|null, output: int|null} Token counts.
+	 */
+	public static function tokenCountsFromResponse( array $response ): array {
+		$usage = isset( $response['usage'] ) && is_array( $response['usage'] ) ? $response['usage'] : $response;
+
+		return array(
+			'input'  => isset( $usage['input_tokens'] ) && is_numeric( $usage['input_tokens'] ) ? (int) $usage['input_tokens'] : null,
+			'output' => isset( $usage['output_tokens'] ) && is_numeric( $usage['output_tokens'] ) ? (int) $usage['output_tokens'] : null,
+		);
+	}
+
+	/**
 	 * Creates a model instance based on the model metadata.
 	 *
 	 * Supports text generation and image generation.
@@ -77,14 +92,14 @@ class Ai_Studio_Provider extends AbstractApiProvider {
 	protected static function createProviderMetadata(): ProviderMetadata {
 		// Build path using WP_PLUGIN_DIR to match what WordPress expects
 		$logo_path = WP_PLUGIN_DIR . '/sg-ai-studio/assets/images/logo-siteground-compact-dark.svg';
-
+		$sg_ai_studio_url = get_option('sg_ai_studio_connected', false ) ? admin_url( 'admin.php?page=sg-ai-studio-settings' ) : admin_url( 'admin.php?page=sg-ai-studio' );
 		// ProviderMetadata constructor signature (added in AiClient 1.3.0):
 		// __construct($id, $name, $type, $credentialsUrl, $authenticationMethod, $description, $logoPath)
 		return new ProviderMetadata(
 			'ai_studio_siteground',
 			'SiteGround AI',
 			ProviderTypeEnum::cloud(),
-			admin_url( 'admin.php?page=sg-ai-studio' ),
+			$sg_ai_studio_url,
 			RequestAuthenticationMethod::apiKey(),
 			__( 'Multi-model AI service for text, image, translation, research & more.', 'sg-ai-studio' ),
 			$logo_path

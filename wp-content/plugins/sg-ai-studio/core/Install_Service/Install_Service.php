@@ -3,6 +3,8 @@
 namespace SG_AI_Studio\Install_Service;
 
 use SG_AI_Studio\Install_Service\Install_1_1_8;
+use SG_AI_Studio\Install_Service\Install_1_2_1;
+use SG_AI_Studio\Install_Service\Install_1_3_2;
 
 /**
  * Define the Install interface.
@@ -21,6 +23,8 @@ class Install_Service {
 		// Get the install services.
 		$this->installs = array(
 			new Install_1_1_8(),
+			new Install_1_2_1(),
+			new Install_1_3_2(),
 		);
 	}
 
@@ -87,7 +91,7 @@ class Install_Service {
 	 *
 	 * @return bool True/false.
 	 */
-	private function install_required() {
+	public function install_required() {
 		foreach ( $this->installs as $install ) {
 			// Get the install version.
 			$version = $install->get_version();

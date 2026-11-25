@@ -142,7 +142,7 @@ class Minifier {
 		$scripts = wp_clone( $wp_scripts );
 		$scripts->all_deps( $scripts->queue );
 
-		$excluded_scripts = apply_filters( 'sgo_js_minify_exclude', $this->js_ignore_list );
+		$excluded_scripts = apply_filters( 'sgo_js_minify_exclude', $this->js_ignore_list ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		// Get groups of handles.
 		foreach ( $scripts->to_do as $handle ) {
@@ -297,7 +297,7 @@ class Minifier {
 		$styles = wp_clone( $wp_styles );
 		$styles->all_deps( $styles->queue );
 
-		$excluded_styles = apply_filters( 'sgo_css_minify_exclude', $this->css_ignore_list );
+		$excluded_styles = apply_filters( 'sgo_css_minify_exclude', $this->css_ignore_list ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		// Get groups of handles.
 		foreach ( $styles->to_do as $handle ) {
@@ -382,7 +382,7 @@ class Minifier {
 		$url = Helper::get_current_url();
 
 		// Get excluded urls.
-		$excluded_urls = apply_filters( 'sgo_html_minify_exclude_urls', get_option( 'siteground_optimizer_minify_html_exclude', array() ) );
+		$excluded_urls = apply_filters( 'sgo_html_minify_exclude_urls', get_option( 'siteground_optimizer_minify_html_exclude', array() ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		// Prepare the url parts for being used as regex.
 		$prepared_parts = array_map(
@@ -412,7 +412,7 @@ class Minifier {
 		}
 
 		// Get excluded params.
-		$excluded_params = apply_filters( 'sgo_html_minify_exclude_params', $this->exclude_params );
+		$excluded_params = apply_filters( 'sgo_html_minify_exclude_params', $this->exclude_params ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Backward-compatible public filter.
 
 		return $this->has_exclude_param( $excluded_params );
 	}

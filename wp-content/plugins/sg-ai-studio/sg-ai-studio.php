@@ -10,7 +10,7 @@
  * Plugin Name:       AI Agent by SiteGround
  * Plugin URI:        https://siteground.com
  * Description:       Manage your WordPress site with AI - create content, install plugins, and perform site management tasks effortlessly.
- * Version:           1.1.9
+ * Version:           2.0.0
  * Author:            SiteGround
  * Author URI:        https://www.siteground.com
  * Text Domain:       sg-ai-studio
@@ -33,7 +33,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 // Define version constant.
 if ( ! defined( __NAMESPACE__ . '\VERSION' ) ) {
-	define( __NAMESPACE__ . '\VERSION', '1.1.9' );
+	define( __NAMESPACE__ . '\VERSION', '2.0.0' );
 }
 
 // Define slug constant.
