@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 	<p class="description">
 		<?php esc_html_e(
-			'Elimina artículos publicados hace más de N días (mínimo 30) junto con sus adjuntos, y reescribe los enlaces internos que apunten a los artículos eliminados como texto plano. Los sticky posts siempre se excluyen.',
+			'Elimina artículos publicados y borradores (drafts) de hace más de N días (mínimo 30) junto con sus adjuntos, y reescribe los enlaces internos que apunten a los artículos eliminados como texto plano. Los sticky posts siempre se excluyen.',
 			'alminuto-theme'
 		); ?>
 	</p>
@@ -35,11 +35,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	global $wpdb;
 	$post_counts      = wp_count_posts( 'post' );
 	$published_posts  = isset( $post_counts->publish ) ? (int) $post_counts->publish : 0;
+	$draft_posts      = isset( $post_counts->draft ) ? (int) $post_counts->draft : 0;
+	$total_posts      = $published_posts + $draft_posts;
 	$sticky_posts     = count( (array) get_option( 'sticky_posts', [] ) );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$total_attachments = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment'" );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-	$oldest_post_date = $wpdb->get_var( "SELECT MIN(post_date) FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'publish'" );
+	$oldest_post_date = $wpdb->get_var( "SELECT MIN(post_date) FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status IN ('publish','draft')" );
 
 	$force_refresh = ! empty( $_GET['refresh_inventory'] ) || ( $cleanup_result && ! $cleanup_was_dry_run );
 	$disk_inv      = $force_refresh ? false : get_transient( 'alminuto_cleanup_media_inventory' );
@@ -58,12 +60,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<table class="widefat striped">
 			<tbody>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Artículos publicados', 'alminuto-theme' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Artículos (publicados + borradores)', 'alminuto-theme' ); ?></th>
 					<td>
-						<strong><?php echo esc_html( number_format_i18n( $published_posts ) ); ?></strong>
+						<strong><?php echo esc_html( number_format_i18n( $total_posts ) ); ?></strong>
+						<span class="description">
+							(<?php
+							echo esc_html(
+								sprintf(
+									'%s publicados · %s borradores',
+									number_format_i18n( $published_posts ),
+									number_format_i18n( $draft_posts )
+								)
+							);
+							?>)
+						</span>
 						<?php if ( $sticky_posts > 0 ) : ?>
 							<span class="description">
-								(<?php echo esc_html( sprintf( '%d sticky excluidos', $sticky_posts ) ); ?>)
+								· <?php echo esc_html( sprintf( '%d sticky excluidos', $sticky_posts ) ); ?>
 							</span>
 						<?php endif; ?>
 						<?php if ( $oldest_post_date ) : ?>
@@ -199,6 +212,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<th scope="row"><?php esc_html_e( 'Artículos a eliminar / eliminados', 'alminuto-theme' ); ?></th>
 				<td>
 					<?php echo esc_html( (int) $cleanup_result['posts_deleted'] ); ?> / <?php echo esc_html( (int) $cleanup_result['posts_to_delete'] ); ?>
+					<span class="description">
+						(<?php
+						echo esc_html(
+							sprintf(
+								'%s publicados · %s borradores',
+								number_format_i18n( (int) ( $cleanup_result['published_to_delete'] ?? 0 ) ),
+								number_format_i18n( (int) ( $cleanup_result['drafts_to_delete'] ?? 0 ) )
+							)
+						);
+						?>)
+					</span>
 				</td>
 			</tr>
 			<tr>

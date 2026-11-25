@@ -500,7 +500,9 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 	$post_ids = get_posts( $query_args );
 
 	$stats = array(
-		'posts_to_delete'      => count( $post_ids ),
+		'posts_to_delete'       => count( $post_ids ),
+		'published_to_delete'   => 0,
+		'drafts_to_delete'      => 0,
 		'attachments_to_delete' => 0,
 		'links_rewritten'      => 0,
 		'attachments_deleted'  => 0,
@@ -521,6 +523,19 @@ function alminuto_theme_cleanup_old_posts( $args = array() ) {
 	// post_parent index). Always populated, not just in dry-run, so the real
 	// run's final summary can also display the total upfront.
 	$post_ids_csv  = implode( ',', array_map( 'intval', $post_ids ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	$status_rows = $wpdb->get_results(
+		"SELECT post_status, COUNT(*) AS cnt FROM $wpdb->posts
+		 WHERE ID IN ($post_ids_csv)
+		 GROUP BY post_status"
+	);
+	foreach ( (array) $status_rows as $srow ) {
+		if ( $srow->post_status === 'publish' ) {
+			$stats['published_to_delete'] = (int) $srow->cnt;
+		} elseif ( $srow->post_status === 'draft' ) {
+			$stats['drafts_to_delete'] = (int) $srow->cnt;
+		}
+	}
 	$stats['attachments_to_delete'] = (int) $wpdb->get_var(
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		"SELECT COUNT(*) FROM $wpdb->posts
@@ -1606,7 +1621,7 @@ function alminuto_theme_admin_menu() {
 	add_submenu_page(
 		'alminuto-theme-panel',
 		'Limpiar imágenes y artículos antiguos',
-		'Limpiar imágenes',
+		'Limpieza',
 		'manage_options',
 		'alminuto-cleanup',
 		'alminuto_theme_render_cleanup_page'
