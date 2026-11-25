@@ -1007,7 +1007,7 @@ class Alminuto_Backup_Engine {
 				$live_phase = __( 'Restaurando base de datos...', 'alminuto-theme' );
 				$live_pct   = 80;
 				$log_cb( 'Importando volcado SQL en la base de datos...' );
-				$queries = self::restore_database( $db_local );
+				$queries = self::restore_database( $db_local, $log_cb );
 				$live_pct = 98;
 				$log_cb( sprintf( 'BBDD restaurada (%d sentencias ejecutadas).', $queries ) );
 			}
@@ -1047,16 +1047,49 @@ class Alminuto_Backup_Engine {
 	/**
 	 * Imports a SQL or gzipped SQL dump into the current WordPress database.
 	 *
-	 * @param string $sql_path Path to .sql or .sql.gz file.
+	 * Automatically adapts MySQL 8 collations (utf8mb4_0900_*) for MariaDB/MySQL 5.7
+	 * and remaps the backup's table prefix if it differs from $wpdb->prefix.
+	 *
+	 * @param string        $sql_path Path to .sql or .sql.gz file.
+	 * @param callable|null $log_cb   Optional logger callback.
 	 * @return int Number of SQL statements executed.
 	 * @throws RuntimeException On read or SQL failure.
 	 */
-	public static function restore_database( $sql_path ) {
+	public static function restore_database( $sql_path, $log_cb = null ) {
 		global $wpdb;
 
 		$is_gz = substr( $sql_path, -3 ) === '.gz';
 		if ( $is_gz && ! function_exists( 'gzopen' ) ) {
 			throw new RuntimeException( __( 'La extensión zlib no está disponible para descomprimir la BBDD.', 'alminuto-theme' ) );
+		}
+
+		// Detect dump table prefix (e.g. from `DROP TABLE IF EXISTS `xyz_options`;`).
+		$dump_prefix = '';
+		$probe       = $is_gz ? gzopen( $sql_path, 'rb' ) : fopen( $sql_path, 'rb' );
+		if ( $probe ) {
+			while ( ! ( $is_gz ? gzeof( $probe ) : feof( $probe ) ) ) {
+				$pline = $is_gz ? gzgets( $probe ) : fgets( $probe );
+				if ( $pline === false ) {
+					break;
+				}
+				if ( preg_match( '/^DROP TABLE IF EXISTS `([^`]+?)options`;/i', trim( $pline ), $pm ) ) {
+					$dump_prefix = (string) $pm[1];
+					break;
+				}
+			}
+			if ( $is_gz ) {
+				gzclose( $probe );
+			} else {
+				fclose( $probe );
+			}
+		}
+
+		$remap_prefix = ( $dump_prefix !== '' && $dump_prefix !== $wpdb->prefix );
+		if ( $remap_prefix && is_callable( $log_cb ) ) {
+			call_user_func(
+				$log_cb,
+				sprintf( 'Adaptando prefijo de tablas del backup (%s → %s)...', $dump_prefix, $wpdb->prefix )
+			);
 		}
 
 		$handle = $is_gz ? gzopen( $sql_path, 'rb' ) : fopen( $sql_path, 'rb' );
@@ -1066,6 +1099,13 @@ class Alminuto_Backup_Engine {
 
 		$executed = 0;
 		$buffer   = '';
+
+		// Check if the target server supports MySQL 8's utf8mb4_0900_ai_ci (MariaDB & MySQL 5.7 do not).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$has_0900 = (bool) $wpdb->get_var( "SHOW COLLATION LIKE 'utf8mb4_0900_ai_ci'" );
+		$fallback_collation = $wpdb->get_var( "SHOW COLLATION LIKE 'utf8mb4_unicode_520_ci'" )
+			? 'utf8mb4_unicode_520_ci'
+			: 'utf8mb4_unicode_ci';
 
 		try {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -1091,6 +1131,16 @@ class Alminuto_Backup_Engine {
 					$stmt   = trim( $buffer );
 					$buffer = '';
 					if ( $stmt !== '' ) {
+						if ( ! $has_0900 && stripos( $stmt, 'utf8mb4_0900_' ) !== false ) {
+							$stmt = preg_replace( '/\butf8mb4_0900_[a-z0-9_]+\b/i', $fallback_collation, $stmt );
+						}
+						if ( $remap_prefix ) {
+							$stmt = preg_replace(
+								'/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO)\s+`' . preg_quote( $dump_prefix, '/' ) . '([^`]+)`/i',
+								'$1 `' . $wpdb->prefix . '$2`',
+								$stmt
+							);
+						}
 						// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared
 						$ok = $wpdb->query( $stmt );
 						if ( $ok === false && $wpdb->last_error !== '' ) {
@@ -1101,6 +1151,25 @@ class Alminuto_Backup_Engine {
 				}
 			}
 
+			if ( $remap_prefix ) {
+				// Update serialized roles/capabilities keys that include the table prefix.
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE `{$wpdb->options}` SET option_name = %s WHERE option_name = %s",
+						$wpdb->prefix . 'user_roles',
+						$dump_prefix . 'user_roles'
+					)
+				);
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE `{$wpdb->usermeta}` SET meta_key = CONCAT(%s, SUBSTRING(meta_key, %d)) WHERE meta_key LIKE %s",
+						$wpdb->prefix,
+						strlen( $dump_prefix ) + 1,
+						$wpdb->esc_like( $dump_prefix ) . '%'
+					)
+				);
+			}
+
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->query( 'SET FOREIGN_KEY_CHECKS = 1;' );
 		} finally {
@@ -1108,6 +1177,9 @@ class Alminuto_Backup_Engine {
 				gzclose( $handle );
 			} else {
 				fclose( $handle );
+			}
+			if ( function_exists( 'wp_cache_flush' ) ) {
+				wp_cache_flush();
 			}
 		}
 
