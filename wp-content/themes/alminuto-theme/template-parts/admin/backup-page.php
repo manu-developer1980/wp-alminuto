@@ -190,9 +190,14 @@ $weekdays = [
 			</div>
 
 			<div class="am-live-panel" id="am-live-panel" style="<?php echo ! empty( $live_status['running'] ) ? '' : 'display:none;'; ?>">
-				<div style="display:flex;justify-content:space-between;align-items:center;">
+				<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
 					<strong id="am-live-phase"><?php echo esc_html( (string) ( $live_status['phase'] ?: __( 'Copia en curso...', 'alminuto-theme' ) ) ); ?></strong>
-					<span id="am-live-percent"><?php echo esc_html( (string) (int) $live_status['percent'] ); ?>%</span>
+					<div style="display:flex;align-items:center;gap:10px;">
+						<span id="am-live-percent"><?php echo esc_html( (string) (int) $live_status['percent'] ); ?>%</span>
+						<button type="button" class="button button-small" id="am-backup-cancel-btn">
+							<?php esc_html_e( 'Cancelar / Desbloquear', 'alminuto-theme' ); ?>
+						</button>
+					</div>
 				</div>
 				<div class="am-progress-track">
 					<div class="am-progress-bar" id="am-live-bar" style="width:<?php echo esc_attr( (string) (int) $live_status['percent'] ); ?>%;"></div>

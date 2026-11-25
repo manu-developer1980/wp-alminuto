@@ -14,11 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Alminuto_Backup_Engine {
 
-	const LAST_OPTION    = 'alminuto_backup_last';
-	const HISTORY_OPTION = 'alminuto_backup_history';
-	const LIVE_OPTION    = 'alminuto_backup_live_status';
-	const LOCK_TRANSIENT = 'alminuto_backup_running_lock';
-	const MAX_HISTORY    = 20;
+	const LAST_OPTION      = 'alminuto_backup_last';
+	const HISTORY_OPTION   = 'alminuto_backup_history';
+	const LIVE_OPTION      = 'alminuto_backup_live_status';
+	const LOCK_TRANSIENT   = 'alminuto_backup_running_lock';
+	const CANCEL_TRANSIENT = 'alminuto_backup_cancel_flag';
+	const MAX_HISTORY      = 20;
 
 	/**
 	 * Returns (and secures) the temporary local backup directory inside uploads.
@@ -97,6 +98,52 @@ class Alminuto_Backup_Engine {
 	}
 
 	/**
+	 * Requests cancellation of an active backup and clears any stale lock.
+	 *
+	 * @return array Updated live status.
+	 */
+	public static function request_cancel() {
+		set_transient( self::CANCEL_TRANSIENT, 1, 10 * MINUTE_IN_SECONDS );
+		delete_transient( self::LOCK_TRANSIENT );
+
+		$live           = self::get_live_status();
+		$logs           = isset( $live['logs'] ) && is_array( $live['logs'] ) ? $live['logs'] : [];
+		$logs[]         = '[' . wp_date( 'Y-m-d H:i:s' ) . '] ' . __( 'Copia cancelada / desbloqueada por el usuario.', 'alminuto-theme' );
+		$updated_status = [
+			'running'    => false,
+			'phase'      => __( 'Copia cancelada', 'alminuto-theme' ),
+			'percent'    => (int) ( $live['percent'] ?? 0 ),
+			'started_at' => (int) ( $live['started_at'] ?? 0 ),
+			'status'     => 'error',
+			'message'    => __( 'Copia cancelada por el usuario.', 'alminuto-theme' ),
+			'logs'       => $logs,
+		];
+		self::update_live_status( $updated_status );
+		return $updated_status;
+	}
+
+	/**
+	 * Checks whether cancellation was requested for the current run.
+	 *
+	 * @return bool
+	 */
+	public static function is_cancel_requested() {
+		return (bool) get_transient( self::CANCEL_TRANSIENT );
+	}
+
+	/**
+	 * Throws if cancellation was requested.
+	 *
+	 * @return void
+	 * @throws RuntimeException When cancelled.
+	 */
+	public static function check_cancelled() {
+		if ( self::is_cancel_requested() ) {
+			throw new RuntimeException( __( 'Copia cancelada por el usuario.', 'alminuto-theme' ) );
+		}
+	}
+
+	/**
 	 * Runs a full or partial backup and uploads to Google Drive.
 	 *
 	 * @param array $args {
@@ -116,6 +163,7 @@ class Alminuto_Backup_Engine {
 			];
 		}
 
+		delete_transient( self::CANCEL_TRANSIENT );
 		set_transient( self::LOCK_TRANSIENT, time(), 30 * MINUTE_IN_SECONDS );
 
 		if ( function_exists( 'set_time_limit' ) ) {
@@ -216,16 +264,16 @@ class Alminuto_Backup_Engine {
 			}
 
 			if ( $include_media ) {
-				$media_name   = sprintf( '%s-%s-media.zip', $site_slug, $stamp );
+				$media_name   = sprintf( '%s-%s-media.tar', $site_slug, $stamp );
 				$media_path   = $temp_dir . '/' . $media_name;
 				$temp_files[] = $media_path;
 
 				$live_phase     = __( 'Empaquetando carpeta de medios (uploads)...', 'alminuto-theme' );
 				$live_pct       = 50;
 				$log_cb( 'Empaquetando carpeta de medios (uploads)...' );
-				$pack_progress = static function ( $count ) use ( &$live_phase, &$live_pct, $sync_live ) {
-					$live_phase = sprintf( 'Empaquetando media (%d archivos)...', (int) $count );
-					$live_pct   = min( 64, 50 + (int) floor( $count / 1000 ) );
+				$pack_progress = static function ( $count, $bytes ) use ( &$live_phase, &$live_pct, $sync_live ) {
+					$live_phase = sprintf( 'Empaquetando media (%d archivos · %s)...', (int) $count, size_format( (int) $bytes ) );
+					$live_pct   = min( 64, 50 + (int) floor( $count / 5000 ) );
 					$sync_live( true );
 				};
 				$media_bytes = self::export_media( $media_path, $pack_progress );
@@ -245,7 +293,7 @@ class Alminuto_Backup_Engine {
 					$sync_live( true );
 				};
 
-				$uploaded = Alminuto_Backup_GDrive::upload_file( $media_path, $media_name, 'application/zip', $backup_id, $log_cb, $progress_media );
+				$uploaded = Alminuto_Backup_GDrive::upload_file( $media_path, $media_name, 'application/x-tar', $backup_id, $log_cb, $progress_media );
 				if ( is_wp_error( $uploaded ) ) {
 					throw new RuntimeException( $uploaded->get_error_message() );
 				}
@@ -315,6 +363,7 @@ class Alminuto_Backup_Engine {
 				}
 			}
 			delete_transient( self::LOCK_TRANSIENT );
+			delete_transient( self::CANCEL_TRANSIENT );
 		}
 
 		update_option( self::LAST_OPTION, $result, false );
@@ -433,43 +482,41 @@ class Alminuto_Backup_Engine {
 	}
 
 	/**
-	 * Packages wp-content/uploads into a ZIP archive, excluding backup & CSP temp folders.
+	 * Packages wp-content/uploads into a streaming USTAR/PAX TAR archive, excluding backup & CSP folders.
 	 *
-	 * Flushes the ZipArchive every 400 files to avoid OS open-file-descriptor limits
-	 * (ulimit -n) on large media libraries, and stores already-compressed media without
-	 * re-deflating for speed.
+	 * Sequential O(N) streaming uses at most 2 open file descriptors and avoids ZipArchive's
+	 * O(N^2) central-directory rewrites on libraries with tens of thousands of files.
 	 *
-	 * @param string        $dest_zip_path Destination ZIP file path.
-	 * @param callable|null $progress_cb   Optional callback( int $file_count ).
-	 * @return int Final ZIP file size in bytes.
-	 * @throws RuntimeException If ZipArchive is unavailable or fails.
+	 * @param string        $dest_tar_path Destination TAR file path.
+	 * @param callable|null $progress_cb   Optional callback( int $file_count, int $bytes_written ).
+	 * @return int Final TAR file size in bytes.
+	 * @throws RuntimeException If the archive cannot be written.
 	 */
-	public static function export_media( $dest_zip_path, $progress_cb = null ) {
-		if ( ! class_exists( 'ZipArchive' ) ) {
-			throw new RuntimeException( __( 'La extensión PHP ZipArchive no está disponible en el servidor.', 'alminuto-theme' ) );
-		}
-
+	public static function export_media( $dest_tar_path, $progress_cb = null ) {
 		$upload   = wp_upload_dir();
 		$base_dir = wp_normalize_path( untrailingslashit( (string) $upload['basedir'] ) );
 		if ( ! is_dir( $base_dir ) ) {
 			throw new RuntimeException( __( 'No existe el directorio de medios (uploads).', 'alminuto-theme' ) );
 		}
 
-		$zip = new ZipArchive();
-		if ( $zip->open( $dest_zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE ) !== true ) {
-			throw new RuntimeException(
-				sprintf( 'No se pudo crear el archivo ZIP de media: %s', $zip->getStatusString() )
-			);
+		$tar = fopen( $dest_tar_path, 'wb' );
+		if ( ! $tar ) {
+			throw new RuntimeException( __( 'No se pudo crear el archivo TAR de media.', 'alminuto-theme' ) );
 		}
 
-		$excluded_dirs  = [ 'alminuto-backups', 'alminuto-csp-reports' ];
-		$store_exts     = [ 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'mp4', 'mov', 'm4v', 'mp3', 'ogg', 'pdf', 'zip', 'gz' ];
-		$can_set_comp   = method_exists( $zip, 'setCompressionName' ) && defined( 'ZipArchive::CM_STORE' );
-		$base_len       = strlen( $base_dir ) + 1;
-		$file_count     = 0;
-		$batch_count    = 0;
-		$batch_limit    = 400;
-		$closed_cleanly = false;
+		$excluded_dirs = [ 'alminuto-backups', 'alminuto-csp-reports' ];
+		$base_len      = strlen( $base_dir ) + 1;
+		$file_count    = 0;
+		$bytes_written = 0;
+
+		$write_all = static function ( $data ) use ( $tar, &$bytes_written ) {
+			$len = strlen( $data );
+			$res = fwrite( $tar, $data );
+			if ( $res === false || $res !== $len ) {
+				throw new RuntimeException( __( 'Error escribiendo en el archivo TAR de media.', 'alminuto-theme' ) );
+			}
+			$bytes_written += $len;
+		};
 
 		try {
 			$iterator = new RecursiveIteratorIterator(
@@ -494,61 +541,123 @@ class Alminuto_Backup_Engine {
 					continue;
 				}
 
-				if ( $item->isDir() ) {
-					$zip->addEmptyDir( $rel_path );
-				} elseif ( $item->isFile() && $item->isReadable() ) {
-					if ( $zip->addFile( $full_path, $rel_path ) ) {
-						if ( $can_set_comp ) {
-							$ext = strtolower( pathinfo( $basename, PATHINFO_EXTENSION ) );
-							if ( in_array( $ext, $store_exts, true ) ) {
-								$zip->setCompressionName( $rel_path, ZipArchive::CM_STORE );
-							}
-						}
-						$file_count++;
-						$batch_count++;
+				if ( ! $item->isFile() || ! $item->isReadable() ) {
+					continue;
+				}
 
-						if ( $batch_count >= $batch_limit ) {
-							if ( ! $zip->close() ) {
-								throw new RuntimeException(
-									sprintf( 'Error cerrando lote ZIP (%d archivos): %s', $file_count, $zip->getStatusString() )
-								);
-							}
-							if ( $zip->open( $dest_zip_path, ZipArchive::CREATE ) !== true ) {
-								throw new RuntimeException(
-									sprintf( 'Error reabriendo ZIP (%d archivos): %s', $file_count, $zip->getStatusString() )
-								);
-							}
-							$batch_count = 0;
-							if ( is_callable( $progress_cb ) ) {
-								call_user_func( $progress_cb, $file_count );
-							}
+				$size  = (int) $item->getSize();
+				$mtime = (int) $item->getMTime();
+
+				if ( strlen( $rel_path ) > 100 ) {
+					$pax_record = 'path=' . $rel_path . "\n";
+					$len        = strlen( $pax_record ) + 1;
+					for ( $k = 0; $k < 4; $k++ ) {
+						$total_len = $len + strlen( (string) $len );
+						if ( strlen( (string) $total_len ) === strlen( (string) $len ) ) {
+							$len = $total_len;
+							break;
 						}
+						$len = $total_len;
 					}
+					$pax_payload = $len . ' ' . $pax_record;
+					$write_all( self::build_tar_header( 'PaxHeader/' . substr( $basename, 0, 80 ), strlen( $pax_payload ), $mtime, 'x' ) );
+					$write_all( $pax_payload );
+					$rem = strlen( $pax_payload ) % 512;
+					if ( $rem > 0 ) {
+						$write_all( str_repeat( "\0", 512 - $rem ) );
+					}
+					$write_all( self::build_tar_header( substr( $rel_path, 0, 100 ), $size, $mtime, '0' ) );
+				} else {
+					$write_all( self::build_tar_header( $rel_path, $size, $mtime, '0' ) );
+				}
+
+				if ( $size > 0 ) {
+					$in = fopen( $full_path, 'rb' );
+					if ( ! $in ) {
+						throw new RuntimeException( sprintf( 'No se pudo leer el archivo: %s', $rel_path ) );
+					}
+					$copied = 0;
+					try {
+						while ( ! feof( $in ) && $copied < $size ) {
+							$chunk = fread( $in, min( 65536, $size - $copied ) );
+							if ( $chunk === false || $chunk === '' ) {
+								break;
+							}
+							$write_all( $chunk );
+							$copied += strlen( $chunk );
+						}
+					} finally {
+						fclose( $in );
+					}
+					if ( $copied < $size ) {
+						$write_all( str_repeat( "\0", $size - $copied ) );
+					}
+					$rem = $size % 512;
+					if ( $rem > 0 ) {
+						$write_all( str_repeat( "\0", 512 - $rem ) );
+					}
+				}
+
+				$file_count++;
+				if ( $file_count % 500 === 0 ) {
+					self::check_cancelled();
+				}
+				if ( is_callable( $progress_cb ) && ( $file_count % 1000 === 0 ) ) {
+					call_user_func( $progress_cb, $file_count, $bytes_written );
 				}
 			}
 
-			if ( $file_count === 0 ) {
-				$zip->addFromString( '.empty', '' );
-			}
-
-			if ( ! $zip->close() ) {
-				throw new RuntimeException(
-					sprintf( 'Error finalizando archivo ZIP de media: %s', $zip->getStatusString() )
-				);
-			}
-			$closed_cleanly = true;
+			// End-of-archive marker: two 512-byte zero blocks.
+			$write_all( str_repeat( "\0", 1024 ) );
 		} finally {
-			if ( ! $closed_cleanly ) {
-				@$zip->close();
-			}
+			fclose( $tar );
 		}
 
-		clearstatcache( true, $dest_zip_path );
-		$size = filesize( $dest_zip_path );
-		if ( $size === false || $size <= 0 ) {
-			throw new RuntimeException( __( 'El archivo ZIP de media resultó vacío.', 'alminuto-theme' ) );
+		clearstatcache( true, $dest_tar_path );
+		$final_size = filesize( $dest_tar_path );
+		if ( $final_size === false || $final_size <= 0 ) {
+			throw new RuntimeException( __( 'El archivo TAR de media resultó vacío.', 'alminuto-theme' ) );
 		}
-		return $size;
+		return $final_size;
+	}
+
+	/**
+	 * Builds a 512-byte USTAR TAR header block.
+	 *
+	 * @param string $name     Entry name (<= 100 bytes).
+	 * @param int    $size     File size in bytes.
+	 * @param int    $mtime    Modification timestamp.
+	 * @param string $typeflag '0' for regular file, 'x' for PAX extended header.
+	 * @return string 512-byte header.
+	 */
+	private static function build_tar_header( $name, $size, $mtime, $typeflag = '0' ) {
+		$header = pack(
+			'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+			$name,
+			sprintf( '%07o', 0644 ),
+			sprintf( '%07o', 0 ),
+			sprintf( '%07o', 0 ),
+			sprintf( '%011o', $size ),
+			sprintf( '%011o', $mtime ),
+			'        ',
+			$typeflag,
+			'',
+			'ustar',
+			'00',
+			'',
+			'',
+			sprintf( '%07o', 0 ),
+			sprintf( '%07o', 0 ),
+			'',
+			''
+		);
+
+		$checksum = 0;
+		for ( $i = 0; $i < 512; $i++ ) {
+			$checksum += ord( $header[ $i ] );
+		}
+
+		return substr_replace( $header, sprintf( '%06o', $checksum ) . "\0 ", 148, 8 );
 	}
 
 	/**
@@ -581,6 +690,7 @@ class Alminuto_Backup_Engine {
 			];
 		}
 
+		delete_transient( self::CANCEL_TRANSIENT );
 		set_transient( self::LOCK_TRANSIENT, time(), 30 * MINUTE_IN_SECONDS );
 
 		if ( function_exists( 'set_time_limit' ) ) {
@@ -708,6 +818,7 @@ class Alminuto_Backup_Engine {
 				}
 			}
 			delete_transient( self::LOCK_TRANSIENT );
+			delete_transient( self::CANCEL_TRANSIENT );
 		}
 	}
 
@@ -782,19 +893,23 @@ class Alminuto_Backup_Engine {
 	}
 
 	/**
-	 * Extracts a media ZIP archive into wp-content/uploads safely.
+	 * Extracts a media TAR or ZIP archive into wp-content/uploads safely.
 	 *
-	 * @param string $zip_path Path to the media ZIP file.
+	 * @param string $archive_path Path to the media .tar or .zip file.
 	 * @return int Number of extracted files.
-	 * @throws RuntimeException If ZipArchive fails.
+	 * @throws RuntimeException If extraction fails.
 	 */
-	public static function restore_media( $zip_path ) {
+	public static function restore_media( $archive_path ) {
+		if ( substr( strtolower( $archive_path ), -4 ) === '.tar' ) {
+			return self::restore_tar_media( $archive_path );
+		}
+
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			throw new RuntimeException( __( 'La extensión PHP ZipArchive no está disponible en el servidor.', 'alminuto-theme' ) );
 		}
 
 		$zip = new ZipArchive();
-		if ( $zip->open( $zip_path ) !== true ) {
+		if ( $zip->open( $archive_path ) !== true ) {
 			throw new RuntimeException( __( 'No se pudo abrir el archivo ZIP de media para restaurar.', 'alminuto-theme' ) );
 		}
 
@@ -841,6 +956,118 @@ class Alminuto_Backup_Engine {
 			}
 		} finally {
 			$zip->close();
+		}
+
+		return $extracted;
+	}
+
+	/**
+	 * Stream-extracts a USTAR/PAX TAR archive into wp-content/uploads safely.
+	 *
+	 * @param string $tar_path Path to the .tar archive.
+	 * @return int Number of extracted files.
+	 * @throws RuntimeException On read error.
+	 */
+	private static function restore_tar_media( $tar_path ) {
+		$tar = fopen( $tar_path, 'rb' );
+		if ( ! $tar ) {
+			throw new RuntimeException( __( 'No se pudo abrir el archivo TAR de media.', 'alminuto-theme' ) );
+		}
+
+		$upload        = wp_upload_dir();
+		$base_dir      = wp_normalize_path( untrailingslashit( (string) $upload['basedir'] ) );
+		$excluded_dirs = [ 'alminuto-backups', 'alminuto-csp-reports' ];
+		$extracted     = 0;
+		$pax_path      = null;
+
+		try {
+			while ( ! feof( $tar ) ) {
+				$header = fread( $tar, 512 );
+				if ( $header === false || strlen( $header ) < 512 ) {
+					break;
+				}
+				if ( trim( $header, "\0" ) === '' ) {
+					break;
+				}
+
+				$name     = rtrim( substr( $header, 0, 100 ), "\0" );
+				$size     = octdec( trim( substr( $header, 124, 12 ), "\0 " ) );
+				$typeflag = substr( $header, 156, 1 );
+				$prefix   = rtrim( substr( $header, 345, 155 ), "\0" );
+				if ( $prefix !== '' ) {
+					$name = $prefix . '/' . $name;
+				}
+
+				if ( $typeflag === 'x' ) {
+					$pax_data = $size > 0 ? fread( $tar, $size ) : '';
+					$rem      = $size % 512;
+					if ( $rem > 0 ) {
+						fread( $tar, 512 - $rem );
+					}
+					if ( is_string( $pax_data ) && preg_match( '/^\d+ path=(.+)$/m', $pax_data, $m ) ) {
+						$pax_path = trim( $m[1] );
+					}
+					continue;
+				}
+
+				$entry_name = $pax_path !== null ? $pax_path : $name;
+				$pax_path   = null;
+				$norm       = wp_normalize_path( ltrim( $entry_name, '/' ) );
+				$skip       = $norm === ''
+					|| strpos( $norm, '../' ) !== false
+					|| strpos( $norm, '..\\' ) !== false
+					|| $norm === '..'
+					|| in_array( strtok( $norm, '/' ), $excluded_dirs, true );
+
+				if ( $typeflag === '5' ) {
+					if ( ! $skip ) {
+						wp_mkdir_p( $base_dir . '/' . $norm );
+					}
+					continue;
+				}
+
+				if ( $typeflag !== '0' && $typeflag !== '' && $typeflag !== "\0" ) {
+					if ( $size > 0 ) {
+						$blocks = (int) ceil( $size / 512 );
+						fseek( $tar, $blocks * 512, SEEK_CUR );
+					}
+					continue;
+				}
+
+				if ( $skip ) {
+					if ( $size > 0 ) {
+						$blocks = (int) ceil( $size / 512 );
+						fseek( $tar, $blocks * 512, SEEK_CUR );
+					}
+					continue;
+				}
+
+				$dest = $base_dir . '/' . $norm;
+				wp_mkdir_p( dirname( $dest ) );
+				$out = fopen( $dest, 'wb' );
+				$rem_bytes = $size;
+				while ( $rem_bytes > 0 ) {
+					$chunk = fread( $tar, min( 65536, $rem_bytes ) );
+					if ( $chunk === false || $chunk === '' ) {
+						break;
+					}
+					if ( $out ) {
+						fwrite( $out, $chunk );
+					}
+					$rem_bytes -= strlen( $chunk );
+				}
+				if ( $out ) {
+					fclose( $out );
+					$extracted++;
+				}
+
+				$pad = $size % 512;
+				if ( $pad > 0 ) {
+					fread( $tar, 512 - $pad );
+				}
+			}
+		} finally {
+			fclose( $tar );
 		}
 
 		return $extracted;

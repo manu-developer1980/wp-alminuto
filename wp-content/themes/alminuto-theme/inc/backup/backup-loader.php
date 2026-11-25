@@ -267,6 +267,19 @@ function alminuto_backup_ajax_restore() {
 add_action( 'wp_ajax_alminuto_backup_restore', 'alminuto_backup_ajax_restore' );
 
 /**
+ * AJAX: Cancels an active backup and clears any stale lock.
+ */
+function alminuto_backup_ajax_cancel() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => __( 'Permisos insuficientes.', 'alminuto-theme' ) ], 403 );
+	}
+	check_ajax_referer( 'alminuto_backup_ajax', 'nonce' );
+
+	wp_send_json_success( Alminuto_Backup_Engine::request_cancel() );
+}
+add_action( 'wp_ajax_alminuto_backup_cancel', 'alminuto_backup_ajax_cancel' );
+
+/**
  * Renders the Copias de seguridad admin page.
  */
 function alminuto_theme_render_backups_page() {

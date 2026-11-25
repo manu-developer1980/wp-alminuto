@@ -36,6 +36,7 @@
 	var liveBar = document.getElementById("am-live-bar");
 	var liveLogs = document.getElementById("am-live-logs");
 	var runBtn = document.getElementById("am-backup-run-btn");
+	var cancelBtn = document.getElementById("am-backup-cancel-btn");
 	var pollTimer = null;
 
 	function updateLiveUI(data) {
@@ -163,6 +164,35 @@
 
 		setTimeout(startPolling, 600);
 	});
+
+	if (cancelBtn) {
+		cancelBtn.addEventListener("click", function () {
+			if (!payload.ajaxUrl || !payload.ajaxNonce || !window.fetch) return;
+			if (!window.confirm("¿Cancelar la copia actual y liberar el bloqueo?")) return;
+			cancelBtn.disabled = true;
+			cancelBtn.textContent = "Cancelando...";
+
+			var body = new FormData();
+			body.append("action", "alminuto_backup_cancel");
+			body.append("nonce", payload.ajaxNonce);
+
+			fetch(payload.ajaxUrl, {
+				method: "POST",
+				credentials: "same-origin",
+				body: body,
+			})
+				.then(function (res) { return res.json(); })
+				.then(function (json) {
+					if (json && json.success && json.data) {
+						updateLiveUI(json.data);
+					}
+					stopPollingAndReload();
+				})
+				.catch(function () {
+					stopPollingAndReload();
+				});
+		});
+	}
 
 	// Visual monthly calendar
 	var calGrid = document.getElementById("am-cal-grid");
