@@ -7,8 +7,8 @@
   var CONSENT_DAYS = Number(cfg.consentDays || 365);
   var ENABLE_CONSENT_MODE = !!cfg.enableConsentMode;
 
-  var banner = document.getElementById('am-cookie-banner');
-  var modal = document.getElementById('am-cookies-modal');
+  var banner = null;
+  var modal = null;
   var executedTemplates = {};
 
   function getCookie(name) {
@@ -297,6 +297,8 @@
   }
 
   function init() {
+    banner = document.getElementById('am-cookie-banner');
+    modal = document.getElementById('am-cookies-modal');
     setupDialogFallbacks();
     bindEvents();
 

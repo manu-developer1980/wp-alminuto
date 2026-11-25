@@ -414,7 +414,7 @@ function alminuto_cookies_render_frontend_ui() {
 		echo '<template id="am-cookie-tpl-marketing" data-am-cookie-category="marketing">' . $settings['scripts_marketing'] . '</template>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }
-add_action( 'wp_footer', 'alminuto_cookies_render_frontend_ui', 90 );
+add_action( 'wp_footer', 'alminuto_cookies_render_frontend_ui', 5 );
 
 /**
  * Shortcode [alminuto_cookie_settings] to render a button that opens the cookie preferences modal.
