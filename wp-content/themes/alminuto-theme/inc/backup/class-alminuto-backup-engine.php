@@ -220,10 +220,15 @@ class Alminuto_Backup_Engine {
 				$media_path   = $temp_dir . '/' . $media_name;
 				$temp_files[] = $media_path;
 
-				$live_phase = __( 'Empaquetando carpeta de medios (uploads)...', 'alminuto-theme' );
-				$live_pct   = 50;
+				$live_phase     = __( 'Empaquetando carpeta de medios (uploads)...', 'alminuto-theme' );
+				$live_pct       = 50;
 				$log_cb( 'Empaquetando carpeta de medios (uploads)...' );
-				$media_bytes = self::export_media( $media_path );
+				$pack_progress = static function ( $count ) use ( &$live_phase, &$live_pct, $sync_live ) {
+					$live_phase = sprintf( 'Empaquetando media (%d archivos)...', (int) $count );
+					$live_pct   = min( 64, 50 + (int) floor( $count / 1000 ) );
+					$sync_live( true );
+				};
+				$media_bytes = self::export_media( $media_path, $pack_progress );
 				$live_pct    = 65;
 				$log_cb( sprintf( 'Media empaquetada (%s).', size_format( $media_bytes ) ) );
 
@@ -430,11 +435,16 @@ class Alminuto_Backup_Engine {
 	/**
 	 * Packages wp-content/uploads into a ZIP archive, excluding backup & CSP temp folders.
 	 *
-	 * @param string $dest_zip_path Destination ZIP file path.
+	 * Flushes the ZipArchive every 400 files to avoid OS open-file-descriptor limits
+	 * (ulimit -n) on large media libraries, and stores already-compressed media without
+	 * re-deflating for speed.
+	 *
+	 * @param string        $dest_zip_path Destination ZIP file path.
+	 * @param callable|null $progress_cb   Optional callback( int $file_count ).
 	 * @return int Final ZIP file size in bytes.
 	 * @throws RuntimeException If ZipArchive is unavailable or fails.
 	 */
-	public static function export_media( $dest_zip_path ) {
+	public static function export_media( $dest_zip_path, $progress_cb = null ) {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			throw new RuntimeException( __( 'La extensión PHP ZipArchive no está disponible en el servidor.', 'alminuto-theme' ) );
 		}
@@ -447,12 +457,19 @@ class Alminuto_Backup_Engine {
 
 		$zip = new ZipArchive();
 		if ( $zip->open( $dest_zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE ) !== true ) {
-			throw new RuntimeException( __( 'No se pudo crear el archivo ZIP de media.', 'alminuto-theme' ) );
+			throw new RuntimeException(
+				sprintf( 'No se pudo crear el archivo ZIP de media: %s', $zip->getStatusString() )
+			);
 		}
 
-		$excluded_dirs = [ 'alminuto-backups', 'alminuto-csp-reports' ];
-		$base_len      = strlen( $base_dir ) + 1;
-		$file_count    = 0;
+		$excluded_dirs  = [ 'alminuto-backups', 'alminuto-csp-reports' ];
+		$store_exts     = [ 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'mp4', 'mov', 'm4v', 'mp3', 'ogg', 'pdf', 'zip', 'gz' ];
+		$can_set_comp   = method_exists( $zip, 'setCompressionName' ) && defined( 'ZipArchive::CM_STORE' );
+		$base_len       = strlen( $base_dir ) + 1;
+		$file_count     = 0;
+		$batch_count    = 0;
+		$batch_limit    = 400;
+		$closed_cleanly = false;
 
 		try {
 			$iterator = new RecursiveIteratorIterator(
@@ -480,16 +497,50 @@ class Alminuto_Backup_Engine {
 				if ( $item->isDir() ) {
 					$zip->addEmptyDir( $rel_path );
 				} elseif ( $item->isFile() && $item->isReadable() ) {
-					$zip->addFile( $full_path, $rel_path );
-					$file_count++;
+					if ( $zip->addFile( $full_path, $rel_path ) ) {
+						if ( $can_set_comp ) {
+							$ext = strtolower( pathinfo( $basename, PATHINFO_EXTENSION ) );
+							if ( in_array( $ext, $store_exts, true ) ) {
+								$zip->setCompressionName( $rel_path, ZipArchive::CM_STORE );
+							}
+						}
+						$file_count++;
+						$batch_count++;
+
+						if ( $batch_count >= $batch_limit ) {
+							if ( ! $zip->close() ) {
+								throw new RuntimeException(
+									sprintf( 'Error cerrando lote ZIP (%d archivos): %s', $file_count, $zip->getStatusString() )
+								);
+							}
+							if ( $zip->open( $dest_zip_path, ZipArchive::CREATE ) !== true ) {
+								throw new RuntimeException(
+									sprintf( 'Error reabriendo ZIP (%d archivos): %s', $file_count, $zip->getStatusString() )
+								);
+							}
+							$batch_count = 0;
+							if ( is_callable( $progress_cb ) ) {
+								call_user_func( $progress_cb, $file_count );
+							}
+						}
+					}
 				}
 			}
 
 			if ( $file_count === 0 ) {
 				$zip->addFromString( '.empty', '' );
 			}
+
+			if ( ! $zip->close() ) {
+				throw new RuntimeException(
+					sprintf( 'Error finalizando archivo ZIP de media: %s', $zip->getStatusString() )
+				);
+			}
+			$closed_cleanly = true;
 		} finally {
-			$zip->close();
+			if ( ! $closed_cleanly ) {
+				@$zip->close();
+			}
 		}
 
 		clearstatcache( true, $dest_zip_path );
