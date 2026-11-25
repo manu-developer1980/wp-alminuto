@@ -679,6 +679,8 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once __DIR__ . '/tools/cleanup-old-posts.php';
 }
 
+require_once __DIR__ . '/inc/backup/backup-loader.php';
+
 function alminuto_theme_enqueue_assets() {
 	$css_path = get_stylesheet_directory() . '/style.css';
 	$version  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '0.1.0';
@@ -1330,6 +1332,14 @@ function alminuto_theme_admin_menu() {
 		'alminuto-cleanup',
 		'alminuto_theme_render_cleanup_page'
 	);
+	add_submenu_page(
+		'alminuto-theme-panel',
+		'Copias de seguridad',
+		'Copias de seguridad',
+		'manage_options',
+		'alminuto-backups',
+		'alminuto_theme_render_backups_page'
+	);
 }
 add_action( 'admin_menu', 'alminuto_theme_admin_menu' );
 
@@ -1401,6 +1411,19 @@ function alminuto_theme_render_cleanup_page() {
 }
 
 function alminuto_theme_admin_enqueue( $hook_suffix ) {
+	if ( strpos( (string) $hook_suffix, 'alminuto-backups' ) !== false ) {
+		$backup_js_path = get_template_directory() . '/assets/js/backup-admin.js';
+		$backup_js_ver  = file_exists( $backup_js_path ) ? (string) filemtime( $backup_js_path ) : false;
+		wp_enqueue_script(
+			'alminuto-theme-backup-admin',
+			get_template_directory_uri() . '/assets/js/backup-admin.js',
+			[],
+			$backup_js_ver,
+			true
+		);
+		return;
+	}
+
 	if ( $hook_suffix !== 'toplevel_page_alminuto-theme-panel' ) {
 		return;
 	}
