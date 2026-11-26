@@ -171,28 +171,38 @@ class Alminuto_Backup_GDrive {
 		}
 		self::save_settings( $update );
 
-		$info = self::fetch_user_email( $update['access_token'] );
+		$prev_email = (string) ( $settings['connected_email'] ?? '' );
+		$info       = self::fetch_user_email( $update['access_token'] );
 		if ( is_string( $info ) && $info !== '' ) {
-			self::save_settings( [ 'connected_email' => $info ] );
+			$extra = [ 'connected_email' => $info ];
+			if ( $prev_email !== '' && strcasecmp( $prev_email, $info ) !== 0 ) {
+				$extra['folder_id'] = '';
+				delete_option( Alminuto_Backup_Engine::HISTORY_OPTION );
+				delete_option( Alminuto_Backup_Engine::LAST_OPTION );
+			}
+			self::save_settings( $extra );
 		}
 
 		return $update;
 	}
 
 	/**
-	 * Disconnects Google Drive by clearing tokens.
+	 * Disconnects Google Drive by clearing tokens, folder cache, and synced history.
 	 *
 	 * @return void
 	 */
 	public static function disconnect() {
 		self::save_settings(
 			[
+				'folder_id'       => '',
 				'access_token'    => '',
 				'refresh_token'   => '',
 				'expires_at'      => 0,
 				'connected_email' => '',
 			]
 		);
+		delete_option( Alminuto_Backup_Engine::HISTORY_OPTION );
+		delete_option( Alminuto_Backup_Engine::LAST_OPTION );
 	}
 
 	/**

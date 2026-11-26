@@ -818,20 +818,30 @@ class Alminuto_Backup_Engine {
 			return $remote;
 		}
 
-		$local = self::get_history();
-		$by_id = [];
+		$local       = self::get_history();
+		$local_by_id = [];
+		$by_id       = [];
+
 		foreach ( $local as $entry ) {
-			if ( ! empty( $entry['backup_id'] ) ) {
-				$by_id[ (string) $entry['backup_id'] ] = $entry;
+			if ( empty( $entry['backup_id'] ) ) {
+				continue;
+			}
+			$bid                 = (string) $entry['backup_id'];
+			$local_by_id[ $bid ] = $entry;
+			// Preserve local failed runs for diagnostics; remote-backed runs are reconciled below.
+			if ( ( $entry['status'] ?? '' ) === 'error' ) {
+				$by_id[ $bid ] = $entry;
 			}
 		}
 
 		foreach ( $remote as $rem ) {
 			$bid = (string) $rem['backup_id'];
-			if ( ! isset( $by_id[ $bid ] ) ) {
+			if ( isset( $local_by_id[ $bid ] ) && ( $local_by_id[ $bid ]['status'] ?? '' ) === 'success' ) {
+				$merged_entry          = $local_by_id[ $bid ];
+				$merged_entry['files'] = $rem['files'];
+				$by_id[ $bid ]         = $merged_entry;
+			} else {
 				$by_id[ $bid ] = $rem;
-			} elseif ( empty( $by_id[ $bid ]['files'] ) && ! empty( $rem['files'] ) ) {
-				$by_id[ $bid ]['files'] = $rem['files'];
 			}
 		}
 
@@ -846,10 +856,9 @@ class Alminuto_Backup_Engine {
 		update_option( self::HISTORY_OPTION, $merged, false );
 
 		if ( ! empty( $merged ) ) {
-			$last = self::get_last_backup();
-			if ( ! $last || (int) ( $merged[0]['started_at'] ?? 0 ) > (int) ( $last['started_at'] ?? 0 ) ) {
-				update_option( self::LAST_OPTION, $merged[0], false );
-			}
+			update_option( self::LAST_OPTION, $merged[0], false );
+		} else {
+			delete_option( self::LAST_OPTION );
 		}
 
 		return count( $remote );
